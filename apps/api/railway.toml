@@ -1,0 +1,22 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "bun src/index.ts"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[nixpacks]
+aptPkgs = [
+  "chromium",
+  "fonts-liberation",
+  "libnss3",
+  "libatk-bridge2.0-0",
+  "libdrm2",
+  "libxkbcommon0",
+  "libgbm1"
+]
+
+[nixpacks.variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"

@@ -1,0 +1,21 @@
+{
+  "name": "@wavi/shared",
+  "version": "1.0.0",
+  "private": true,
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build":     "bun build src/index.ts --outdir dist --target bun --format esm && bun x tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev":       "bun build src/index.ts --outdir dist --target bun --format esm --watch",
+    "typecheck": "bun x tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

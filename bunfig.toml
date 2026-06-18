@@ -1,0 +1,6 @@
+[install]
+# Use exact versions to avoid surprises
+exact = false
+
+[install.scopes]
+# workspace packages
