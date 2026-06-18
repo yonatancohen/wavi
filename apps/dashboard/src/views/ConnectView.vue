@@ -39,13 +39,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { apiFetch } from '../lib/api'
+
+type AgentStatus = { connected: boolean; phone_number: string | null }
 
 const qrDataUrl  = ref<string | null>(null)
 const connected  = ref(false)
 const phoneNumber = ref<string | null>(null)
 let eventSource: EventSource | null = null
 
-onMounted(() => {
+function setConnected(status: AgentStatus) {
+  connected.value = true
+  phoneNumber.value = status.phone_number
+  qrDataUrl.value = null
+  eventSource?.close()
+  eventSource = null
+}
+
+function startQrStream() {
   const API = import.meta.env.VITE_API_URL ?? '/api'
   eventSource = new EventSource(`${API}/agent/qr`)
 
@@ -54,27 +65,27 @@ onMounted(() => {
     if (msg.type === 'qr') {
       qrDataUrl.value = msg.data
     } else if (msg.type === 'authenticated') {
-      connected.value = true
-      qrDataUrl.value = null
-      eventSource?.close()
-      // Fetch phone number
-      fetch(`${API}/agent/status`)
-        .then(r => r.json())
-        .then(s => { phoneNumber.value = s.phone_number })
+      apiFetch<AgentStatus>('/agent/status').then(setConnected).catch(() => setConnected({ connected: true, phone_number: null }))
     }
   }
 
   eventSource.onerror = () => {
-    // Check if already connected
-    fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/agent/status`)
-      .then(r => r.json())
-      .then(s => {
-        if (s.connected) {
-          connected.value = true
-          phoneNumber.value = s.phone_number
-        }
-      })
+    apiFetch<AgentStatus>('/agent/status')
+      .then(s => { if (s.connected) setConnected(s) })
+      .catch(() => {})
   }
+}
+
+onMounted(async () => {
+  try {
+    const status = await apiFetch<AgentStatus>('/agent/status')
+    if (status.connected) {
+      setConnected(status)
+      return
+    }
+  } catch {}
+
+  startQrStream()
 })
 
 onUnmounted(() => eventSource?.close())

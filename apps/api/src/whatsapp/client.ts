@@ -11,6 +11,18 @@ const qrSubscribers = new Set<SSEClient>()
 
 export function subscribeToQR(client: SSEClient) {
   qrSubscribers.add(client)
+
+  // Already connected — no QR will be emitted; notify subscriber immediately
+  waClient.getState()
+    .then((state) => {
+      if (state === 'CONNECTED') {
+        client.send(JSON.stringify({ type: 'authenticated' }))
+        client.close()
+        qrSubscribers.delete(client)
+      }
+    })
+    .catch(() => {})
+
   return () => qrSubscribers.delete(client)
 }
 

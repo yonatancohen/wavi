@@ -8,26 +8,29 @@
     "packages/*"
   ],
   "scripts": {
-    "dev":                   "bash scripts/dev.sh",
-    "dev:api":               "bash scripts/dev.sh api",
-    "dev:dashboard":         "bash scripts/dev.sh dashboard",
-    "setup":                 "bash scripts/setup.sh",
-    "db:setup":              "bash scripts/db-setup.sh",
-    "db:reset":              "bash scripts/db-reset.sh",
-    "deploy":                "bash scripts/deploy.sh",
-    "deploy:prod":           "bash scripts/deploy.sh --prod",
-    "deploy:dashboard":      "bash scripts/deploy-dashboard.sh",
+    "dev": "bash scripts/dev.sh",
+    "dev:api": "bash scripts/dev.sh api",
+    "dev:dashboard": "bash scripts/dev.sh dashboard",
+    "setup": "bash scripts/setup.sh",
+    "db:setup": "bash scripts/db-setup.sh",
+    "db:reset": "bash scripts/db-reset.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:prod": "bash scripts/deploy.sh --prod",
+    "deploy:dashboard": "bash scripts/deploy-dashboard.sh",
     "deploy:dashboard:prod": "bash scripts/deploy-dashboard.sh --prod",
-    "deploy:api":            "bash scripts/deploy-api.sh",
-    "deploy:env":            "bash scripts/deploy-api.sh --env",
-    "health":                "bash scripts/health.sh",
-    "health:prod":           "bash scripts/health.sh --prod",
-    "logs":                  "bash scripts/logs.sh",
-    "test:parser":           "bun scripts/test-parser.mjs",
-    "build":                 "bun run --filter '*' build",
-    "typecheck":             "bun run --filter '*' typecheck"
+    "deploy:api": "bash scripts/deploy-api.sh",
+    "deploy:env": "bash scripts/deploy-api.sh --env",
+    "health": "bash scripts/health.sh",
+    "health:prod": "bash scripts/health.sh --prod",
+    "logs": "bash scripts/logs.sh",
+    "test:parser": "bun scripts/test-parser.mjs",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck"
   },
   "engines": {
     "bun": ">=1.1.0"
+  },
+  "dependencies": {
+    "twilio": "^6.0.2"
   }
 }

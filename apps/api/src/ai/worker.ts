@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js'
-import { sendReply } from '../whatsapp/client.js'
+import { sendReply } from '../twilio/client.js'
 import { detectNegativeReaction, generateApology } from './recovery.js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

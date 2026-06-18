@@ -5,6 +5,11 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /api/agent/qr — SSE stream for QR code ───────────────
   fastify.get('/qr', async (req, reply) => {
+    // Raw SSE bypasses @fastify/cors — set headers manually for EventSource
+    const origin = process.env.DASHBOARD_URL ?? 'http://localhost:5173'
+    reply.hijack()
+    reply.raw.setHeader('Access-Control-Allow-Origin', origin)
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true')
     reply.raw.setHeader('Content-Type', 'text/event-stream')
     reply.raw.setHeader('Cache-Control', 'no-cache')
     reply.raw.setHeader('Connection', 'keep-alive')

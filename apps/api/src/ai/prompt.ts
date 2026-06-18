@@ -115,8 +115,8 @@ async function fetchRAGContext(groupId: string, query: string) {
 
 export function buildSystemPrompt(ctx: PromptContext): string {
   const { character_config: c, language_mode } = ctx
-  if (!c) {
-    return `You are ${process.env.WA_AGENT_NAME ?? 'Wavi'}, a helpful AI assistant in a WhatsApp group.`
+  if (!c || !c.sliders || !c.opinions || !c.voice) {
+    return `You are ${process.env.WA_AGENT_NAME ?? 'Wavi'}, a helpful and friendly AI assistant. Reply naturally and concisely.`
   }
 
   const sliders = c.sliders
