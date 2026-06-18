@@ -135,6 +135,35 @@ function scheduleReconnect() {
 
 // ── Send helpers ──────────────────────────────────────────────
 
+export async function listGroupChats() {
+  const state = await waClient.getState().catch(() => null)
+  if (state !== 'CONNECTED') {
+    throw new Error('WhatsApp is not connected. Link your account first.')
+  }
+
+  const chats = await waClient.getChats()
+  return chats
+    .filter((chat) => chat.isGroup)
+    .map((chat) => {
+      const participants = (chat as { participants?: unknown[] }).participants
+      return {
+        wa_group_id: chat.id._serialized,
+        name: chat.name ?? 'Unnamed group',
+        participant_count: Array.isArray(participants) ? participants.length : null,
+        last_activity: chat.timestamp
+          ? new Date(chat.timestamp * 1000).toISOString()
+          : null,
+      }
+    })
+}
+
+export function startWhatsAppClient() {
+  console.log('[WA] Initializing client...')
+  waClient.initialize().catch((err) => {
+    console.error('[WA] Initial connection failed', err)
+  })
+}
+
 export async function sendReply(
   waGroupId: string,
   replyBody: string,

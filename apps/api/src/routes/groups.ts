@@ -1,5 +1,26 @@
 import type { FastifyPluginAsync } from 'fastify'
+import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats } from '@wavi/shared'
 import { db } from '../db/client.js'
+import { listGroupChats } from '../whatsapp/client.js'
+
+function getAgentId(): string {
+  const id = process.env.AGENT_ID
+  if (!id) throw new Error('AGENT_ID not configured')
+  return id
+}
+
+function mapGroupRow(row: Record<string, unknown>): GroupWithStats {
+  const msgCount = row.message_count_today as { count: number }[] | undefined
+  const replyCount = row.reply_count_today as { count: number }[] | undefined
+  const { message_count_today: _m, reply_count_today: _r, ...rest } = row
+  return {
+    ...(rest as unknown as Group),
+    member_count: 0,
+    message_count_today: msgCount?.[0]?.count ?? 0,
+    reply_count_today: replyCount?.[0]?.count ?? 0,
+    last_activity: null,
+  }
+}
 
 // ── Groups route ─────────────────────────────────────────────
 export const groupsRoute: FastifyPluginAsync = async (fastify) => {
@@ -12,8 +33,82 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         message_count_today:messages(count),
         reply_count_today:replies(count)
       `)
+      .eq('agent_id', getAgentId())
+      .order('created_at', { ascending: false })
       .throwOnError()
-    return data
+    return (data ?? []).map(mapGroupRow)
+  })
+
+  // Must be registered before /:id
+  fastify.get('/discover', async (_req, reply) => {
+    try {
+      const waGroups = await listGroupChats()
+      const { data: registered } = await db
+        .from('groups')
+        .select('id, wa_group_id, status')
+        .eq('agent_id', getAgentId())
+        .throwOnError()
+
+      const regMap = new Map(
+        (registered ?? []).map((r) => [r.wa_group_id, r]),
+      )
+
+      const result: DiscoveredWaGroup[] = waGroups.map((g) => {
+        const existing = regMap.get(g.wa_group_id)
+        return {
+          wa_group_id: g.wa_group_id,
+          name: g.name,
+          participant_count: g.participant_count,
+          last_activity: g.last_activity,
+          registered: !!existing,
+          group_id: existing?.id ?? null,
+          status: existing?.status ?? null,
+        }
+      })
+
+      return result.sort((a, b) => {
+        if (a.registered !== b.registered) return a.registered ? 1 : -1
+        return a.name.localeCompare(b.name)
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WhatsApp not connected'
+      return reply.code(503).send({ error: message })
+    }
+  })
+
+  fastify.post<{ Body: CreateGroupRequest }>('/', async (req, reply) => {
+    const { wa_group_id, name } = req.body ?? {}
+
+    if (!wa_group_id?.trim()) {
+      return reply.code(400).send({ error: 'wa_group_id is required' })
+    }
+
+    const { data: existing } = await db
+      .from('groups')
+      .select('id')
+      .eq('wa_group_id', wa_group_id.trim())
+      .maybeSingle()
+
+    if (existing) {
+      return reply.code(409).send({ error: 'This group is already registered' })
+    }
+
+    const { data, error } = await db
+      .from('groups')
+      .insert({
+        agent_id: getAgentId(),
+        wa_group_id: wa_group_id.trim(),
+        name: name?.trim() || 'Unnamed group',
+        status: 'pending_setup',
+      })
+      .select()
+      .single()
+
+    if (error) {
+      return reply.code(500).send({ error: error.message })
+    }
+
+    return mapGroupRow(data)
   })
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req) => {
@@ -21,13 +116,14 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       .from('groups')
       .select('*')
       .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
       .single()
       .throwOnError()
-    return data
+    return mapGroupRow(data)
   })
 
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req) => {
-    const allowed = ['character_config', 'status', 'character_locked', 'language_mode']
+    const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'name']
     const update = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => allowed.includes(k)),
     )
@@ -35,10 +131,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       .from('groups')
       .update(update)
       .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
       .select()
       .single()
       .throwOnError()
-    return data
+    return mapGroupRow(data)
   })
 
   // Members

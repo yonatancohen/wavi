@@ -2,7 +2,6 @@ import Anthropic from '@anthropic-ai/sdk'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js'
-import { sendReply } from '../twilio/client.js'
 import { detectNegativeReaction, generateApology } from './recovery.js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -82,8 +81,8 @@ async function processReplyJob(job: {
 
     const latencyMs = Date.now() - startTime
 
-    // ── Send via WhatsApp ──────────────────────────────────
-    await sendReply(job.wa_group_id, replyText, job.wa_msg_id)
+    // ── Send via WhatsApp or Twilio ────────────────────────
+    await deliverReply(job.wa_group_id, replyText, job.wa_msg_id)
 
     // ── Store reply in DB ──────────────────────────────────
     await db.from('messages').insert({
@@ -144,7 +143,7 @@ export async function checkForNegativeReaction(params: {
 
   const apology = await generateApology(group?.character_config)
 
-  await sendReply(params.waGroupId, apology)
+  await deliverReply(params.waGroupId, apology)
 
   // Flag reply as miss
   for (const key of keys) {
@@ -157,4 +156,15 @@ export async function checkForNegativeReaction(params: {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function deliverReply(waDestination: string, body: string, quotedMsgId?: string) {
+  if (waDestination.endsWith('@g.us')) {
+    const { sendReply } = await import('../whatsapp/client.js')
+    await sendReply(waDestination, body, quotedMsgId || undefined)
+    return
+  }
+
+  const { sendReply } = await import('../twilio/client.js')
+  await sendReply(waDestination, body)
 }

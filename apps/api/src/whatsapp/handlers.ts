@@ -13,6 +13,8 @@ export async function handleIncomingMessage(msg: WAMessage) {
   if (!chat.isGroup) return
 
   const waGroupId = chat.id._serialized
+  console.log(`[WA] Group message received — wa_group_id: ${waGroupId} | name: ${chat.name}`)
+
   const senderWaId = msg.author ?? msg.from
   const senderName = (await msg.getContact()).pushname ?? senderWaId
   const body = msg.body

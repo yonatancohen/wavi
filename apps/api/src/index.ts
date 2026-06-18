@@ -9,6 +9,7 @@ import { repliesRoute } from './routes/replies.js'
 import { healthRoute } from './routes/health.js'
 import { twilioRoute } from './routes/twilio.js'
 import { startReplyWorker } from './ai/worker.js'
+import { startWhatsAppClient } from './whatsapp/client.js'
 
 const server = Fastify({
   logger: {
@@ -44,6 +45,10 @@ try {
   // Start reply worker in background
   startReplyWorker()
   server.log.info('Reply worker started')
+
+  // Start WhatsApp client
+  startWhatsAppClient()
+  server.log.info('WhatsApp client initializing')
 } catch (err) {
   server.log.error(err)
   process.exit(1)

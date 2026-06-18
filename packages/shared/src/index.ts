@@ -93,6 +93,21 @@ export interface GroupWithStats extends Group {
   last_activity: string | null
 }
 
+export interface CreateGroupRequest {
+  wa_group_id: string
+  name?: string
+}
+
+export interface DiscoveredWaGroup {
+  wa_group_id: string
+  name: string
+  participant_count: number | null
+  last_activity: string | null
+  registered: boolean
+  group_id: string | null
+  status: GroupStatus | null
+}
+
 // ── Messages ─────────────────────────────────────────────────
 
 export interface Message {
