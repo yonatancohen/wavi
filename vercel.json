@@ -9,12 +9,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "experimentalServices": {
-    "api": {
-      "root": "apps/api",
-      "entrypoint": "src/index.ts",
-      "routePrefix": "/"
-    }
-  }
+  ]
 }
