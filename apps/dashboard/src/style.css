@@ -2,38 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Color palettes ─────────────────────────────────────────────── */
-/* Dark palette (default) */
-:root {
-  --color-background: #09090d;
-  --color-surface: #09090d;
-  --color-surface-dim: #06080a;
-  --color-surface-bright: #2a2f36;
-  --color-surface-container-lowest: #06080a;
-  --color-surface-container-low: #0e1115;
-  --color-surface-container: #13171b;
-  --color-surface-container-high: #1a1f24;
-  --color-surface-container-highest: #222830;
-  --color-surface-variant: #1e2428;
-  --color-on-surface: #e8ecef;
-  --color-on-surface-variant: #7e8f8c;
-  --color-on-background: #e8ecef;
-  --color-outline: #6b7c7a;
-  --color-outline-variant: #252c32;
-  --color-surface-tint: #3de273;
-  --color-primary: #4ff07f;
-  --color-on-primary: #003915;
-  --color-primary-container: #25d366;
-  --color-on-primary-container: #005523;
-  --color-secondary: #ffb693;
-  --color-on-secondary: #561f00;
-  --color-secondary-container: #fe6b00;
-  --color-on-secondary-container: #572000;
-  --color-tertiary: #cbd5df;
-  --color-on-tertiary: #283139;
-  --color-error: #ffb4ab;
-  --color-on-error: #690005;
-  --color-error-container: #93000a;
+/* ── Color palettes (RGB channels for Tailwind opacity support) ─── */
+:root,
+.dark {
+  --color-background: 9 9 13;
+  --color-surface: 9 9 13;
+  --color-surface-dim: 6 8 10;
+  --color-surface-bright: 42 47 54;
+  --color-surface-container-lowest: 6 8 10;
+  --color-surface-container-low: 14 17 21;
+  --color-surface-container: 19 23 27;
+  --color-surface-container-high: 26 31 36;
+  --color-surface-container-highest: 34 40 48;
+  --color-surface-variant: 30 36 40;
+  --color-on-surface: 232 236 239;
+  --color-on-surface-variant: 126 143 140;
+  --color-on-background: 232 236 239;
+  --color-outline: 107 124 122;
+  --color-outline-variant: 37 44 50;
+  --color-surface-tint: 61 226 115;
+  --color-primary: 79 240 127;
+  --color-on-primary: 0 57 21;
+  --color-primary-container: 37 211 102;
+  --color-on-primary-container: 0 85 35;
+  --color-secondary: 255 182 147;
+  --color-on-secondary: 86 31 0;
+  --color-secondary-container: 254 107 0;
+  --color-on-secondary-container: 87 32 0;
+  --color-tertiary: 203 213 223;
+  --color-on-tertiary: 40 49 57;
+  --color-error: 255 180 171;
+  --color-on-error: 105 0 5;
+  --color-error-container: 147 0 10;
 
   /* Component tokens */
   --glass-card-bg: rgba(19, 23, 27, 0.95);
@@ -44,37 +44,36 @@
   --nav-active-bar: #4ff07f;
 }
 
-/* Light palette */
 .light {
-  --color-background: #f4f6f5;
-  --color-surface: #f4f6f5;
-  --color-surface-dim: #e8eceb;
-  --color-surface-bright: #ffffff;
-  --color-surface-container-lowest: #edf0ef;
-  --color-surface-container-low: #f0f3f2;
-  --color-surface-container: #ffffff;
-  --color-surface-container-high: #f7f9f8;
-  --color-surface-container-highest: #eef1f0;
-  --color-surface-variant: #e8ecea;
-  --color-on-surface: #1a1f24;
-  --color-on-surface-variant: #4a5d5a;
-  --color-on-background: #1a1f24;
-  --color-outline: #7a908d;
-  --color-outline-variant: #e2e8e6;
-  --color-surface-tint: #1db954;
-  --color-primary: #1db954;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #25d366;
-  --color-on-primary-container: #003915;
-  --color-secondary: #c85000;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #fe6b00;
-  --color-on-secondary-container: #3a1500;
-  --color-tertiary: #4a5d6e;
-  --color-on-tertiary: #ffffff;
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
+  --color-background: 244 246 245;
+  --color-surface: 244 246 245;
+  --color-surface-dim: 232 236 235;
+  --color-surface-bright: 255 255 255;
+  --color-surface-container-lowest: 237 240 239;
+  --color-surface-container-low: 240 243 242;
+  --color-surface-container: 255 255 255;
+  --color-surface-container-high: 247 249 248;
+  --color-surface-container-highest: 238 241 240;
+  --color-surface-variant: 232 236 234;
+  --color-on-surface: 26 31 36;
+  --color-on-surface-variant: 74 93 90;
+  --color-on-background: 26 31 36;
+  --color-outline: 122 144 141;
+  --color-outline-variant: 226 232 230;
+  --color-surface-tint: 29 185 84;
+  --color-primary: 29 185 84;
+  --color-on-primary: 255 255 255;
+  --color-primary-container: 37 211 102;
+  --color-on-primary-container: 0 57 21;
+  --color-secondary: 200 80 0;
+  --color-on-secondary: 255 255 255;
+  --color-secondary-container: 254 107 0;
+  --color-on-secondary-container: 58 21 0;
+  --color-tertiary: 74 93 110;
+  --color-on-tertiary: 255 255 255;
+  --color-error: 186 26 26;
+  --color-on-error: 255 255 255;
+  --color-error-container: 255 218 214;
 
   /* Component tokens */
   --glass-card-bg: rgba(255, 255, 255, 0.92);
@@ -129,12 +128,12 @@
 
   .nav-item:hover {
     @apply text-on-surface;
-    background-color: color-mix(in srgb, var(--color-on-surface) 4%, transparent);
+    background-color: color-mix(in srgb, rgb(var(--color-on-surface)) 4%, transparent);
   }
 
   .nav-item.router-link-active {
     @apply text-on-surface;
-    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    background-color: color-mix(in srgb, rgb(var(--color-primary)) 8%, transparent);
   }
 
   .nav-item.router-link-active::before {
@@ -172,7 +171,7 @@
   }
 
   .btn-secondary:hover {
-    border-color: color-mix(in srgb, var(--color-on-surface) 20%, transparent);
+    border-color: color-mix(in srgb, rgb(var(--color-on-surface)) 20%, transparent);
   }
 
   /* ── Badge ───────────────────────────────────── */
@@ -196,7 +195,7 @@
   /* ── Log row (activity feed) ─────────────────── */
   .log-row {
     @apply flex items-start gap-3 py-3.5;
-    border-bottom: 1px solid color-mix(in srgb, var(--color-on-surface) 4%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, rgb(var(--color-on-surface)) 4%, transparent);
   }
 
   .log-row:last-child {
@@ -210,7 +209,7 @@
   /* ── Page header ─────────────────────────────── */
   .page-header {
     @apply sticky top-0 z-10 border-b border-outline-variant px-margin-mobile py-4;
-    background-color: color-mix(in srgb, var(--color-surface) 95%, transparent);
+    background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
     backdrop-filter: blur(8px);
   }
 
