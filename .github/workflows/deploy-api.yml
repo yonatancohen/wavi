@@ -8,6 +8,7 @@ on:
       - "packages/shared/**"
       - "Dockerfile"
       - "railway.toml"
+  workflow_dispatch:
 
 jobs:
   deploy:
