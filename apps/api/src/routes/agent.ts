@@ -34,12 +34,11 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /api/agent/status ────────────────────────────────────
   fastify.get('/status', async (_req, _reply) => {
-    // Use the locally-tracked state to avoid calling getState() which can
-    // hang while the WA client is still initialising after authentication.
-    const { connected, phone_number } = getWaConnectionState()
+    const { connected, connecting, phone_number } = getWaConnectionState()
     return {
       connected,
-      state:        connected ? 'CONNECTED' : 'DISCONNECTED',
+      connecting,
+      state: connected ? 'CONNECTED' : connecting ? 'CONNECTING' : 'DISCONNECTED',
       phone_number,
     }
   })

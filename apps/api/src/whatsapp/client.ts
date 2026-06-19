@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import pkg from 'whatsapp-web.js'
 const { Client, LocalAuth, MessageTypes } = pkg
 import qrcode from 'qrcode'
@@ -8,7 +9,9 @@ import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { handleIncomingMessage } from './handlers.js'
 
-const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? '.wwebjs_auth'
+const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth')
+const WA_CACHE_PATH = process.env.WA_CACHE_PATH ?? path.join(API_ROOT, '.wwebjs_cache')
 
 function getSessionUserDataDir() {
   return path.resolve(WA_DATA_PATH, 'session')
@@ -58,22 +61,77 @@ function removeStaleSingletonLocks(userDataDir: string) {
 // Track readiness locally so /api/agent/status never has to rely
 // on getState() (which can hang while the page is still initialising).
 let _waConnected = false
+let _waConnecting = false
 let _waPhoneNumber: string | null = null
+let readyFallbackTimer: ReturnType<typeof setInterval> | null = null
 
 export function getWaConnectionState() {
-  return { connected: _waConnected, phone_number: _waPhoneNumber }
+  return {
+    connected: _waConnected,
+    connecting: _waConnecting,
+    phone_number: _waPhoneNumber,
+  }
+}
+
+function clearReadyFallback() {
+  if (readyFallbackTimer) {
+    clearInterval(readyFallbackTimer)
+    readyFallbackTimer = null
+  }
+}
+
+function startReadyFallback() {
+  clearReadyFallback()
+  let attempts = 0
+  readyFallbackTimer = setInterval(async () => {
+    if (_waConnected) {
+      clearReadyFallback()
+      return
+    }
+    attempts++
+    if (attempts > 40) {
+      clearReadyFallback()
+      console.warn('[WA] Ready fallback timed out after authenticated')
+      _waConnecting = false
+      return
+    }
+    try {
+      const state = await Promise.race([
+        waClient.getState(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getState timeout')), 5000),
+        ),
+      ])
+      if (state === 'CONNECTED') {
+        console.log('[WA] Ready fallback — getState() is CONNECTED')
+        await markReady()
+      }
+    } catch {
+      // still initialising
+    }
+  }, 3000)
 }
 
 // ── SSE subscribers waiting for QR ───────────────────────────
 type SSEClient = { send: (data: string) => void; close: () => void }
 const qrSubscribers = new Set<SSEClient>()
 
+// Cache the most recent QR data URL so late-joining subscribers get it
+// immediately instead of waiting for the next qr event (which may be
+// 20–60 s away or never, if authentication already happened).
+let _lastQrPayload: string | null = null
+
 export function subscribeToQR(client: SSEClient) {
-  // Already connected — no QR will be emitted; notify subscriber immediately
   if (_waConnected) {
-    client.send(JSON.stringify({ type: 'authenticated' }))
+    client.send(JSON.stringify({ type: 'ready', phone_number: _waPhoneNumber }))
     client.close()
     return () => {}
+  }
+
+  if (_waConnecting) {
+    client.send(JSON.stringify({ type: 'authenticated' }))
+  } else if (_lastQrPayload) {
+    client.send(_lastQrPayload)
   }
 
   qrSubscribers.add(client)
@@ -91,6 +149,10 @@ export const waClient = new Client({
   authStrategy: new LocalAuth({
     dataPath: WA_DATA_PATH,
   }),
+  webVersionCache: {
+    type: 'local',
+    path: WA_CACHE_PATH,
+  },
   puppeteer: {
     headless: true,
     ...(process.env.PUPPETEER_EXECUTABLE_PATH
@@ -103,7 +165,6 @@ export const waClient = new Client({
       '--disable-gpu',
     ],
   },
-  // Restore session from Supabase if available
 })
 
 // ── Events ───────────────────────────────────────────────────
@@ -112,30 +173,27 @@ waClient.on('qr', async (qr) => {
   console.log('[WA] QR received — broadcasting to dashboard')
   try {
     const dataUrl = await qrcode.toDataURL(qr)
-    broadcastQR(JSON.stringify({ type: 'qr', data: dataUrl }))
+    _lastQrPayload = JSON.stringify({ type: 'qr', data: dataUrl })
+    broadcastQR(_lastQrPayload)
   } catch (err) {
     console.error('[WA] QR generation failed', err)
   }
 })
 
-waClient.on('authenticated', () => {
-  console.log('[WA] Authenticated ✓')
-  // Notify dashboard that auth succeeded; keep SSE open until 'ready' fires
-  // so the phone number can be delivered in a single 'ready' event.
-  broadcastQR(JSON.stringify({ type: 'authenticated' }))
-})
+async function markReady() {
+  if (_waConnected) return
 
-waClient.on('ready', async () => {
   console.log('[WA] Client ready ✓')
   _waConnected = true
+  _waConnecting = false
+  _lastQrPayload = null
+  clearReadyFallback()
 
   const info = waClient.info
   if (info) {
     _waPhoneNumber = info.wid.user
   }
 
-  // Broadcast ready to any lingering SSE subscribers (e.g. page was open during
-  // server restart and session resumed without emitting 'authenticated').
   const readyMsg = JSON.stringify({ type: 'ready', phone_number: _waPhoneNumber })
   for (const sub of qrSubscribers) {
     sub.send(readyMsg)
@@ -143,7 +201,6 @@ waClient.on('ready', async () => {
   }
   qrSubscribers.clear()
 
-  // Persist session info to Supabase
   if (info) {
     await db
       .from('agents')
@@ -151,12 +208,37 @@ waClient.on('ready', async () => {
       .eq('id', process.env.AGENT_ID!)
       .throwOnError()
   }
+}
+
+waClient.on('authenticated', () => {
+  console.log('[WA] Authenticated ✓')
+  _waConnecting = true
+  broadcastQR(JSON.stringify({ type: 'authenticated' }))
+  // wwebjs sometimes emits authenticated without ready; poll getState() as fallback.
+  startReadyFallback()
+})
+
+waClient.on('ready', () => {
+  markReady().catch((err) => console.error('[WA] markReady failed', err))
+})
+
+waClient.on('loading_screen', (percent, message) => {
+  console.log(`[WA] Loading ${percent}% — ${message}`)
+})
+
+waClient.on('auth_failure', (msg) => {
+  console.error('[WA] Auth failure:', msg)
+  _waConnecting = false
+  clearReadyFallback()
 })
 
 waClient.on('disconnected', async (reason) => {
   console.warn('[WA] Disconnected:', reason)
   _waConnected = false
+  _waConnecting = false
   _waPhoneNumber = null
+  _lastQrPayload = null
+  clearReadyFallback()
 
   // Notify dashboard via Supabase realtime
   await db

@@ -84,31 +84,38 @@
           <section class="flex min-h-[380px] flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container p-6">
             <div class="rounded-2xl bg-white p-5 shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
               <div class="relative h-56 w-56 overflow-hidden rounded-xl sm:h-64 sm:w-64">
-                <img
-                  v-if="qrDataUrl"
-                  :src="qrDataUrl"
-                  class="h-full w-full object-contain"
-                  alt="WhatsApp QR Code"
-                />
                 <LoadingState
-                  v-else
+                  v-if="processing"
                   variant="compact"
-                  message="Generating QR code…"
+                  message="Linking your account…"
                 />
-                <div
-                  v-if="qrDataUrl"
-                  class="scan-line pointer-events-none absolute left-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
-                />
+                <template v-else>
+                  <img
+                    v-if="qrDataUrl"
+                    :src="qrDataUrl"
+                    class="h-full w-full object-contain"
+                    alt="WhatsApp QR Code"
+                  />
+                  <LoadingState
+                    v-else
+                    variant="compact"
+                    message="Generating QR code…"
+                  />
+                  <div
+                    v-if="qrDataUrl"
+                    class="scan-line pointer-events-none absolute left-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
+                  />
+                </template>
               </div>
             </div>
 
             <div class="mt-4 flex items-center gap-2 text-on-surface-variant">
               <span
                 class="h-2 w-2 rounded-full"
-                :class="qrDataUrl ? 'animate-neon-pulse bg-primary' : 'animate-pulse bg-secondary'"
+                :class="statusDotClass"
               />
               <p class="font-mono text-[11px]">
-                {{ qrDataUrl ? 'Scan with your phone to connect' : 'Waiting for connection…' }}
+                {{ statusMessage }}
               </p>
             </div>
           </section>
@@ -123,19 +130,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { apiFetch, API_BASE } from '../lib/api'
 import LoadingState from '../components/LoadingState.vue'
 
-type AgentStatus = { connected: boolean; phone_number: string | null }
+type AgentStatus = { connected: boolean; connecting?: boolean; phone_number: string | null }
 
 const qrDataUrl = ref<string | null>(null)
+const processing = ref(false)
 const connected = ref(false)
 const phoneNumber = ref<string | null>(null)
 const streamError = ref<string | null>(null)
+
+const statusMessage = computed(() => {
+  if (processing.value) return 'QR scanned — finishing setup…'
+  if (qrDataUrl.value) return 'Scan with your phone to connect'
+  return 'Waiting for connection…'
+})
+
+const statusDotClass = computed(() => {
+  if (processing.value) return 'animate-pulse bg-secondary'
+  if (qrDataUrl.value) return 'animate-neon-pulse bg-primary'
+  return 'animate-pulse bg-secondary'
+})
 let eventSource: EventSource | null = null
 let qrTimeout: ReturnType<typeof setTimeout> | null = null
+let statusPoll: ReturnType<typeof setInterval> | null = null
+
+function stopStatusPoll() {
+  if (statusPoll) {
+    clearInterval(statusPoll)
+    statusPoll = null
+  }
+}
+
+function startStatusPoll() {
+  stopStatusPoll()
+  processing.value = true
+  streamError.value = null
+  statusPoll = setInterval(async () => {
+    try {
+      const status = await apiFetch<AgentStatus>('/agent/status')
+      if (status.connected) {
+        setConnected(status)
+      } else if (!status.connecting) {
+        processing.value = false
+        stopStatusPoll()
+        if (!connected.value && !qrDataUrl.value) startQrStream()
+      }
+    } catch {
+      // keep polling — API may still be initialising
+    }
+  }, 2000)
+}
 
 function closeStream() {
   eventSource?.close()
@@ -148,21 +196,24 @@ function closeStream() {
 
 function setConnected(status: AgentStatus) {
   connected.value = true
+  processing.value = false
   phoneNumber.value = status.phone_number
   qrDataUrl.value = null
   streamError.value = null
+  stopStatusPoll()
   closeStream()
 }
 
 function startQrStream() {
   closeStream()
   streamError.value = null
+  processing.value = false
   qrDataUrl.value = null
 
   eventSource = new EventSource(`${API_BASE}/agent/qr`)
 
   qrTimeout = setTimeout(() => {
-    if (!qrDataUrl.value && !connected.value) {
+    if (!qrDataUrl.value && !connected.value && !processing.value) {
       streamError.value =
         'QR is taking too long. Make sure the API is running locally and VITE_API_URL points to it (use /api for local dev).'
     }
@@ -174,9 +225,9 @@ function startQrStream() {
       qrDataUrl.value = msg.data
       streamError.value = null
     } else if (msg.type === 'authenticated') {
-      // authenticated fires before 'ready'; optimistically show connected UI.
-      // Status will be re-fetched on the 'ready' event to get the phone number.
-      setConnected({ connected: true, phone_number: null })
+      processing.value = true
+      streamError.value = null
+      startStatusPoll()
     } else if (msg.type === 'ready') {
       setConnected({ connected: true, phone_number: msg.phone_number ?? null })
     }
@@ -202,6 +253,10 @@ async function loadStatus() {
       setConnected(status)
       return
     }
+    if (status.connecting) {
+      startStatusPoll()
+      return
+    }
     startQrStream()
   } catch {
     streamError.value =
@@ -215,7 +270,10 @@ function retry() {
 
 onMounted(loadStatus)
 
-onUnmounted(closeStream)
+onUnmounted(() => {
+  closeStream()
+  stopStatusPoll()
+})
 </script>
 
 <style scoped>
