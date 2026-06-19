@@ -5,6 +5,16 @@
   "outputDirectory": "apps/dashboard/dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "experimentalServices": {
+    "api": {
+      "root": "apps/api",
+      "entrypoint": "src/index.ts",
+      "routePrefix": "/"
+    }
+  }
 }
