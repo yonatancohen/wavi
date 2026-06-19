@@ -1,18 +1,18 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="sticky top-0 z-10 border-b border-outline-variant bg-surface px-margin-mobile py-4">
-      <h1 class="font-sora text-headline-md text-on-surface">Activity</h1>
-      <p class="mt-0.5 text-body-md text-on-surface-variant">
+    <header class="page-header">
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">Activity</h1>
+      <p class="mt-0.5 text-[12px] text-on-surface-variant">
         Recent Wavi replies across your registered groups
       </p>
     </header>
 
-    <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-8">
+    <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-7">
       <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
       <div
         v-else-if="error"
-        class="rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error"
+        class="rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"
       >
         {{ error }}
       </div>
@@ -23,50 +23,67 @@
       >
         <div class="relative mx-auto mb-6 inline-block">
           <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
-          <div class="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-surface-container shadow-wavi-ring">
-            <span class="material-symbols-outlined text-3xl text-primary">history</span>
+          <div class="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-surface-container shadow-wavi-ring">
+            <span class="material-symbols-outlined text-2xl text-primary">history</span>
           </div>
         </div>
-        <h2 class="mb-2 font-sora text-headline-md text-on-surface">No activity yet</h2>
-        <p class="mb-6 text-body-md text-on-surface-variant">
+        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">No activity yet</h2>
+        <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
           Once Wavi starts replying in your groups, you'll see the feed here.
         </p>
         <RouterLink to="/groups" class="btn btn-primary">Go to Groups</RouterLink>
       </div>
 
-      <div v-else class="space-y-1 rounded-xl border border-outline-variant bg-surface-container p-2">
-        <div
-          v-for="item in items"
-          :key="item.id"
-          class="flex items-start gap-4 rounded-xl border-b border-outline-variant/30 p-4 transition-colors last:border-0 hover:bg-surface-variant/50"
-        >
+      <div v-else class="rounded-xl border border-outline-variant bg-surface-container">
+        <div class="border-b border-outline-variant px-5 py-3">
+          <span class="font-mono text-[11px] text-on-surface-variant">
+            {{ items.length }} {{ items.length === 1 ? 'reply' : 'replies' }} logged
+          </span>
+        </div>
+
+        <div class="divide-y divide-white/[0.04]">
           <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-            :class="item.flagged ? 'bg-error/20' : 'bg-primary/20'"
+            v-for="item in items"
+            :key="item.id"
+            class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02]"
           >
-            <span
-              class="material-symbols-outlined"
-              :class="item.flagged ? 'text-error' : 'text-primary'"
-            >{{ item.flagged ? 'flag' : 'smart_toy' }}</span>
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <h3 class="text-label-md text-primary">{{ item.groupName }}</h3>
-                <span v-if="item.flagged" class="badge border border-error/20 bg-error/10 px-2 py-0.5 text-error">
-                  Flagged
-                </span>
-              </div>
-              <span class="text-[11px] text-on-surface-variant">{{ item.time }}</span>
+            <!-- Icon -->
+            <div
+              class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+              :class="item.flagged ? 'bg-error/15' : 'bg-primary/15'"
+            >
+              <span
+                class="material-symbols-outlined text-[15px]"
+                :class="item.flagged ? 'text-error' : 'text-primary'"
+              >{{ item.flagged ? 'flag' : 'smart_toy' }}</span>
             </div>
-            <p v-if="item.trigger" class="mb-2 text-sm text-on-surface-variant">
-              Triggered by <span class="text-on-surface">{{ item.trigger }}</span>
-              <span v-if="item.triggerMessage" class="italic">: "{{ item.triggerMessage }}"</span>
-            </p>
-            <p class="text-sm leading-relaxed text-on-surface">{{ item.body }}</p>
-            <div class="mt-2 flex gap-3 text-[11px] text-on-surface-variant">
-              <span>{{ item.latency }}ms</span>
-              <span>{{ item.tokens }} tokens</span>
+
+            <!-- Content -->
+            <div class="min-w-0 flex-1">
+              <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-[13px] font-semibold text-primary">{{ item.groupName }}</h3>
+                  <span
+                    v-if="item.flagged"
+                    class="rounded-full border border-error/20 bg-error/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error"
+                  >
+                    Flagged
+                  </span>
+                </div>
+                <span class="log-timestamp">{{ item.time }}</span>
+              </div>
+
+              <p v-if="item.trigger" class="mb-1.5 text-[12px] text-on-surface-variant">
+                Triggered by <span class="text-on-surface">{{ item.trigger }}</span>
+                <span v-if="item.triggerMessage" class="italic"> — "{{ item.triggerMessage }}"</span>
+              </p>
+
+              <p class="text-[13px] leading-relaxed text-on-surface">{{ item.body }}</p>
+
+              <div class="mt-2 flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
+                <span>{{ item.latency }}ms</span>
+                <span>{{ item.tokens }} tok</span>
+              </div>
             </div>
           </div>
         </div>

@@ -1,26 +1,29 @@
 <template>
   <div class="flex min-h-full flex-col bg-background">
-    <header class="border-b border-outline-variant bg-surface px-margin-mobile py-5">
-      <h1 class="font-sora text-headline-md text-on-surface">Connect WhatsApp</h1>
-      <p class="mt-1 text-body-md text-on-surface-variant">
+    <header class="page-header">
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">Connect WhatsApp</h1>
+      <p class="mt-0.5 text-[12px] text-on-surface-variant">
         Scan the QR code to link your WhatsApp account to Wavi
       </p>
     </header>
 
     <div class="mx-auto w-full max-w-[1000px] flex-1 px-margin-mobile py-8">
-      <div v-if="connected" class="mx-auto max-w-md rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
-        <img
-          src="/wavi-mascot.jpg"
-          alt="Wavi mascot"
-          class="mx-auto mb-6 h-20 w-20 rounded-2xl object-contain"
-        />
-        <div class="mb-2 font-sora text-headline-md text-on-surface">WhatsApp connected</div>
-        <p class="mb-6 text-body-md text-on-surface-variant">
+      <div v-if="connected" class="mx-auto max-w-md rounded-xl border border-primary/20 bg-surface-container p-10 text-center shadow-wavi-ring">
+        <div class="relative mx-auto mb-6 inline-block">
+          <div class="absolute inset-0 animate-neon-pulse rounded-2xl bg-primary opacity-20 blur-xl" />
+          <img
+            src="/wavi-mascot.jpg"
+            alt="Wavi mascot"
+            class="relative h-16 w-16 rounded-2xl object-contain ring-1 ring-primary/30"
+          />
+        </div>
+        <div class="mb-2 font-sora text-[18px] font-semibold text-on-surface">WhatsApp connected</div>
+        <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
           {{ phoneNumber ? `Linked to +${phoneNumber}.` : 'Your agent is linked and ready.' }}
           Register groups to start listening and replying.
         </p>
         <RouterLink to="/groups" class="btn btn-primary inline-flex items-center gap-2">
-          <span class="material-symbols-outlined text-[20px]">group_add</span>
+          <span class="material-symbols-outlined text-[18px]">group_add</span>
           Register groups
         </RouterLink>
       </div>
@@ -36,34 +39,34 @@
             />
           </div>
           <div>
-            <h2 class="font-sora text-headline-lg-mobile text-on-surface">Link Wavi to WhatsApp</h2>
-            <p class="mt-1 text-body-md italic text-on-surface-variant">
+            <h2 class="font-sora text-[20px] font-bold tracking-tight text-on-surface">Link Wavi to WhatsApp</h2>
+            <p class="mt-1 text-[13px] italic text-on-surface-variant">
               Wavi is waiting to roast your friends…
             </p>
           </div>
         </div>
 
-        <div
-          v-if="streamError"
-          class="mb-6 rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error"
-        >
+          <div
+            v-if="streamError"
+            class="mb-6 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"
+          >
           {{ streamError }}
           <button class="ml-3 underline" @click="retry">Retry</button>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-2">
-          <section class="flex min-h-[400px] flex-col rounded-xl border border-outline-variant bg-surface-container p-6 lg:p-8">
-            <h3 class="mb-6 font-sora text-headline-md text-primary">How to link</h3>
-            <ol class="flex flex-1 flex-col justify-center gap-6">
+          <section class="flex min-h-[380px] flex-col rounded-xl border border-outline-variant bg-surface-container p-6">
+            <h3 class="mb-6 font-sora text-[15px] font-semibold text-primary">How to link</h3>
+            <ol class="flex flex-1 flex-col justify-center gap-5">
               <li class="flex items-start gap-4">
                 <span class="step-num">1</span>
-                <p class="pt-1.5 text-body-md leading-relaxed text-on-surface-variant">
+                <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
                   Open <span class="font-semibold text-primary">WhatsApp</span> on your phone
                 </p>
               </li>
               <li class="flex items-start gap-4">
                 <span class="step-num">2</span>
-                <p class="pt-1.5 text-body-md leading-relaxed text-on-surface-variant">
+                <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
                   Tap <span class="font-semibold text-on-surface">Menu</span> or
                   <span class="font-semibold text-on-surface">Settings</span>, then
                   <span class="font-semibold text-primary">Linked Devices</span>
@@ -71,14 +74,14 @@
               </li>
               <li class="flex items-start gap-4">
                 <span class="step-num">3</span>
-                <p class="pt-1.5 text-body-md leading-relaxed text-on-surface-variant">
+                <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
                   Point your phone at the code to <span class="font-semibold text-on-surface">capture it</span>
                 </p>
               </li>
             </ol>
           </section>
 
-          <section class="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container p-6 lg:p-8">
+          <section class="flex min-h-[380px] flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container p-6">
             <div class="rounded-2xl bg-white p-5 shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
               <div class="relative h-56 w-56 overflow-hidden rounded-xl sm:h-64 sm:w-64">
                 <img
@@ -99,19 +102,19 @@
               </div>
             </div>
 
-            <div class="mt-5 flex items-center gap-2.5 text-on-surface-variant">
+            <div class="mt-4 flex items-center gap-2 text-on-surface-variant">
               <span
-                class="h-2.5 w-2.5 rounded-full"
+                class="h-2 w-2 rounded-full"
                 :class="qrDataUrl ? 'animate-neon-pulse bg-primary' : 'animate-pulse bg-secondary'"
               />
-              <p class="text-label-md">
+              <p class="font-mono text-[11px]">
                 {{ qrDataUrl ? 'Scan with your phone to connect' : 'Waiting for connection…' }}
               </p>
             </div>
           </section>
         </div>
 
-        <p class="mt-8 text-center text-sm text-on-surface-variant lg:text-left">
+        <p class="mt-6 text-center text-[12px] text-on-surface-variant lg:text-left">
           Keep your phone on Wi-Fi for a faster sync. QR refreshes automatically.
         </p>
       </template>
@@ -219,6 +222,6 @@ onUnmounted(closeStream)
 }
 
 .step-num {
-  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary ring-1 ring-primary/25;
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-[12px] font-bold text-primary ring-1 ring-primary/20;
 }
 </style>
