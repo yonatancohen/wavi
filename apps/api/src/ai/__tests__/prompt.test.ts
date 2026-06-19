@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { buildConversationTurns, buildSystemPrompt } from '../prompt.js'
+import { buildConversationTurns, buildSystemPrompt } from '../prompt-build.js'
 import type { PromptContext } from '@wavi/shared'
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -127,7 +127,8 @@ describe('buildSystemPrompt', () => {
   it('returns a fallback prompt when character_config is null', () => {
     const ctx = makeContext({ character_config: null as any })
     const prompt = buildSystemPrompt(ctx)
-    expect(prompt).toContain('helpful and friendly AI assistant')
+    expect(prompt).toContain('WhatsApp group chat')
+    expect(prompt).toContain('short, casual')
   })
 
   it('includes all identity and character blocks when config is present', () => {
@@ -148,7 +149,8 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Dry and sarcastic.')
     expect(prompt).toContain('Coffee > tea')
     expect(prompt).toContain('BLOCK 1')
-    expect(prompt).toContain('BLOCK 8')
+    expect(prompt).toContain('WHATSAPP FORMAT')
+    expect(prompt).toContain('BLOCK 9')
   })
 
   it('uses auto-language instruction when language_mode is auto', () => {

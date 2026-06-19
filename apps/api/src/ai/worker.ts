@@ -132,11 +132,10 @@ export async function checkForNegativeReaction(params: {
   const keys: string[] = []
   let cursor = 0
   do {
-    const [nextCursor, batch] = await redis.scan(
-      cursor,
-      'MATCH', `pending_reaction:${params.groupId}:*`,
-      'COUNT', 100,
-    )
+    const [nextCursor, batch] = await redis.scan(cursor, {
+      match: `pending_reaction:${params.groupId}:*`,
+      count: 100,
+    })
     cursor = Number(nextCursor)
     keys.push(...batch)
   } while (cursor !== 0)

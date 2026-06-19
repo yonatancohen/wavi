@@ -24,7 +24,7 @@ describe('detectNegativeReaction', () => {
     ["יותר מדי",                  "Hebrew: too much"],
     ["לא בסדר",                   "Hebrew: not ok"],
     ["תמחק את זה",                "Hebrew: delete that"],
-  ])('returns true for: "%s" (%s)', (msg) => {
+  ])('returns true for: "%s" (%s)', (msg: string) => {
     expect(detectNegativeReaction(msg)).toBe(true)
   })
 
@@ -39,7 +39,7 @@ describe('detectNegativeReaction', () => {
     ["wavi is cool",             "compliment about bot"],
     ["wtf is going on",          "wtf without bot name"],
     ["",                         "empty string"],
-  ])('returns false for: "%s" (%s)', (msg) => {
+  ])('returns false for: "%s" (%s)', (msg: string) => {
     expect(detectNegativeReaction(msg)).toBe(false)
   })
 
