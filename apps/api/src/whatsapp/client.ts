@@ -8,6 +8,7 @@ import qrcode from 'qrcode'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { handleIncomingMessage } from './handlers.js'
+import { bindAgentIdentity, clearAgentIdentity } from './agent-identity.js'
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth')
@@ -192,6 +193,7 @@ async function markReady() {
   const info = waClient.info
   if (info) {
     _waPhoneNumber = info.wid.user
+    bindAgentIdentity(waClient, _waPhoneNumber)
   }
 
   const readyMsg = JSON.stringify({ type: 'ready', phone_number: _waPhoneNumber })
@@ -239,6 +241,7 @@ waClient.on('disconnected', async (reason) => {
   _waPhoneNumber = null
   _lastQrPayload = null
   clearReadyFallback()
+  clearAgentIdentity()
 
   // Notify dashboard via Supabase realtime
   await db
