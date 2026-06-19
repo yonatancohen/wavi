@@ -14,13 +14,35 @@ jobs:
   deploy:
     name: Railway deploy
     runs-on: ubuntu-latest
-    container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate Railway project token
+        run: |
+          set -euo pipefail
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::error::RAILWAY_TOKEN secret is empty."
+            exit 1
+          fi
+          body=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Project-Access-Token: ${RAILWAY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query { projectToken { projectId environmentId } }"}')
+          if echo "$body" | grep -q '"errors"'; then
+            echo "::error::RAILWAY_TOKEN is not a valid Railway PROJECT token."
+            echo "::error::Go to Railway → wavi-api project → Settings → Tokens → Generate Project Token (production)."
+            echo "::error::Do NOT use Account → API Tokens — those always fail with Invalid RAILWAY_TOKEN."
+            echo "API response: $body"
+            exit 1
+          fi
+          echo "Project token valid: $body"
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@5.2.0
 
       - name: Deploy
         run: railway up --detach --service wavi-api --environment production
