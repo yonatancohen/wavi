@@ -97,7 +97,15 @@
           </div>
         </section>
 
-        <!-- Next steps -->
+        <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
+
+        <CharacterEditor :group="group" @updated="onCharacterUpdated" />
+
+        <MembersSection ref="membersRef" :group-id="group.id" />
+
+        <DynamicsSection ref="dynamicsRef" :group-id="group.id" />
+
+        <!-- Progress checklist -->
         <section class="rounded-xl border border-outline-variant bg-surface-container p-5">
           <div class="mb-4 flex items-center gap-2">
             <span class="material-symbols-outlined text-[18px] text-tertiary">checklist</span>
@@ -116,12 +124,18 @@
               <span class="text-[13px]" :class="group.status === 'active' ? 'text-on-surface' : 'text-on-surface-variant'">Go live</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="material-symbols-outlined mt-0.5 text-[16px] text-on-surface-variant/40">schedule</span>
-              <span class="text-[13px] text-on-surface-variant">Upload chat history <span class="font-mono text-[10px]">(coming soon)</span></span>
+              <span
+                class="material-symbols-outlined mt-0.5 text-[16px]"
+                :class="hasIngestedData ? 'text-primary' : 'text-on-surface-variant'"
+              >{{ hasIngestedData ? 'check_circle' : 'radio_button_unchecked' }}</span>
+              <span class="text-[13px]" :class="hasIngestedData ? 'text-on-surface' : 'text-on-surface-variant'">Upload chat history</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="material-symbols-outlined mt-0.5 text-[16px] text-on-surface-variant/40">schedule</span>
-              <span class="text-[13px] text-on-surface-variant">Review generated character <span class="font-mono text-[10px]">(coming soon)</span></span>
+              <span
+                class="material-symbols-outlined mt-0.5 text-[16px]"
+                :class="group.character_config ? 'text-primary' : 'text-on-surface-variant'"
+              >{{ group.character_config ? 'check_circle' : 'radio_button_unchecked' }}</span>
+              <span class="text-[13px]" :class="group.character_config ? 'text-on-surface' : 'text-on-surface-variant'">Review generated character</span>
             </li>
           </ul>
         </section>
@@ -131,11 +145,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useGroupsStore } from '../stores/groups'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
+import IngestUpload from '../components/IngestUpload.vue'
+import MembersSection from '../components/MembersSection.vue'
+import DynamicsSection from '../components/DynamicsSection.vue'
+import CharacterEditor from '../components/CharacterEditor.vue'
 import type { GroupWithStats } from '@wavi/shared'
 
 const route = useRoute()
@@ -145,17 +163,40 @@ const group = ref<GroupWithStats | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
+const hasIngestedData = ref(false)
+
+const membersRef = ref<InstanceType<typeof MembersSection> | null>(null)
+const dynamicsRef = ref<InstanceType<typeof DynamicsSection> | null>(null)
 
 async function load() {
   loading.value = true
   error.value = null
   try {
     group.value = await store.fetchGroup(route.params.id as string)
+    hasIngestedData.value = group.value.character_config !== null
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load group'
   } finally {
     loading.value = false
   }
+}
+
+async function onIngestionComplete() {
+  if (!group.value) return
+  try {
+    group.value = await store.fetchGroup(group.value.id)
+    hasIngestedData.value = true
+    await Promise.all([
+      membersRef.value?.reload(),
+      dynamicsRef.value?.reload(),
+    ])
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to reload group data'
+  }
+}
+
+function onCharacterUpdated(updated: GroupWithStats) {
+  group.value = updated
 }
 
 async function goLive() {
@@ -183,4 +224,5 @@ async function pause() {
 }
 
 onMounted(load)
+watch(() => route.params.id, load)
 </script>

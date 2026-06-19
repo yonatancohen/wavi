@@ -139,7 +139,16 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // Members
-  fastify.get<{ Params: { id: string } }>('/:id/members', async (req) => {
+  fastify.get<{ Params: { id: string } }>('/:id/members', async (req, reply) => {
+    const { data: group } = await db
+      .from('groups')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
+      .maybeSingle()
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' })
+
     const { data } = await db
       .from('user_profiles')
       .select('*')
@@ -150,12 +159,43 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // Relationships
-  fastify.get<{ Params: { id: string } }>('/:id/relationships', async (req) => {
+  fastify.get<{ Params: { id: string } }>('/:id/relationships', async (req, reply) => {
+    const { data: group } = await db
+      .from('groups')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
+      .maybeSingle()
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' })
+
     const { data } = await db
       .from('relationship_map')
       .select('*')
       .eq('group_id', req.params.id)
       .order('interaction_score', { ascending: false })
+      .throwOnError()
+    return data
+  })
+
+  // Group context
+  fastify.get<{ Params: { id: string } }>('/:id/context', async (req, reply) => {
+    const { data: group } = await db
+      .from('groups')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
+      .maybeSingle()
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' })
+
+    const { data } = await db
+      .from('group_contexts')
+      .select('*')
+      .eq('group_id', req.params.id)
+      .order('generated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
       .throwOnError()
     return data
   })

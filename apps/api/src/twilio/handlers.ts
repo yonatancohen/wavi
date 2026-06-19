@@ -50,9 +50,10 @@ export async function handleTwilioMessage(from: string, body: string) {
 
   // ── 3. Feed chunk buffer (for RAG embedding) ──────────────
   await appendToChunkBuffer(group.id, {
-    sender_name: senderPhone,
+    sender_wa_id: from,
+    sender_name:  senderPhone,
     body,
-    timestamp:   new Date(),
+    timestamp:    new Date(),
   })
 
   // ── 4. Rate limit check ───────────────────────────────────

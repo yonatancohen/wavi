@@ -4,13 +4,35 @@ import { redis } from '../lib/redis.js'
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js'
 import { embedBatch, embed } from '../lib/embeddings.js'
 import { generateEpisodeSummary, generateGroupContext, synthesizeCharacter } from '../ai/summarizer.js'
+import { buildUserProfilesFromHistory } from '../ai/profiler.js'
+import { buildRelationshipMap } from '../ai/relationships.js'
 import type { IngestionProgress } from '@wavi/shared'
+
+function getAgentId(): string {
+  const id = process.env.AGENT_ID
+  if (!id) throw new Error('AGENT_ID not configured')
+  return id
+}
+
+async function verifyGroupOwnership(groupId: string): Promise<boolean> {
+  const { data } = await db
+    .from('groups')
+    .select('id')
+    .eq('id', groupId)
+    .eq('agent_id', getAgentId())
+    .maybeSingle()
+  return !!data
+}
 
 export const ingestRoute: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /api/ingest/:groupId — upload .txt export ───────────
   fastify.post<{ Params: { groupId: string } }>('/:groupId', async (req, reply) => {
     const { groupId } = req.params
+
+    if (!(await verifyGroupOwnership(groupId))) {
+      return reply.code(404).send({ error: 'Group not found' })
+    }
 
     const data = await req.file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
@@ -30,6 +52,10 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
   // ── GET /api/ingest/:groupId/progress — SSE progress stream ──
   fastify.get<{ Params: { groupId: string } }>('/:groupId/progress', async (req, reply) => {
     const { groupId } = req.params
+
+    if (!(await verifyGroupOwnership(groupId))) {
+      return reply.code(404).send({ error: 'Group not found' })
+    }
 
     reply.raw.setHeader('Content-Type', 'text/event-stream')
     reply.raw.setHeader('Cache-Control', 'no-cache')
@@ -74,6 +100,15 @@ async function runIngestion(groupId: string, raw: string) {
   }
 
   try {
+    // ── Idempotency: purge derived data before re-run ───────
+    await Promise.all([
+      db.from('message_chunks').delete().eq('group_id', groupId),
+      db.from('episode_summaries').delete().eq('group_id', groupId),
+      db.from('user_profiles').delete().eq('group_id', groupId),
+      db.from('relationship_map').delete().eq('group_id', groupId),
+      db.from('group_contexts').delete().eq('group_id', groupId),
+    ])
+
     // ── Stage 1: Parse ──────────────────────────────────────
     await setProgress({ stage: 'parsing' })
     const messages = parseWAExport(raw)
@@ -84,43 +119,43 @@ async function runIngestion(groupId: string, raw: string) {
     // ── Stage 2: Chunk + Embed ──────────────────────────────
     const chunks = chunkMessages(realMessages, 50, 25)
     const BATCH_SIZE = 10 // embed 10 chunks at a time
+    let chunksEmbedded = 0
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
       const batch = chunks.slice(i, i + BATCH_SIZE)
       const contents = batch.map(formatChunkForEmbedding)
 
-      // Filter out empty chunks
-      const nonEmpty = contents.filter((c) => c.length > 20)
-      if (nonEmpty.length === 0) continue
+      const pairs = batch
+        .map((chunk, idx) => ({ chunk, content: contents[idx] ?? '' }))
+        .filter(({ content }) => content.length > 20)
 
-      const embeddings = await embedBatch(nonEmpty)
+      if (pairs.length === 0) continue
 
-      const rows = nonEmpty.map((content, idx) => {
-        const originalChunk = batch[idx]
-        if (!originalChunk) return null
-        return {
-          group_id:  groupId,
-          content,
-          summary:   null, // will be filled in background
-          embedding: JSON.stringify(embeddings[idx]),
-          msg_from:  originalChunk[0]?.timestamp.toISOString(),
-          msg_to:    originalChunk[originalChunk.length - 1]?.timestamp.toISOString(),
-          members:   [...new Set(originalChunk.map((m) => m.sender_name))],
-        }
-      }).filter(Boolean)
+      const embeddings = await embedBatch(pairs.map((p) => p.content))
 
-      await db.from('message_chunks').insert(rows.filter(Boolean) as any[])
+      const rows = pairs.map(({ chunk, content }, idx) => ({
+        group_id:  groupId,
+        content,
+        summary:   null,
+        embedding: JSON.stringify(embeddings[idx]),
+        msg_from:  chunk[0]?.timestamp.toISOString(),
+        msg_to:    chunk[chunk.length - 1]?.timestamp.toISOString(),
+        members:   [...new Set(chunk.map((m) => m.sender_name))],
+      }))
+
+      await db.from('message_chunks').insert(rows)
+      chunksEmbedded += rows.length
 
       await setProgress({
         stage: 'embedding',
         total_messages: realMessages.length,
         processed_messages: Math.min((i + BATCH_SIZE) * 50, realMessages.length),
-        chunks_embedded: i + BATCH_SIZE,
+        chunks_embedded: chunksEmbedded,
       })
     }
 
     // ── Stage 3: User profiling ─────────────────────────────
-    await setProgress({ stage: 'profiling', processed_messages: realMessages.length, chunks_embedded: chunks.length })
+    await setProgress({ stage: 'profiling', processed_messages: realMessages.length, chunks_embedded: chunksEmbedded })
     await buildUserProfilesFromHistory(groupId, realMessages)
 
     // ── Stage 4: Episode summaries ──────────────────────────
@@ -141,6 +176,39 @@ async function runIngestion(groupId: string, raw: string) {
       })
     }
 
+    // ── Stage 6: Relationship mapping ───────────────────────
+    await setProgress({ stage: 'relationships' })
+    await buildRelationshipMap(groupId, realMessages)
+
+    // ── Stage 7: Group context ──────────────────────────────
+    await setProgress({ stage: 'context' })
+    const { data: group } = await db
+      .from('groups')
+      .select('name')
+      .eq('id', groupId)
+      .single()
+
+    const recentContent = episodeSummaries.slice(-5).join('\n\n')
+    const { data: prevCtx } = await db
+      .from('group_contexts')
+      .select('summary_text')
+      .eq('group_id', groupId)
+      .order('generated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const contextSummary = await generateGroupContext({
+      groupName:       group?.name ?? 'the group',
+      recentContent,
+      previousContext: prevCtx?.summary_text ?? '',
+    })
+
+    await db.from('group_contexts').insert({
+      group_id:          groupId,
+      summary_text:      contextSummary,
+      character_version: 1,
+    })
+
     // ── Stage 5: Character synthesis ────────────────────────
     await setProgress({ stage: 'synthesizing' })
 
@@ -149,17 +217,17 @@ async function runIngestion(groupId: string, raw: string) {
       .select('display_name, behavioral_summary')
       .eq('group_id', groupId)
 
-    const { data: group } = await db
+    const { data: groupMeta } = await db
       .from('groups')
       .select('name, language_mode')
       .eq('id', groupId)
       .single()
 
     const character = await synthesizeCharacter({
-      groupName:        group?.name ?? 'the group',
+      groupName:        groupMeta?.name ?? 'the group',
       episodeSummaries: episodeSummaries.slice(-10),
       userProfiles:     (profiles ?? []).map((p) => `${p.display_name}: ${p.behavioral_summary}`),
-      languageMode:     group?.language_mode ?? 'auto',
+      languageMode:     groupMeta?.language_mode ?? 'auto',
     })
 
     await db.from('groups').update({
@@ -171,70 +239,5 @@ async function runIngestion(groupId: string, raw: string) {
   } catch (err: any) {
     console.error('[Ingest] Error:', err)
     await setProgress({ stage: 'error', error: err.message ?? 'Unknown error' })
-  }
-}
-
-// ── Build user profiles from parsed history ───────────────────
-
-async function buildUserProfilesFromHistory(
-  groupId: string,
-  messages: Array<{ sender_name: string; body: string; timestamp: Date }>,
-) {
-  // Group messages by sender
-  const byUser: Record<string, string[]> = {}
-  for (const msg of messages) {
-    if (!byUser[msg.sender_name]) byUser[msg.sender_name] = []
-    byUser[msg.sender_name].push(msg.body)
-  }
-
-  for (const [name, msgs] of Object.entries(byUser)) {
-    if (msgs.length < 5) continue // not enough data
-
-    const sample = msgs.slice(-100).join('\n')
-
-    const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `Analyze this person's WhatsApp messages and return JSON only:
-{
-  "humor_type": "sarcastic|absurdist|self-deprecating|dad-jokes|dry|none",
-  "humor_score": <0-100>,
-  "formality_score": <0-100>,
-  "activity_level": "high|medium|low|lurker",
-  "dominant_topics": ["topic1", "topic2"],
-  "sensitivity_flags": [],
-  "emoji_usage": "heavy|moderate|rare|none",
-  "avg_message_length": "long|medium|short|terse",
-  "behavioral_summary": "One sentence describing how this person communicates"
-}
-
-Messages from ${name}:
-${sample.slice(0, 2000)}`,
-      }],
-    })
-
-    const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
-
-    try {
-      const clean = text.replace(/```json|```/g, '').trim()
-      const profile = JSON.parse(clean)
-
-      await db.from('user_profiles').upsert({
-        group_id:           groupId,
-        wa_user_id:         name, // will be reconciled with real WA IDs later
-        display_name:       name,
-        profile_data:       profile,
-        behavioral_summary: profile.behavioral_summary ?? '',
-        msg_count:          msgs.length,
-        last_updated:       new Date().toISOString(),
-      }, { onConflict: 'group_id,wa_user_id' })
-    } catch {
-      // Skip malformed profile
-    }
   }
 }

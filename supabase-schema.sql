@@ -101,13 +101,16 @@ CREATE TABLE relationship_map (
   group_id          uuid REFERENCES groups(id) ON DELETE CASCADE,
   user_a_wa_id      text NOT NULL,
   user_b_wa_id      text NOT NULL,
+  user_a_name       text,
+  user_b_name       text,
   interaction_score float DEFAULT 0,
   conflict_score    float DEFAULT 0,
   solidarity_score  float DEFAULT 0,
   signals           jsonb,
   narrative         text,
   last_updated      timestamptz DEFAULT now(),
-  UNIQUE(group_id, user_a_wa_id, user_b_wa_id)
+  UNIQUE(group_id, user_a_wa_id, user_b_wa_id),
+  CONSTRAINT relationship_pair_order CHECK (user_a_wa_id < user_b_wa_id)
 );
 
 CREATE TABLE group_contexts (

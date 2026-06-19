@@ -230,7 +230,7 @@ export interface IngestionProgress {
   total_messages: number
   processed_messages: number
   chunks_embedded: number
-  stage: 'parsing' | 'embedding' | 'profiling' | 'synthesizing' | 'done' | 'error'
+  stage: 'parsing' | 'embedding' | 'profiling' | 'relationships' | 'context' | 'synthesizing' | 'done' | 'error'
   error?: string
 }
 
