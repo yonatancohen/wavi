@@ -1,0 +1,12 @@
+# Deploy from repo root (required for Bun workspaces + packages/shared).
+# See scripts/deploy-api.sh — do not run `railway up` from apps/api alone.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

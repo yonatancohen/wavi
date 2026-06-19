@@ -22,16 +22,30 @@ IS_PROD=false
 [[ "$1" == "--prod" ]] && IS_PROD=true
 
 echo -e "${BOLD}Wavi — Health Check${RESET}"
-echo -e "Mode: ${IS_PROD:+Production}${IS_PROD:-Local}\n"
+if [[ "$IS_PROD" == true ]]; then
+  echo -e "Mode: Production\n"
+else
+  echo -e "Mode: Local\n"
+fi
 
 # ── Load env ──────────────────────────────────────────────────
-[[ -f apps/api/.env ]] || { echo "apps/api/.env not found"; exit 1; }
-export $(grep -v '^#' apps/api/.env | xargs 2>/dev/null)
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+[[ -f "$ROOT/apps/api/.env" ]] || { echo "apps/api/.env not found"; exit 1; }
+source "$ROOT/scripts/lib/env.sh"
+load_env_file "$ROOT/apps/api/.env"
 
 # ── API health ────────────────────────────────────────────────
 echo -e "${CYAN}API Server${RESET}"
-API_URL=${IS_PROD:+"https://$(railway domain 2>/dev/null || echo 'unknown')"}
-API_URL=${API_URL:-"http://localhost:3000"}
+if [[ "$IS_PROD" == true ]]; then
+  if [[ -f "$ROOT/.deploy-api-url" ]]; then
+    API_URL="$(cat "$ROOT/.deploy-api-url")"
+  else
+    export PATH="$HOME/.bun/bin:$PATH"
+    API_URL="https://$(cd "$ROOT/apps/api" && railway domain 2>/dev/null | grep -Eo '[^[:space:]]+\.(railway\.app|up\.railway\.app)' | head -1)"
+  fi
+else
+  API_URL="http://localhost:${PORT:-3000}"
+fi
 
 HEALTH=$(curl -s --max-time 5 "${API_URL}/health" 2>/dev/null)
 if echo "$HEALTH" | grep -q '"ok":true'; then

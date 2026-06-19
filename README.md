@@ -96,8 +96,21 @@ bun run dev
 
 ## Deployment
 
-- **API → Railway**: connect GitHub repo, set env vars, deploy `apps/api`
-- **Dashboard → Vercel**: connect GitHub repo, set root to `apps/dashboard`, set env vars
+See **[docs/DEPLOY.md](docs/DEPLOY.md)** for full instructions.
+
+Quick start:
+
+```bash
+railway login && vercel login
+cd apps/api && railway init --name wavi-api   # first time only (creates project)
+cd ../dashboard && vercel link && cd ../..
+bun run sync-secrets      # push .env → Railway + Vercel
+bun run deploy:prod       # deploy API + dashboard
+```
+
+- **API → Railway** (`apps/api`) — attach a volume at `/data` for WhatsApp session
+- **Dashboard → Vercel** (`apps/dashboard`)
+- Dev and prod share the same Supabase + Redis for now
 
 ## Cost (personal scale)
 ~$2–5/month. See spec for full breakdown.

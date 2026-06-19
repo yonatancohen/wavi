@@ -1,12 +1,10 @@
 <template>
-  <div class="view">
-    <div class="topbar"><div class="page-title">Coming soon</div></div>
-    <div class="content"><div style="color:var(--muted);font-size:14px">🚧 This view is coming in the next phase</div></div>
+  <div class="flex h-screen flex-col">
+    <div class="flex h-[60px] items-center border-b border-border bg-surface px-7">
+      <div class="text-[15px] font-semibold">Coming soon</div>
+    </div>
+    <div class="flex flex-1 items-center justify-center">
+      <div class="text-sm text-muted">🚧 This view is coming in the next phase</div>
+    </div>
   </div>
 </template>
-<style scoped>
-.view{display:flex;flex-direction:column;height:100vh}
-.topbar{height:60px;border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;background:var(--surface)}
-.page-title{font-size:15px;font-weight:600}
-.content{flex:1;display:flex;align-items:center;justify-content:center}
-</style>

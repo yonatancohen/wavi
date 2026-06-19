@@ -1,0 +1,13 @@
+node_modules
+.git
+**/.env
+**/.env.*
+.wwebjs_auth
+.wwebjs_cache
+.deploy-api-url
+.deploy-dashboard-url
+apps/dashboard/dist
+apps/api/.wwebjs_auth
+apps/api/.wwebjs_cache
+.cursor
+terminals

@@ -33,6 +33,11 @@ Thumbs.db
 .wwebjs_cache/
 wa_session/
 
+# Deploy artifacts
+.deploy-api-url
+.deploy-dashboard-url
+
 # Supabase local
 supabase/.branches
 supabase/.temp
+.vercel

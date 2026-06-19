@@ -54,11 +54,10 @@ if command -v psql &>/dev/null; then
     echo "  1. Go to https://supabase.com/dashboard/project/${PROJECT_REF}/sql"
     echo "  2. Paste the contents of supabase-schema.sql"
     echo "  3. Click Run"
-    exit 0
+  else
+    psql "$DB_URL" -f supabase-schema.sql
+    ok "Schema applied"
   fi
-
-  psql "$DB_URL" -f supabase-schema.sql
-  ok "Schema applied"
 
 else
   # Fall back to Supabase REST API (pg-meta)
@@ -98,6 +97,15 @@ EXISTING=$(curl -s \
 if echo "$EXISTING" | grep -q '"id"'; then
   AGENT_ID=$(echo "$EXISTING" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
   ok "Agent already exists: $AGENT_ID"
+  if [[ -n "$AGENT_ID" ]]; then
+    if grep -q "^AGENT_ID=" apps/api/.env; then
+      sed -i '' "s/^AGENT_ID=.*/AGENT_ID=${AGENT_ID}/" apps/api/.env 2>/dev/null || sed -i "s/^AGENT_ID=.*/AGENT_ID=${AGENT_ID}/" apps/api/.env
+    else
+      echo "" >> apps/api/.env
+      echo "AGENT_ID=${AGENT_ID}" >> apps/api/.env
+    fi
+    ok "AGENT_ID written to apps/api/.env"
+  fi
 else
   # Create owner + agent
   OWNER_EMAIL=${OWNER_EMAIL:-"owner@wavi.local"}
@@ -131,9 +139,10 @@ else
       ok "Agent created: $AGENT_ID"
 
       # Write AGENT_ID back to .env
-      if grep -q "AGENT_ID=" apps/api/.env; then
-        sed -i "s/^AGENT_ID=.*/AGENT_ID=${AGENT_ID}/" apps/api/.env
+      if grep -q "^AGENT_ID=" apps/api/.env; then
+        sed -i '' "s/^AGENT_ID=.*/AGENT_ID=${AGENT_ID}/" apps/api/.env 2>/dev/null || sed -i "s/^AGENT_ID=.*/AGENT_ID=${AGENT_ID}/" apps/api/.env
       else
+        echo "" >> apps/api/.env
         echo "AGENT_ID=${AGENT_ID}" >> apps/api/.env
       fi
       ok "AGENT_ID written to apps/api/.env"

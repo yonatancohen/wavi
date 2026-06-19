@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────
-# scripts/deploy-api.sh — Deploy API to Railway
-# Usage: ./scripts/deploy-api.sh [--env]
+# scripts/deploy-api.sh — Deploy API to Railway (monorepo root)
+# Usage:
+#   ./scripts/deploy-api.sh           # deploy
+#   ./scripts/deploy-api.sh --env     # sync secrets only
 # ─────────────────────────────────────────────────────────────
 set -e
 
-GREEN="\033[0;32m"; YELLOW="\033[0;33m"
-RED="\033[0;31m"; CYAN="\033[0;36m"; RESET="\033[0m"; BOLD="\033[1m"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/lib/env.sh"
+
+GREEN="\033[0;32m"; YELLOW="\033[0;33m"; RED="\033[0;31m"; CYAN="\033[0;36m"; RESET="\033[0m"; BOLD="\033[1m"
+ENV_ONLY=false
+[[ "$1" == "--env" ]] && ENV_ONLY=true
 
 step()  { echo -e "\n${CYAN}▶ $1${RESET}"; }
 ok()    { echo -e "${GREEN}✓ $1${RESET}"; }
@@ -14,36 +20,67 @@ warn()  { echo -e "${YELLOW}⚠ $1${RESET}"; }
 error() { echo -e "${RED}✗ $1${RESET}"; exit 1; }
 
 export PATH="$HOME/.bun/bin:$PATH"
-ENV_ONLY=false
-[[ "$1" == "--env" ]] && ENV_ONLY=true
+
+link_railway_at_root() {
+  cd "$ROOT/apps/api"
+  railway status &>/dev/null || error "Initialize Railway first: cd apps/api && railway init --name wavi-api"
+
+  local project_id
+  project_id=$(railway status --json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null) \
+    || error "Could not read Railway project id"
+
+  cd "$ROOT"
+  if ! railway status &>/dev/null; then
+    warn "Linking Railway at repo root (required for monorepo Docker build)..."
+    railway link -p "$project_id" -s wavi-api --environment production
+  fi
+
+  if railway status 2>&1 | grep -q "Service:         None"; then
+    railway service link wavi-api
+  fi
+
+  ok "Railway linked at repo root → wavi-api"
+}
 
 echo -e "${BOLD}Wavi — Deploy API to Railway${RESET}\n"
 
-! command -v railway &>/dev/null && bun add -g @railway/cli
-! railway whoami &>/dev/null && railway login
-ok "Logged in: $(railway whoami 2>/dev/null)"
+command -v railway &>/dev/null || bun add -g @railway/cli
+railway whoami &>/dev/null || error "Run: railway login"
+ok "Railway: $(railway whoami 2>/dev/null)"
 
-[[ ! -f apps/api/.env ]] && error "apps/api/.env not found"
-export $(grep -v '^#' apps/api/.env | xargs)
+require_env_file "$ROOT/apps/api/.env" "API env" || error "Create apps/api/.env from .env.example"
+load_env_file "$ROOT/apps/api/.env"
 
-step "Syncing env vars to Railway"
-push_var() { local k=$1; local v="${!k}"; [[ -n "$v" ]] && railway variables set "${k}=${v}" --yes 2>/dev/null && ok "  $k" || true; }
-push_var SUPABASE_URL; push_var SUPABASE_SERVICE_ROLE_KEY
-push_var ANTHROPIC_API_KEY; push_var OPENAI_API_KEY
-push_var UPSTASH_REDIS_REST_URL; push_var UPSTASH_REDIS_REST_TOKEN
-push_var WA_AGENT_NAME; push_var AGENT_ID
-railway variables set "PORT=3000" --yes 2>/dev/null || true
-railway variables set "NODE_ENV=production" --yes 2>/dev/null || true
+[[ -z "$AGENT_ID" ]] && warn "AGENT_ID is empty — run ./scripts/db-setup.sh first"
 
-[[ "$ENV_ONLY" == true ]] && { ok "Env vars synced"; exit 0; }
+step "Syncing secrets to Railway"
+bash "$ROOT/scripts/sync-secrets.sh" api
+
+[[ "$ENV_ONLY" == true ]] && { ok "Secrets synced"; exit 0; }
+
+link_railway_at_root
 
 step "Type checking"
-bun run --cwd apps/api typecheck || { warn "Type errors — continue? (y/N)"; read -r a; [[ "$a" == "y" ]] || exit 1; }
+bun run --cwd "$ROOT/apps/api" typecheck || { warn "Type errors — continue? (y/N)"; read -r a; [[ "$a" == "y" ]] || exit 1; }
 
-step "Deploying to Railway"
+step "Deploying to Railway (monorepo root + Dockerfile)"
+cd "$ROOT"
 railway up --detach
 ok "Deploy triggered"
 
-echo -e "\n${CYAN}Tailing logs...${RESET}\n"
-railway logs --tail 50 || true
-echo -e "\n${GREEN}${BOLD}API deployed!${RESET}\n"
+cd "$ROOT/apps/api"
+DOMAIN=$(railway domain 2>/dev/null | grep -Eo '[^[:space:]]+\.(railway\.app|up\.railway\.app)' | head -1 || true)
+if [[ -z "$DOMAIN" ]]; then
+  DOMAIN=$(railway domain 2>/dev/null | grep -Eo 'https?://[^[:space:]]+' | head -1 | sed 's|^https://||;s|/.*$||')
+fi
+if [[ -n "$DOMAIN" ]]; then
+  ok "API URL: https://${DOMAIN}"
+  echo "https://${DOMAIN}" > "$ROOT/.deploy-api-url"
+else
+  warn "No public domain yet — run: cd apps/api && railway domain"
+fi
+
+echo -e "\n${CYAN}Recent logs:${RESET}\n"
+railway logs --tail 30 2>/dev/null || true
+echo -e "\n${GREEN}${BOLD}API deployed!${RESET}"
+echo -e "Attach a ${BOLD}Volume${RESET} at ${BOLD}/data${RESET} in Railway so WhatsApp session survives redeploys.\n"
