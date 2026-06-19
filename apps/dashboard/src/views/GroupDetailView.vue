@@ -1,75 +1,125 @@
 <template>
-  <div class="flex min-h-screen flex-col">
-    <div class="flex min-h-[60px] items-center justify-between gap-4 border-b border-border bg-surface px-7 py-4">
-      <div>
-        <RouterLink to="/groups" class="mb-1 inline-block text-xs text-muted no-underline hover:text-ink">
-          ← Groups
-        </RouterLink>
-        <div class="text-[15px] font-semibold">{{ group?.name ?? 'Group' }}</div>
-        <div class="mt-0.5 break-all text-[11px] text-muted">{{ group?.wa_group_id }}</div>
-      </div>
-      <span
-        v-if="group"
-        class="badge px-2.5 py-1"
-        :class="statusBadgeClass(group.status)"
+  <div class="flex min-h-screen flex-col bg-background">
+    <header class="sticky top-0 z-10 border-b border-outline-variant bg-surface px-margin-mobile py-4">
+      <RouterLink
+        to="/groups"
+        class="mb-2 inline-flex items-center gap-1 text-xs text-on-surface-variant no-underline transition-colors hover:text-primary"
       >
-        {{ statusLabel(group.status) }}
-      </span>
-    </div>
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+        Groups
+      </RouterLink>
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="font-sora text-headline-md text-on-surface">{{ group?.name ?? 'Group' }}</h1>
+          <p class="mt-0.5 break-all text-[11px] text-on-surface-variant">{{ group?.wa_group_id }}</p>
+        </div>
+        <span
+          v-if="group"
+          class="badge shrink-0 px-2.5 py-1"
+          :class="statusBadgeClass(group.status)"
+        >
+          {{ statusLabel(group.status) }}
+        </span>
+      </div>
+    </header>
 
-    <div class="flex-1 max-w-[720px] p-7">
-      <div v-if="loading" class="text-muted">Loading…</div>
+    <div class="mx-auto w-full max-w-[800px] flex-1 px-margin-mobile py-8">
+      <div v-if="loading" class="flex items-center gap-3 text-on-surface-variant">
+        <div class="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+        Loading…
+      </div>
+
       <div
         v-else-if="error"
-        class="rounded-[10px] border border-danger/25 bg-danger/10 px-3.5 py-3 text-[#ffb4b4]"
+        class="rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error"
       >
         {{ error }}
       </div>
 
       <template v-else-if="group">
-        <section class="mb-4 rounded-[14px] border border-border bg-surface p-5">
-          <div class="mb-2.5 text-sm font-semibold">Setup</div>
-          <p class="mb-4 text-sm leading-relaxed text-muted">
-            After registering, set the group to <strong class="text-ink">Live</strong> so Wavi replies when someone tags
-            <code class="rounded-md bg-surface2 px-1.5 py-0.5 text-accent">@Wavi</code>
+        <div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <div class="rounded-xl border border-outline-variant bg-surface-container p-4">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">Messages today</p>
+            <p class="mt-1 font-sora text-headline-md text-primary">{{ group.message_count_today }}</p>
+          </div>
+          <div class="rounded-xl border border-outline-variant bg-surface-container p-4">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">Replies today</p>
+            <p class="mt-1 font-sora text-headline-md text-secondary">{{ group.reply_count_today }}</p>
+          </div>
+          <div class="col-span-2 rounded-xl border border-outline-variant bg-surface-container p-4 md:col-span-1">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">Status</p>
+            <p class="mt-1 font-sora text-headline-md text-on-surface">{{ statusLabel(group.status) }}</p>
+          </div>
+        </div>
+
+        <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">tune</span>
+            <h2 class="font-sora text-headline-md">Setup</h2>
+          </div>
+          <p class="mb-5 text-body-md leading-relaxed text-on-surface-variant">
+            After registering, set the group to
+            <strong class="text-on-surface">Live</strong> so Wavi replies when someone tags
+            <code class="rounded-md bg-surface-variant px-2 py-0.5 text-primary">@Wavi</code>
             in the chat.
           </p>
 
-          <div class="flex flex-wrap gap-2.5">
+          <div class="flex flex-wrap gap-3">
             <button
               v-if="group.status !== 'active'"
-              class="btn btn-primary"
+              class="btn btn-primary flex items-center gap-2"
               :disabled="saving"
               @click="goLive"
             >
-              Go Live
+              <span class="material-symbols-outlined text-[20px]">play_arrow</span>
+              {{ saving ? 'Saving…' : 'Go Live' }}
             </button>
             <button
               v-if="group.status === 'active'"
-              class="btn btn-secondary"
+              class="btn btn-secondary flex items-center gap-2"
               :disabled="saving"
               @click="pause"
             >
+              <span class="material-symbols-outlined text-[20px]">pause</span>
               Pause
             </button>
             <button
               v-if="group.status === 'paused'"
-              class="btn btn-secondary"
+              class="btn btn-secondary flex items-center gap-2"
               :disabled="saving"
               @click="goLive"
             >
+              <span class="material-symbols-outlined text-[20px]">play_arrow</span>
               Resume
             </button>
           </div>
         </section>
 
-        <section class="rounded-[14px] border border-border bg-surface p-5">
-          <div class="mb-2.5 text-sm font-semibold">Next steps</div>
-          <ul class="list-disc pl-[18px] text-sm leading-[1.8] text-muted">
-            <li class="text-ink">Register group in Wavi</li>
-            <li :class="group.status === 'active' ? 'text-ink' : ''">Go live</li>
-            <li>Upload chat history (coming soon in dashboard)</li>
-            <li>Review generated character (coming soon)</li>
+        <section class="rounded-xl border border-outline-variant bg-surface-container p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-tertiary">checklist</span>
+            <h2 class="font-sora text-headline-md">Next steps</h2>
+          </div>
+          <ul class="space-y-3 text-body-md leading-relaxed text-on-surface-variant">
+            <li class="flex items-start gap-3">
+              <span class="material-symbols-outlined mt-0.5 text-[18px] text-primary">check_circle</span>
+              <span class="text-on-surface">Register group in Wavi</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span
+                class="material-symbols-outlined mt-0.5 text-[18px]"
+                :class="group.status === 'active' ? 'text-primary' : 'text-on-surface-variant'"
+              >{{ group.status === 'active' ? 'check_circle' : 'radio_button_unchecked' }}</span>
+              <span :class="group.status === 'active' ? 'text-on-surface' : ''">Go live</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="material-symbols-outlined mt-0.5 text-[18px] text-on-surface-variant">schedule</span>
+              Upload chat history (coming soon)
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="material-symbols-outlined mt-0.5 text-[18px] text-on-surface-variant">schedule</span>
+              Review generated character (coming soon)
+            </li>
           </ul>
         </section>
       </template>

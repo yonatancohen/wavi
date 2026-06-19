@@ -1,32 +1,60 @@
 <template>
-  <div class="flex min-h-screen">
-    <nav class="flex w-[220px] shrink-0 flex-col gap-1 border-r border-border bg-surface py-6">
-      <div class="flex items-center gap-2.5 px-5 pb-6">
-        <span class="text-xl text-wa">●</span>
-        <span class="text-lg font-bold tracking-tight">Wa<strong class="text-accent">vi</strong></span>
+  <div class="flex min-h-screen bg-background">
+    <nav class="flex w-[260px] shrink-0 flex-col border-r border-outline-variant bg-surface-container">
+      <div class="flex flex-col items-start border-b border-outline-variant p-6">
+        <div class="mb-4 flex items-center gap-4">
+          <img
+            src="/wavi-mascot.jpg"
+            alt="Wavi mascot"
+            class="h-12 w-12 rounded-xl object-contain"
+          />
+          <div>
+            <h2 class="font-sora text-headline-md text-primary">Wavi</h2>
+            <p class="text-label-md text-on-surface-variant">Your Witty AI Agent</p>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-2 rounded-full border px-3 py-1"
+          :class="agentConnected
+            ? 'border-primary/20 bg-primary/10'
+            : 'border-error/20 bg-error/10'"
+        >
+          <div
+            class="h-2 w-2 rounded-full"
+            :class="agentConnected ? 'animate-status-pulse bg-primary' : 'bg-error'"
+          />
+          <span
+            class="text-[10px] font-bold uppercase tracking-widest"
+            :class="agentConnected ? 'text-primary' : 'text-error'"
+          >
+            {{ agentConnected ? 'Connected' : 'Disconnected' }}
+          </span>
+        </div>
       </div>
 
-      <div class="mb-2 px-3">
-        <span class="block px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-muted">Overview</span>
+      <div class="flex-1 space-y-1 py-4">
+        <span class="block px-5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-on-surface-variant">
+          Overview
+        </span>
         <RouterLink to="/" class="nav-item">
-          <span class="w-5 text-center text-base">⬡</span>
+          <span class="material-symbols-outlined text-[20px]">dashboard</span>
           Dashboard
           <span v-if="agentConnected" class="status-dot" />
         </RouterLink>
         <RouterLink to="/groups" class="nav-item">
-          <span class="w-5 text-center text-base">💬</span>
+          <span class="material-symbols-outlined text-[20px]">group</span>
           Groups
         </RouterLink>
         <RouterLink to="/activity" class="nav-item">
-          <span class="w-5 text-center text-base">↩</span>
+          <span class="material-symbols-outlined text-[20px]">history</span>
           Activity
         </RouterLink>
-      </div>
 
-      <div class="px-3">
-        <span class="block px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-muted">Agent</span>
+        <span class="block px-5 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[1.5px] text-on-surface-variant">
+          Agent
+        </span>
         <RouterLink to="/connect" class="nav-item">
-          <span class="w-5 text-center text-base">🔗</span>
+          <span class="material-symbols-outlined text-[20px]">link</span>
           WhatsApp
         </RouterLink>
       </div>

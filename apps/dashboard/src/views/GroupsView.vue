@@ -1,53 +1,74 @@
 <template>
-  <div class="flex min-h-screen flex-col">
-    <div class="flex min-h-[60px] items-center justify-between gap-4 border-b border-border bg-surface px-7 py-4">
+  <div class="flex min-h-screen flex-col bg-background">
+    <header class="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-4 border-b border-outline-variant bg-surface px-margin-mobile py-4">
       <div>
-        <div class="text-[15px] font-semibold">Groups</div>
-        <div class="mt-0.5 text-xs text-muted">Register WhatsApp groups where Wavi should listen and reply</div>
+        <h1 class="font-sora text-headline-md text-on-surface">Groups</h1>
+        <p class="mt-0.5 text-body-md text-on-surface-variant">
+          Register WhatsApp groups where Wavi should listen and reply
+        </p>
       </div>
-      <button class="btn btn-primary" :disabled="discovering" @click="openDiscover">
-        {{ discovering ? 'Loading…' : '+ Add from WhatsApp' }}
+      <button class="btn btn-primary flex items-center gap-2" :disabled="discovering" @click="openDiscover">
+        <span class="material-symbols-outlined text-[20px]">group_add</span>
+        {{ discovering ? 'Loading…' : 'Add from WhatsApp' }}
       </button>
-    </div>
+    </header>
 
-    <div class="flex-1 p-7">
+    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-8">
       <div
         v-if="error"
-        class="mb-4 rounded-[10px] border border-danger/25 bg-danger/10 px-3.5 py-3 text-[#ffb4b4]"
+        class="mb-4 rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error"
       >
         {{ error }}
       </div>
 
-      <div v-if="loading" class="text-muted">Loading groups…</div>
+      <div v-if="loading" class="flex items-center gap-3 text-on-surface-variant">
+        <div class="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+        Loading groups…
+      </div>
 
       <div
         v-else-if="groups.length === 0"
-        class="mx-auto mt-20 max-w-[520px] rounded-2xl border border-border bg-surface p-10 text-center text-muted"
+        class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center"
       >
-        <div class="mb-2 text-lg font-semibold text-ink">No groups registered yet</div>
-        <div class="mb-5 text-sm leading-normal">
-          Connect WhatsApp, then click “Add from WhatsApp” to pick a group you’re already in.
+        <div class="relative mx-auto mb-6 inline-block">
+          <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
+          <div class="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-surface-container shadow-wavi-ring">
+            <span class="material-symbols-outlined text-3xl text-primary">group_off</span>
+          </div>
         </div>
+        <h2 class="mb-2 font-sora text-headline-md text-on-surface">No groups registered yet</h2>
+        <p class="mb-6 text-body-md leading-relaxed text-on-surface-variant">
+          Connect WhatsApp, then add a group you're already in so Wavi knows where to show up.
+        </p>
         <button class="btn btn-primary" @click="openDiscover">Add from WhatsApp</button>
       </div>
 
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
         <RouterLink
           v-for="group in groups"
           :key="group.id"
           :to="`/groups/${group.id}`"
-          class="block rounded-[14px] border border-border bg-surface p-[18px] text-inherit no-underline transition-colors duration-150 hover:border-accent/35"
+          class="glass-card group block rounded-xl p-5 text-inherit no-underline transition-all hover:-translate-y-0.5 hover:border-primary/40"
         >
-          <div class="mb-2 flex items-start justify-between gap-3">
-            <div class="text-[15px] font-semibold">{{ group.name }}</div>
-            <span class="badge px-2 py-0.5" :class="statusBadgeClass(group.status)">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">forum</span>
+              <div class="font-sora text-[17px] font-semibold">{{ group.name }}</div>
+            </div>
+            <span class="badge px-2.5 py-0.5" :class="statusBadgeClass(group.status)">
               {{ statusLabel(group.status) }}
             </span>
           </div>
-          <div class="mb-3 break-all text-[11px] text-muted">{{ group.wa_group_id }}</div>
-          <div class="flex gap-3 text-xs text-muted">
-            <span>{{ group.message_count_today }} msgs today</span>
-            <span>{{ group.reply_count_today }} replies today</span>
+          <div class="mb-4 break-all text-[11px] text-on-surface-variant">{{ group.wa_group_id }}</div>
+          <div class="flex gap-4 text-xs text-on-surface-variant">
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">chat</span>
+              {{ group.message_count_today }} msgs today
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">smart_toy</span>
+              {{ group.reply_count_today }} replies today
+            </span>
           </div>
         </RouterLink>
       </div>
@@ -55,47 +76,55 @@
 
     <div
       v-if="showDiscover"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       @click.self="closeDiscover"
     >
-      <div class="flex max-h-[80vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-border bg-surface">
-        <div class="flex justify-between gap-4 border-b border-border px-[22px] py-5">
+      <div class="flex max-h-[80vh] w-full max-w-[640px] flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container shadow-2xl">
+        <div class="flex justify-between gap-4 border-b border-outline-variant px-6 py-5">
           <div>
-            <div class="text-base font-semibold">Add group from WhatsApp</div>
-            <div class="mt-1 text-xs text-muted">These are groups your linked WhatsApp account is already in</div>
+            <h2 class="font-sora text-headline-md text-on-surface">Add group from WhatsApp</h2>
+            <p class="mt-1 text-body-md text-on-surface-variant">
+              Groups your linked WhatsApp account is already in
+            </p>
           </div>
-          <button class="cursor-pointer border-none bg-transparent px-2 py-1 text-lg text-muted" @click="closeDiscover">
-            ✕
+          <button
+            class="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+            @click="closeDiscover"
+          >
+            <span class="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <div v-if="discovering" class="px-[22px] py-10 text-center text-muted">Loading WhatsApp groups…</div>
+        <div v-if="discovering" class="flex items-center justify-center gap-3 px-6 py-12 text-on-surface-variant">
+          <div class="h-6 w-6 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+          Loading WhatsApp groups…
+        </div>
 
-        <div v-else-if="discoverError" class="overflow-y-auto px-[22px] pb-[22px] pt-4">
-          <div class="rounded-[10px] border border-danger/25 bg-danger/10 px-3.5 py-3 text-[#ffb4b4]">
+        <div v-else-if="discoverError" class="overflow-y-auto px-6 pb-6 pt-4">
+          <div class="rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error">
             {{ discoverError }}
           </div>
-          <div class="my-3 text-[13px] leading-normal text-muted">
+          <p class="my-4 text-body-md leading-relaxed text-on-surface-variant">
             Make sure WhatsApp is connected under Agent → WhatsApp, and that this account is in at least one group.
-          </div>
+          </p>
           <RouterLink to="/connect" class="btn btn-secondary" @click="closeDiscover">Go to Connect</RouterLink>
         </div>
 
-        <div v-else-if="discovered.length === 0" class="px-[22px] py-10 text-center text-muted">
+        <div v-else-if="discovered.length === 0" class="px-6 py-12 text-center text-on-surface-variant">
           No group chats found on this WhatsApp account.
         </div>
 
-        <div v-else class="flex flex-col gap-2.5 overflow-y-auto px-[22px] pb-[22px] pt-4">
+        <div v-else class="flex flex-col gap-3 overflow-y-auto px-6 pb-6 pt-4">
           <div
             v-for="item in discovered"
             :key="item.wa_group_id"
-            class="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2 p-3.5"
+            class="flex items-center justify-between gap-4 rounded-xl border border-outline-variant bg-surface-variant/40 p-4"
           >
             <div>
-              <div class="mb-1 text-sm font-semibold">{{ item.name }}</div>
-              <div class="flex gap-2.5 text-xs text-muted">
+              <div class="mb-1 text-sm font-semibold text-on-surface">{{ item.name }}</div>
+              <div class="flex gap-3 text-xs text-on-surface-variant">
                 <span v-if="item.participant_count">{{ item.participant_count }} members</span>
-                <span v-if="item.registered" class="text-wa">Registered</span>
+                <span v-if="item.registered" class="text-primary">Registered</span>
               </div>
             </div>
             <div>
