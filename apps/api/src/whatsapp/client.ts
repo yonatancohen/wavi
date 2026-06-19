@@ -1,9 +1,58 @@
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import pkg from 'whatsapp-web.js'
 const { Client, LocalAuth, MessageTypes } = pkg
 import qrcode from 'qrcode'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { handleIncomingMessage } from './handlers.js'
+
+const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? '.wwebjs_auth'
+
+function getSessionUserDataDir() {
+  return path.resolve(WA_DATA_PATH, 'session')
+}
+
+function isBrowserAlreadyRunningError(err: unknown) {
+  return err instanceof Error && err.message.includes('browser is already running')
+}
+
+function killStaleBrowserProcesses(userDataDir: string) {
+  let pids: string[] = []
+  try {
+    pids = execFileSync('pgrep', ['-f', userDataDir], { encoding: 'utf8' })
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    return 0
+  }
+
+  let killed = 0
+  for (const pid of pids) {
+    const n = Number(pid)
+    if (!n || n === process.pid) continue
+    try {
+      process.kill(n, 'SIGTERM')
+      killed++
+    } catch {
+      // already exited
+    }
+  }
+  return killed
+}
+
+function removeStaleSingletonLocks(userDataDir: string) {
+  for (const name of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try {
+      const target = path.join(userDataDir, name)
+      if (fs.existsSync(target)) fs.unlinkSync(target)
+    } catch {
+      // ignore — lock may still be held
+    }
+  }
+}
 
 // ── SSE subscribers waiting for QR ───────────────────────────
 type SSEClient = { send: (data: string) => void; close: () => void }
@@ -35,7 +84,7 @@ function broadcastQR(data: string) {
 // ── WhatsApp Client ───────────────────────────────────────────
 export const waClient = new Client({
   authStrategy: new LocalAuth({
-    dataPath: process.env.WA_SESSION_PATH ?? '.wwebjs_auth',
+    dataPath: WA_DATA_PATH,
   }),
   puppeteer: {
     headless: true,
@@ -160,11 +209,52 @@ export async function listGroupChats() {
     })
 }
 
+let starting = false
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function initializeWithCleanup() {
+  const userDataDir = getSessionUserDataDir()
+  const killed = killStaleBrowserProcesses(userDataDir)
+  if (killed > 0) {
+    console.log(`[WA] Stopped ${killed} stale browser process(es) from a previous run`)
+    await sleep(500)
+    removeStaleSingletonLocks(userDataDir)
+  }
+
+  try {
+    await waClient.initialize()
+  } catch (err) {
+    if (!isBrowserAlreadyRunningError(err)) throw err
+    console.warn('[WA] Browser lock detected — retrying after cleanup')
+    killStaleBrowserProcesses(userDataDir)
+    await sleep(500)
+    removeStaleSingletonLocks(userDataDir)
+    await waClient.initialize()
+  }
+}
+
 export function startWhatsAppClient() {
+  if (starting) return
+  starting = true
   console.log('[WA] Initializing client...')
-  waClient.initialize().catch((err) => {
+  initializeWithCleanup().catch((err) => {
     console.error('[WA] Initial connection failed', err)
+    starting = false
   })
+}
+
+export async function stopWhatsAppClient() {
+  try {
+    await waClient.destroy()
+    console.log('[WA] Client stopped')
+  } catch (err) {
+    console.warn('[WA] Client stop error', err)
+  } finally {
+    starting = false
+  }
 }
 
 export async function sendReply(

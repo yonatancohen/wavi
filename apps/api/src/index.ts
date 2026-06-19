@@ -9,7 +9,7 @@ import { repliesRoute } from './routes/replies.js'
 import { healthRoute } from './routes/health.js'
 import { twilioRoute } from './routes/twilio.js'
 import { startReplyWorker } from './ai/worker.js'
-import { startWhatsAppClient } from './whatsapp/client.js'
+import { startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js'
 
 const server = Fastify({
   logger: {
@@ -55,8 +55,16 @@ try {
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────
-process.on('SIGINT', async () => {
-  server.log.info('Shutting down...')
+async function shutdown(signal: string) {
+  server.log.info(`${signal} received — shutting down...`)
+  try {
+    await stopWhatsAppClient()
+  } catch (err) {
+    server.log.warn({ err }, 'WhatsApp client shutdown error')
+  }
   await server.close()
   process.exit(0)
-})
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))
