@@ -54,24 +54,29 @@ function removeStaleSingletonLocks(userDataDir: string) {
   }
 }
 
+// ── Internal connection state ─────────────────────────────────
+// Track readiness locally so /api/agent/status never has to rely
+// on getState() (which can hang while the page is still initialising).
+let _waConnected = false
+let _waPhoneNumber: string | null = null
+
+export function getWaConnectionState() {
+  return { connected: _waConnected, phone_number: _waPhoneNumber }
+}
+
 // ── SSE subscribers waiting for QR ───────────────────────────
 type SSEClient = { send: (data: string) => void; close: () => void }
 const qrSubscribers = new Set<SSEClient>()
 
 export function subscribeToQR(client: SSEClient) {
-  qrSubscribers.add(client)
-
   // Already connected — no QR will be emitted; notify subscriber immediately
-  waClient.getState()
-    .then((state) => {
-      if (state === 'CONNECTED') {
-        client.send(JSON.stringify({ type: 'authenticated' }))
-        client.close()
-        qrSubscribers.delete(client)
-      }
-    })
-    .catch(() => {})
+  if (_waConnected) {
+    client.send(JSON.stringify({ type: 'authenticated' }))
+    client.close()
+    return () => {}
+  }
 
+  qrSubscribers.add(client)
   return () => qrSubscribers.delete(client)
 }
 
@@ -115,17 +120,30 @@ waClient.on('qr', async (qr) => {
 
 waClient.on('authenticated', () => {
   console.log('[WA] Authenticated ✓')
+  // Notify dashboard that auth succeeded; keep SSE open until 'ready' fires
+  // so the phone number can be delivered in a single 'ready' event.
   broadcastQR(JSON.stringify({ type: 'authenticated' }))
-  // Close all QR subscribers — they don't need updates anymore
-  for (const sub of qrSubscribers) sub.close()
-  qrSubscribers.clear()
 })
 
 waClient.on('ready', async () => {
   console.log('[WA] Client ready ✓')
+  _waConnected = true
+
+  const info = waClient.info
+  if (info) {
+    _waPhoneNumber = info.wid.user
+  }
+
+  // Broadcast ready to any lingering SSE subscribers (e.g. page was open during
+  // server restart and session resumed without emitting 'authenticated').
+  const readyMsg = JSON.stringify({ type: 'ready', phone_number: _waPhoneNumber })
+  for (const sub of qrSubscribers) {
+    sub.send(readyMsg)
+    sub.close()
+  }
+  qrSubscribers.clear()
 
   // Persist session info to Supabase
-  const info = waClient.info
   if (info) {
     await db
       .from('agents')
@@ -137,6 +155,8 @@ waClient.on('ready', async () => {
 
 waClient.on('disconnected', async (reason) => {
   console.warn('[WA] Disconnected:', reason)
+  _waConnected = false
+  _waPhoneNumber = null
 
   // Notify dashboard via Supabase realtime
   await db

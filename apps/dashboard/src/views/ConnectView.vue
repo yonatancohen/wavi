@@ -174,9 +174,11 @@ function startQrStream() {
       qrDataUrl.value = msg.data
       streamError.value = null
     } else if (msg.type === 'authenticated') {
-      apiFetch<AgentStatus>('/agent/status')
-        .then(setConnected)
-        .catch(() => setConnected({ connected: true, phone_number: null }))
+      // authenticated fires before 'ready'; optimistically show connected UI.
+      // Status will be re-fetched on the 'ready' event to get the phone number.
+      setConnected({ connected: true, phone_number: null })
+    } else if (msg.type === 'ready') {
+      setConnected({ connected: true, phone_number: msg.phone_number ?? null })
     }
   }
 

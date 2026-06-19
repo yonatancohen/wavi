@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { subscribeToQR } from '../whatsapp/client.js'
+import { subscribeToQR, getWaConnectionState } from '../whatsapp/client.js'
 import { pickDashboardOrigin } from '../lib/cors.js'
 
 export const agentRoute: FastifyPluginAsync = async (fastify) => {
@@ -33,14 +33,14 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // ── GET /api/agent/status ────────────────────────────────────
-  fastify.get('/status', async (req, reply) => {
-    const { waClient } = await import('../whatsapp/client.js')
-    const state = await waClient.getState().catch(() => null)
-
+  fastify.get('/status', async (_req, _reply) => {
+    // Use the locally-tracked state to avoid calling getState() which can
+    // hang while the WA client is still initialising after authentication.
+    const { connected, phone_number } = getWaConnectionState()
     return {
-      connected:    state === 'CONNECTED',
-      state:        state ?? 'DISCONNECTED',
-      phone_number: waClient.info?.wid?.user ?? null,
+      connected,
+      state:        connected ? 'CONNECTED' : 'DISCONNECTED',
+      phone_number,
     }
   })
 }
