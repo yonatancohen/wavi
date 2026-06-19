@@ -16,7 +16,6 @@ export async function handleIncomingMessage(msg: WAMessage) {
   console.log(`[WA] Group message received — wa_group_id: ${waGroupId} | name: ${chat.name}`)
 
   const senderWaId = msg.author ?? msg.from
-  const senderName = (await msg.getContact()).pushname ?? senderWaId
   const body = msg.body
 
   // ── 1. Find group in DB ───────────────────────────────────
@@ -29,6 +28,9 @@ export async function handleIncomingMessage(msg: WAMessage) {
   if (!group || group.status === 'paused') return
 
   // ── 2. Store message ──────────────────────────────────────
+  // Resolve display name lazily — avoid a WA API round-trip for every message
+  const senderName = senderWaId
+
   const { data: stored } = await db
     .from('messages')
     .insert({
@@ -52,6 +54,9 @@ export async function handleIncomingMessage(msg: WAMessage) {
   // ── 4. Check if agent is tagged ───────────────────────────
   const isTagged = body.toLowerCase().includes(`@${AGENT_NAME.toLowerCase()}`)
   if (!isTagged) return
+
+  // Resolve push name only when we are actually going to reply
+  const resolvedName = (await msg.getContact()).pushname ?? senderWaId
 
   // ── 5. Rate limit check ───────────────────────────────────
   const rateLimitKey = `ratelimit:${group.id}:${senderWaId}`
@@ -86,7 +91,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
     wa_group_id:   waGroupId,
     message_id:    stored?.id,
     sender_wa_id:  senderWaId,
-    sender_name:   senderName,
+    sender_name:   resolvedName,
     body,
     wa_msg_id:     msg.id._serialized,
     queued_at:     Date.now(),

@@ -173,14 +173,20 @@ Keep replies proportional to the question. Short questions get short answers.
 // ── Build conversation turns (last 20 messages) ───────────────
 
 export function buildConversationTurns(ctx: PromptContext) {
-  const agentName = process.env.WA_AGENT_NAME ?? 'Wavi'
-
-  return ctx.recent_messages.map((msg) => ({
+  const turns = ctx.recent_messages.map((msg) => ({
     role: (msg.is_agent_reply ? 'assistant' : 'user') as 'user' | 'assistant',
     content: msg.is_agent_reply
       ? msg.body
       : `${msg.sender_name}: ${msg.body}`,
   }))
+
+  // Claude requires the first message to be from 'user'; drop any leading
+  // assistant turns that could appear when the oldest stored message is an
+  // agent reply. If there are no user turns at all, return empty so the
+  // current message (appended by the worker) is the only turn.
+  const firstUser = turns.findIndex((t) => t.role === 'user')
+  if (firstUser === -1) return []
+  return firstUser > 0 ? turns.slice(firstUser) : turns
 }
 
 function getLanguageName(code: LanguageMode): string {

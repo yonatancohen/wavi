@@ -28,6 +28,7 @@
     "health:prod": "bash scripts/health.sh --prod",
     "logs": "bash scripts/logs.sh",
     "test:parser": "bun scripts/test-parser.mjs",
+    "test": "bun run --filter '@wavi/api' test",
     "build": "bun run --filter '*' build",
     "typecheck": "bun run --filter '*' typecheck"
   },

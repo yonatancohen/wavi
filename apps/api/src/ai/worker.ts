@@ -127,8 +127,19 @@ export async function checkForNegativeReaction(params: {
   body:       string
   waGroupId:  string
 }) {
-  // Look for any recent pending reply in this group
-  const keys = await redis.keys(`pending_reaction:${params.groupId}:*`)
+  // Scan for pending reaction keys — KEYS is O(N) and blocks Redis;
+  // SCAN iterates incrementally and is safe on large keyspaces.
+  const keys: string[] = []
+  let cursor = 0
+  do {
+    const [nextCursor, batch] = await redis.scan(
+      cursor,
+      'MATCH', `pending_reaction:${params.groupId}:*`,
+      'COUNT', 100,
+    )
+    cursor = Number(nextCursor)
+    keys.push(...batch)
+  } while (cursor !== 0)
   if (keys.length === 0) return
 
   const isNegative = detectNegativeReaction(params.body)

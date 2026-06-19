@@ -264,6 +264,13 @@ export async function sendReply(
 ) {
   const chat = await waClient.getChatById(waGroupId)
 
+  // Simulate human typing: ~40 chars/sec, clamped 1.5–5s, plus random jitter
+  const typingMs = Math.min(Math.max(replyBody.length * 25, 1500), 5000)
+  const jitter = Math.floor(Math.random() * 800)
+  await chat.sendStateTyping()
+  await sleep(typingMs + jitter)
+  await chat.clearState()
+
   if (quotedMsgId) {
     const quoted = await waClient.getMessageById(quotedMsgId)
     await chat.sendMessage(replyBody, { quotedMessageId: quoted.id._serialized })
