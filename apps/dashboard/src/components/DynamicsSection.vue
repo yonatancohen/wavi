@@ -2,10 +2,10 @@
   <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
     <div class="mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-tertiary">hub</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">Group dynamics</h2>
+      <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dynamics.title') }}</h2>
     </div>
 
-    <LoadingState v-if="loading" variant="compact" message="Loading relationships…" />
+    <LoadingState v-if="loading" variant="compact" :message="t('loading.relationships')" />
 
     <div
       v-else-if="error"
@@ -20,7 +20,7 @@
     >
       <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">link_off</span>
       <p class="text-[13px] text-on-surface-variant">
-        Group dynamics will appear after uploading chat history
+        {{ t('dynamics.empty') }}
       </p>
     </div>
 
@@ -58,9 +58,12 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../lib/api'
 import LoadingState from './LoadingState.vue'
 import type { RelationshipPair } from '@wavi/shared'
+
+const { t } = useI18n()
 
 const props = defineProps<{ groupId: string }>()
 
@@ -71,17 +74,17 @@ const error = ref<string | null>(null)
 function scoreBars(pair: RelationshipPair) {
   return [
     {
-      label: 'Interaction',
+      label: t('dynamics.bars.interaction'),
       percent: Math.round(pair.interaction_score * 100),
       colorClass: 'bg-primary',
     },
     {
-      label: 'Solidarity',
+      label: t('dynamics.bars.solidarity'),
       percent: Math.round(pair.solidarity_score * 100),
       colorClass: 'bg-secondary',
     },
     {
-      label: 'Conflict',
+      label: t('dynamics.bars.conflict'),
       percent: Math.round(pair.conflict_score * 100),
       colorClass: 'bg-error/80',
     },
@@ -94,7 +97,7 @@ async function load() {
   try {
     pairs.value = await apiFetch<RelationshipPair[]>(`/groups/${props.groupId}/relationships`)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load relationships'
+    error.value = e instanceof Error ? e.message : t('dynamics.failedLoad')
     pairs.value = []
   } finally {
     loading.value = false

@@ -7,7 +7,7 @@
     ]"
     role="status"
     aria-live="polite"
-    :aria-label="message"
+    :aria-label="resolvedMessage"
   >
     <div
       class="relative shrink-0"
@@ -24,16 +24,18 @@
       class="text-on-surface-variant"
       :class="[
         variant === 'inline' ? 'text-sm' : 'text-sm font-medium',
-        variant === 'compact' && 'text-[#666]',
       ]"
     >
-      {{ message }}
+      {{ resolvedMessage }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(
   defineProps<{
@@ -41,10 +43,12 @@ const props = withDefaults(
     variant?: 'inline' | 'overlay' | 'compact'
   }>(),
   {
-    message: 'Loading…',
+    message: undefined,
     variant: 'overlay',
   },
 )
+
+const resolvedMessage = computed(() => props.message ?? t('loading.default'))
 
 const spinnerSize = computed(() => {
   switch (props.variant) {

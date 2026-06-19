@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev":       "vite",
-    "build":     "vue-tsc && vite build",
-    "preview":   "vite preview",
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@wavi/shared": "workspace:*",
     "@supabase/supabase-js": "^2.43.0",
+    "@wavi/shared": "workspace:*",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
+    "vue-i18n": "9",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {

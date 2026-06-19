@@ -2,10 +2,10 @@
   <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
     <div class="mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-secondary">groups</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">Member profiles</h2>
+      <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('members.title') }}</h2>
     </div>
 
-    <LoadingState v-if="loading" variant="compact" message="Loading members…" />
+    <LoadingState v-if="loading" variant="compact" :message="t('loading.members')" />
 
     <div
       v-else-if="error"
@@ -20,7 +20,7 @@
     >
       <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">person_off</span>
       <p class="text-[13px] text-on-surface-variant">
-        Member profiles will appear after uploading chat history
+        {{ t('members.empty') }}
       </p>
     </div>
 
@@ -34,7 +34,7 @@
           <div>
             <h3 class="font-sora text-[14px] font-semibold text-on-surface">{{ member.display_name }}</h3>
             <p class="mt-0.5 font-mono text-[10px] text-on-surface-variant/60">
-              {{ member.msg_count.toLocaleString() }} messages
+              {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
             </p>
           </div>
           <span class="badge px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
@@ -81,9 +81,12 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../lib/api'
 import LoadingState from './LoadingState.vue'
 import type { UserProfile } from '@wavi/shared'
+
+const { t } = useI18n()
 
 const props = defineProps<{ groupId: string }>()
 
@@ -111,7 +114,7 @@ async function load() {
   try {
     members.value = await apiFetch<UserProfile[]>(`/groups/${props.groupId}/members`)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load members'
+    error.value = e instanceof Error ? e.message : t('members.failedLoad')
     members.value = []
   } finally {
     loading.value = false

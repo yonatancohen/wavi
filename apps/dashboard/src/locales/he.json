@@ -1,0 +1,239 @@
+{
+  "nav": {
+    "overview": "סקירה",
+    "agent": "סוכן",
+    "dashboard": "לוח בקרה",
+    "groups": "קבוצות",
+    "activity": "פעילות",
+    "whatsapp": "וואטסאפ"
+  },
+  "brand": {
+    "tagline": "הסוכן החכם שלך"
+  },
+  "status": {
+    "connected": "מחובר",
+    "offline": "לא מקוון",
+    "online": "מקוון"
+  },
+  "theme": {
+    "light": "בהיר",
+    "dark": "כהה",
+    "system": "מערכת"
+  },
+  "dashboard": {
+    "title": "לוח בקרה",
+    "welcome": "ברוך שובך, {name}.",
+    "subtitle": {
+      "disconnected": "חבר את וואטסאפ כדי לתת לWavi להתחיל לארגן את החיים הדיגיטליים שלך.",
+      "noGroups": "וואטסאפ מחובר — הוסף קבוצה כדי שיהיה לWavi איפה לעבוד.",
+      "active": "Wavi פעיל ב-{count} {groups} ומוכן."
+    },
+    "group": "קבוצה",
+    "groups_word": "קבוצות",
+    "manageGroups": "נהל קבוצות",
+    "kpi": {
+      "agent": "סוכן",
+      "activeGroups": "קבוצות פעילות",
+      "messagesToday": "הודעות היום",
+      "repliesToday": "תשובות היום"
+    },
+    "activeGroups": {
+      "title": "קבוצות פעילות",
+      "live": "{count} פעילות",
+      "empty": "אין קבוצות רשומות עדיין.",
+      "addFromWhatsapp": "הוסף מוואטסאפ",
+      "msgCount": "{count} הודעות",
+      "replies": "תשובה אחת | {count} תשובות"
+    },
+    "quickActions": {
+      "title": "פעולות מהירות",
+      "connectWhatsapp": "חבר וואטסאפ",
+      "connectSubtitle": "קשר את סשן הסוכן",
+      "registerGroups": "רשום קבוצות",
+      "registerSubtitle": "בחר צ'אטים מוואטסאפ",
+      "viewActivity": "צפה בפעילות",
+      "viewSubtitle": "ראה מה Wavi עשה לאחרונה"
+    },
+    "recentActivity": {
+      "title": "פעילות אחרונה",
+      "viewAll": "הצג הכל",
+      "waOffline": "הסוכן לא מקוון. עבור לחיבור כדי לסרוק קוד QR.",
+      "waOnline": "סשן הסוכן מחובר ומאזין.",
+      "now": "עכשיו",
+      "today": "היום",
+      "soon": "בקרוב",
+      "intelligence": "Wavi Intelligence",
+      "intelligenceBody": "פיד הפעילות יתמלא ברגע שקבוצות יהיו פעילות."
+    }
+  },
+  "groups": {
+    "title": "קבוצות",
+    "subtitle": "רשום קבוצות וואטסאפ שבהן Wavi יאזין ויגיב",
+    "addFromWhatsapp": "הוסף מוואטסאפ",
+    "loading": "טוען…",
+    "empty": {
+      "title": "אין קבוצות רשומות עדיין",
+      "body": "חבר את וואטסאפ, ואז הוסף קבוצה שאתה כבר בה כדי ש-Wavi יידע איפה להופיע.",
+      "cta": "הוסף מוואטסאפ"
+    },
+    "discover": {
+      "title": "הוסף קבוצה מוואטסאפ",
+      "subtitle": "קבוצות שחשבון הוואטסאפ המקושר שלך כבר נמצא בהן",
+      "empty": "לא נמצאו צ'אטים קבוצתיים בחשבון וואטסאפ זה.",
+      "connectHint": "ודא שוואטסאפ מחובר תחת סוכן → וואטסאפ, ושחשבון זה נמצא בלפחות קבוצה אחת.",
+      "goToConnect": "עבור לחיבור",
+      "members": "{count} חברים",
+      "registered": "רשום",
+      "open": "פתח",
+      "register": "רשום",
+      "adding": "מוסיף…"
+    },
+    "failedLoad": "טעינת קבוצות נכשלה",
+    "failedDiscover": "גילוי קבוצות נכשל",
+    "failedRegister": "רישום הקבוצה נכשל"
+  },
+  "groupDetail": {
+    "back": "קבוצות",
+    "group": "קבוצה",
+    "stats": {
+      "messagesToday": "הודעות היום",
+      "repliesToday": "תשובות היום",
+      "status": "סטטוס"
+    },
+    "setup": {
+      "title": "הגדרה",
+      "body": "לאחר הרישום, הגדר את הקבוצה ל{live} כדי ש-Wavi יגיב כשמישהו מתייג את {mention} בצ'אט.",
+      "live": "פעיל",
+      "goLive": "הפעל",
+      "pause": "השהה",
+      "resume": "חדש",
+      "saving": "שומר…"
+    },
+    "nextSteps": {
+      "title": "שלבים הבאים",
+      "register": "רשום קבוצה ב-Wavi",
+      "goLive": "הפעל",
+      "uploadHistory": "העלה היסטוריית צ'אט",
+      "reviewCharacter": "סקור את האישיות שנוצרה"
+    },
+    "failedLoad": "טעינת הקבוצה נכשלה",
+    "failedStatus": "עדכון הסטטוס נכשל",
+    "failedReload": "טעינת נתוני הקבוצה נכשלה"
+  },
+  "connect": {
+    "title": "חבר וואטסאפ",
+    "subtitle": "סרוק את קוד ה-QR כדי לקשר את חשבון הוואטסאפ שלך ל-Wavi",
+    "connected": {
+      "title": "וואטסאפ מחובר",
+      "body": "הסוכן שלך מקושר ומוכן.",
+      "bodyPhone": "מקושר ל-+{phone}.",
+      "registerGroups": "רשום קבוצות"
+    },
+    "linking": {
+      "title": "קשר את Wavi לוואטסאפ",
+      "tagline": "Wavi ממתין…"
+    },
+    "steps": {
+      "title": "איך לקשר",
+      "step1": "פתח את {whatsapp} בטלפון",
+      "step2": "הקש על {menu} או {settings}, ואז {linkedDevices}",
+      "step3": "כוון את הטלפון לקוד כדי {capture}",
+      "capture": "לצלם אותו"
+    },
+    "status": {
+      "scanned": "קוד QR נסרק — משלים הגדרה…",
+      "scan": "סרוק עם הטלפון לחיבור",
+      "waiting": "ממתין לחיבור…",
+      "generating": "מייצר קוד QR…",
+      "linking": "מקשר את החשבון שלך…"
+    },
+    "hint": "השאר את הטלפון על Wi-Fi לסנכרון מהיר. קוד QR מתרענן אוטומטית.",
+    "retry": "נסה שוב",
+    "errors": {
+      "timeout": "קוד ה-QR לוקח יותר מדי זמן. ודא שה-API פועל מקומית.",
+      "apiDown": "לא ניתן להגיע ל-API. הפעל אותו עם `bun run dev` מתיקיית השורש, ואז נסה שוב."
+    }
+  },
+  "activity": {
+    "title": "פעילות",
+    "subtitle": "תשובות Wavi האחרונות בכל הקבוצות הרשומות",
+    "empty": {
+      "title": "אין פעילות עדיין",
+      "body": "ברגע ש-Wavi יתחיל להגיב בקבוצות, תראה את הפיד כאן.",
+      "cta": "עבור לקבוצות"
+    },
+    "count": "תשובה אחת | {count} תשובות",
+    "triggeredBy": "הופעל על ידי",
+    "flagged": "מסומן",
+    "failedLoad": "טעינת הפעילות נכשלה"
+  },
+  "character": {
+    "title": "אישיות הקבוצה",
+    "unsaved": "שינויים לא שמורים",
+    "save": "שמור",
+    "saving": "שומר…",
+    "voice": "קול",
+    "opinions": "דעות",
+    "signature": "התנהגות מאפיינת",
+    "sliders": "מחווני אישיות",
+    "failedSave": "שמירת האישיות נכשלה",
+    "slider": {
+      "formality": "פורמליות",
+      "humor": "הומור",
+      "verbosity": "דברנות",
+      "assertiveness": "נחרצות",
+      "empathy": "אמפתיה"
+    }
+  },
+  "ingest": {
+    "title": "העלה היסטוריית צ'אט",
+    "body": "יצא את הצ'אט הקבוצתי בוואטסאפ כקובץ {ext} והעלה אותו כדי לבנות פרופילי חברים, מפות קשרים ואישיות קבוצתית.",
+    "dragDrop": "גרור ושחרר ייצוא וואטסאפ כאן, או",
+    "browse": "עיין בקבצים",
+    "txtOnly": "רק .txt",
+    "starting": "מתחיל…",
+    "invalidFile": "אנא העלה קובץ ייצוא וואטסאפ בפורמט .txt",
+    "failedUpload": "ההעלאה נכשלה",
+    "messages": "{processed} / {total} הודעות",
+    "chunks": "{count} חלקים"
+  },
+  "members": {
+    "title": "פרופילי חברים",
+    "empty": "פרופילי חברים יופיעו לאחר העלאת היסטוריית הצ'אט",
+    "failedLoad": "טעינת החברים נכשלה",
+    "messages": "{count} הודעות"
+  },
+  "dynamics": {
+    "title": "דינמיקת קבוצה",
+    "empty": "דינמיקת הקבוצה תופיע לאחר העלאת היסטוריית הצ'אט",
+    "failedLoad": "טעינת הקשרים נכשלה",
+    "bars": {
+      "interaction": "אינטראקציה",
+      "solidarity": "סולידריות",
+      "conflict": "קונפליקט"
+    }
+  },
+  "loading": {
+    "default": "טוען…",
+    "members": "טוען חברים…",
+    "relationships": "טוען קשרים…"
+  },
+  "errors": {
+    "failedGroups": "טעינת קבוצות נכשלה"
+  },
+  "stages": {
+    "parsing": "מנתח",
+    "embedding": "מטמיע",
+    "profiling": "בונה פרופיל",
+    "relationships": "קשרים",
+    "context": "הקשר",
+    "synthesizing": "מסנתז",
+    "done": "הסתיים",
+    "error": "שגיאה"
+  },
+  "status_label": {
+    "active": "פעיל",
+    "paused": "מושהה",
+    "pending_setup": "הגדרה"
+  }
+}

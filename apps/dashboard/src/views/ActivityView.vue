@@ -1,9 +1,9 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
     <header class="page-header">
-      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">Activity</h1>
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('activity.title') }}</h1>
       <p class="mt-0.5 text-[12px] text-on-surface-variant">
-        Recent Wavi replies across your registered groups
+        {{ t('activity.subtitle') }}
       </p>
     </header>
 
@@ -27,25 +27,25 @@
             <span class="material-symbols-outlined text-2xl text-primary">history</span>
           </div>
         </div>
-        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">No activity yet</h2>
+        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">{{ t('activity.empty.title') }}</h2>
         <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
-          Once Wavi starts replying in your groups, you'll see the feed here.
+          {{ t('activity.empty.body') }}
         </p>
-        <RouterLink to="/groups" class="btn btn-primary">Go to Groups</RouterLink>
+        <RouterLink to="/groups" class="btn btn-primary">{{ t('activity.empty.cta') }}</RouterLink>
       </div>
 
       <div v-else class="rounded-xl border border-outline-variant bg-surface-container">
         <div class="border-b border-outline-variant px-5 py-3">
           <span class="font-mono text-[11px] text-on-surface-variant">
-            {{ items.length }} {{ items.length === 1 ? 'reply' : 'replies' }} logged
+            {{ t('activity.count', items.length) }}
           </span>
         </div>
 
-        <div class="divide-y divide-white/[0.04]">
+        <div class="divide-y divide-on-surface/[0.04]">
           <div
             v-for="item in items"
             :key="item.id"
-            class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02]"
+            class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-on-surface/[0.02]"
           >
             <!-- Icon -->
             <div
@@ -67,14 +67,14 @@
                     v-if="item.flagged"
                     class="rounded-full border border-error/20 bg-error/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error"
                   >
-                    Flagged
+                    {{ t('activity.flagged') }}
                   </span>
                 </div>
                 <span class="log-timestamp">{{ item.time }}</span>
               </div>
 
               <p v-if="item.trigger" class="mb-1.5 text-[12px] text-on-surface-variant">
-                Triggered by <span class="text-on-surface">{{ item.trigger }}</span>
+                {{ t('activity.triggeredBy') }} <span class="text-on-surface">{{ item.trigger }}</span>
                 <span v-if="item.triggerMessage" class="italic"> — "{{ item.triggerMessage }}"</span>
               </p>
 
@@ -95,10 +95,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useRepliesStore } from '../stores/replies'
 import { formatRelativeTime } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import type { Reply } from '@wavi/shared'
+
+const { t, locale } = useI18n()
 
 type ReplyRow = Reply & {
   messages?: { sender_name?: string; body?: string } | null
@@ -125,7 +128,7 @@ const items = computed(() =>
       triggerMessage: triggerMessage && triggerMessage.length > 120
         ? `${triggerMessage.slice(0, 120)}…`
         : triggerMessage,
-      time: formatRelativeTime(reply.created_at),
+      time: formatRelativeTime(reply.created_at, locale.value),
       latency: reply.latency_ms,
       tokens: reply.prompt_tokens + reply.completion_tokens,
       flagged: reply.flagged_miss,
@@ -137,7 +140,7 @@ onMounted(async () => {
   try {
     await store.fetchReplies()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load activity'
+    error.value = e instanceof Error ? e.message : t('activity.failedLoad')
   }
 })
 </script>

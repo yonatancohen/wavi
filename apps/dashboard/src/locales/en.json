@@ -1,0 +1,239 @@
+{
+  "nav": {
+    "overview": "Overview",
+    "agent": "Agent",
+    "dashboard": "Dashboard",
+    "groups": "Groups",
+    "activity": "Activity",
+    "whatsapp": "WhatsApp"
+  },
+  "brand": {
+    "tagline": "Your Witty AI Agent"
+  },
+  "status": {
+    "connected": "Connected",
+    "offline": "Offline",
+    "online": "Online"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {name}.",
+    "subtitle": {
+      "disconnected": "Connect WhatsApp to let Wavi start organizing your chaotic digital life.",
+      "noGroups": "WhatsApp is linked — register a group so Wavi has somewhere witty to work.",
+      "active": "Wavi is live in {count} {groups} and ready to roast."
+    },
+    "group": "group",
+    "groups_word": "groups",
+    "manageGroups": "Manage Groups",
+    "kpi": {
+      "agent": "Agent",
+      "activeGroups": "Active groups",
+      "messagesToday": "Messages today",
+      "repliesToday": "Replies today"
+    },
+    "activeGroups": {
+      "title": "Active Groups",
+      "live": "{count} live",
+      "empty": "No groups registered yet.",
+      "addFromWhatsapp": "Add from WhatsApp",
+      "msgCount": "{count} msg",
+      "replies": "{count} reply | {count} replies"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "connectWhatsapp": "Connect WhatsApp",
+      "connectSubtitle": "Link your agent session",
+      "registerGroups": "Register Groups",
+      "registerSubtitle": "Pick chats from WhatsApp",
+      "viewActivity": "View Activity",
+      "viewSubtitle": "See what Wavi has been up to"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "viewAll": "View all",
+      "waOffline": "Agent is offline. Head to Connect to scan the QR code.",
+      "waOnline": "Agent session is connected and listening.",
+      "now": "Now",
+      "today": "Today",
+      "soon": "Soon",
+      "intelligence": "Wavi Intelligence",
+      "intelligenceBody": "Activity feed will fill up once groups are active. For now, Wavi is sharpening its wit."
+    }
+  },
+  "groups": {
+    "title": "Groups",
+    "subtitle": "Register WhatsApp groups where Wavi should listen and reply",
+    "addFromWhatsapp": "Add from WhatsApp",
+    "loading": "Loading…",
+    "empty": {
+      "title": "No groups registered yet",
+      "body": "Connect WhatsApp, then add a group you're already in so Wavi knows where to show up.",
+      "cta": "Add from WhatsApp"
+    },
+    "discover": {
+      "title": "Add group from WhatsApp",
+      "subtitle": "Groups your linked WhatsApp account is already in",
+      "empty": "No group chats found on this WhatsApp account.",
+      "connectHint": "Make sure WhatsApp is connected under Agent → WhatsApp, and that this account is in at least one group.",
+      "goToConnect": "Go to Connect",
+      "members": "{count} members",
+      "registered": "Registered",
+      "open": "Open",
+      "register": "Register",
+      "adding": "Adding…"
+    },
+    "failedLoad": "Failed to load groups",
+    "failedDiscover": "Failed to load groups",
+    "failedRegister": "Failed to register group"
+  },
+  "groupDetail": {
+    "back": "Groups",
+    "group": "Group",
+    "stats": {
+      "messagesToday": "Messages today",
+      "repliesToday": "Replies today",
+      "status": "Status"
+    },
+    "setup": {
+      "title": "Setup",
+      "body": "After registering, set the group to {live} so Wavi replies when someone tags {mention} in the chat.",
+      "live": "Live",
+      "goLive": "Go Live",
+      "pause": "Pause",
+      "resume": "Resume",
+      "saving": "Saving…"
+    },
+    "nextSteps": {
+      "title": "Next steps",
+      "register": "Register group in Wavi",
+      "goLive": "Go live",
+      "uploadHistory": "Upload chat history",
+      "reviewCharacter": "Review generated character"
+    },
+    "failedLoad": "Failed to load group",
+    "failedStatus": "Failed to update status",
+    "failedReload": "Failed to reload group data"
+  },
+  "connect": {
+    "title": "Connect WhatsApp",
+    "subtitle": "Scan the QR code to link your WhatsApp account to Wavi",
+    "connected": {
+      "title": "WhatsApp connected",
+      "body": "Your agent is linked and ready.",
+      "bodyPhone": "Linked to +{phone}.",
+      "registerGroups": "Register groups"
+    },
+    "linking": {
+      "title": "Link Wavi to WhatsApp",
+      "tagline": "Wavi is waiting to roast your friends…"
+    },
+    "steps": {
+      "title": "How to link",
+      "step1": "Open {whatsapp} on your phone",
+      "step2": "Tap {menu} or {settings}, then {linkedDevices}",
+      "step3": "Point your phone at the code to {capture}",
+      "capture": "capture it"
+    },
+    "status": {
+      "scanned": "QR scanned — finishing setup…",
+      "scan": "Scan with your phone to connect",
+      "waiting": "Waiting for connection…",
+      "generating": "Generating QR code…",
+      "linking": "Linking your account…"
+    },
+    "hint": "Keep your phone on Wi-Fi for a faster sync. QR refreshes automatically.",
+    "retry": "Retry",
+    "errors": {
+      "timeout": "QR is taking too long. Make sure the API is running locally and VITE_API_URL points to it (use /api for local dev).",
+      "apiDown": "Could not reach the API. Start it with `bun run dev` from the repo root, then retry."
+    }
+  },
+  "activity": {
+    "title": "Activity",
+    "subtitle": "Recent Wavi replies across your registered groups",
+    "empty": {
+      "title": "No activity yet",
+      "body": "Once Wavi starts replying in your groups, you'll see the feed here.",
+      "cta": "Go to Groups"
+    },
+    "count": "{count} reply | {count} replies",
+    "triggeredBy": "Triggered by",
+    "flagged": "Flagged",
+    "failedLoad": "Failed to load activity"
+  },
+  "character": {
+    "title": "Group character",
+    "unsaved": "Unsaved changes",
+    "save": "Save",
+    "saving": "Saving…",
+    "voice": "Voice",
+    "opinions": "Opinions",
+    "signature": "Signature behavior",
+    "sliders": "Personality sliders",
+    "failedSave": "Failed to save character",
+    "slider": {
+      "formality": "Formality",
+      "humor": "Humor",
+      "verbosity": "Verbosity",
+      "assertiveness": "Assertiveness",
+      "empathy": "Empathy"
+    }
+  },
+  "ingest": {
+    "title": "Upload chat history",
+    "body": "Export your WhatsApp group chat as a {ext} file and upload it to build member profiles, relationship maps, and Wavi's group character.",
+    "dragDrop": "Drag & drop a WhatsApp export here, or",
+    "browse": "browse files",
+    "txtOnly": ".txt only",
+    "starting": "Starting…",
+    "invalidFile": "Please upload a WhatsApp .txt export",
+    "failedUpload": "Upload failed",
+    "messages": "{processed} / {total} messages",
+    "chunks": "{count} chunks"
+  },
+  "members": {
+    "title": "Member profiles",
+    "empty": "Member profiles will appear after uploading chat history",
+    "failedLoad": "Failed to load members",
+    "messages": "{count} messages"
+  },
+  "dynamics": {
+    "title": "Group dynamics",
+    "empty": "Group dynamics will appear after uploading chat history",
+    "failedLoad": "Failed to load relationships",
+    "bars": {
+      "interaction": "Interaction",
+      "solidarity": "Solidarity",
+      "conflict": "Conflict"
+    }
+  },
+  "loading": {
+    "default": "Loading…",
+    "members": "Loading members…",
+    "relationships": "Loading relationships…"
+  },
+  "errors": {
+    "failedGroups": "Failed to load groups"
+  },
+  "stages": {
+    "parsing": "Parsing",
+    "embedding": "Embedding",
+    "profiling": "Profiling",
+    "relationships": "Relationships",
+    "context": "Context",
+    "synthesizing": "Synthesizing",
+    "done": "Done",
+    "error": "Error"
+  },
+  "status_label": {
+    "active": "Live",
+    "paused": "Paused",
+    "pending_setup": "Setup"
+  }
+}

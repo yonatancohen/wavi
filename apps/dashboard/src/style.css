@@ -2,6 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Color palettes ─────────────────────────────────────────────── */
+/* Dark palette (default) */
+:root {
+  --color-background: #09090d;
+  --color-surface: #09090d;
+  --color-surface-dim: #06080a;
+  --color-surface-bright: #2a2f36;
+  --color-surface-container-lowest: #06080a;
+  --color-surface-container-low: #0e1115;
+  --color-surface-container: #13171b;
+  --color-surface-container-high: #1a1f24;
+  --color-surface-container-highest: #222830;
+  --color-surface-variant: #1e2428;
+  --color-on-surface: #e8ecef;
+  --color-on-surface-variant: #7e8f8c;
+  --color-on-background: #e8ecef;
+  --color-outline: #6b7c7a;
+  --color-outline-variant: #252c32;
+  --color-surface-tint: #3de273;
+  --color-primary: #4ff07f;
+  --color-on-primary: #003915;
+  --color-primary-container: #25d366;
+  --color-on-primary-container: #005523;
+  --color-secondary: #ffb693;
+  --color-on-secondary: #561f00;
+  --color-secondary-container: #fe6b00;
+  --color-on-secondary-container: #572000;
+  --color-tertiary: #cbd5df;
+  --color-on-tertiary: #283139;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+
+  /* Component tokens */
+  --glass-card-bg: rgba(19, 23, 27, 0.95);
+  --glass-card-border: rgba(255, 255, 255, 0.07);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-shimmer-mid: rgba(255, 255, 255, 0.06);
+  --skeleton-shimmer-low: rgba(255, 255, 255, 0.02);
+  --nav-active-bar: #4ff07f;
+}
+
+/* Light palette */
+.light {
+  --color-background: #f4f6f5;
+  --color-surface: #f4f6f5;
+  --color-surface-dim: #e8eceb;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #edf0ef;
+  --color-surface-container-low: #f0f3f2;
+  --color-surface-container: #ffffff;
+  --color-surface-container-high: #f7f9f8;
+  --color-surface-container-highest: #eef1f0;
+  --color-surface-variant: #e8ecea;
+  --color-on-surface: #1a1f24;
+  --color-on-surface-variant: #4a5d5a;
+  --color-on-background: #1a1f24;
+  --color-outline: #7a908d;
+  --color-outline-variant: #e2e8e6;
+  --color-surface-tint: #1db954;
+  --color-primary: #1db954;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #25d366;
+  --color-on-primary-container: #003915;
+  --color-secondary: #c85000;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fe6b00;
+  --color-on-secondary-container: #3a1500;
+  --color-tertiary: #4a5d6e;
+  --color-on-tertiary: #ffffff;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+
+  /* Component tokens */
+  --glass-card-bg: rgba(255, 255, 255, 0.92);
+  --glass-card-border: rgba(0, 0, 0, 0.06);
+  --skeleton-base: rgba(0, 0, 0, 0.05);
+  --skeleton-shimmer-mid: rgba(0, 0, 0, 0.04);
+  --skeleton-shimmer-low: rgba(0, 0, 0, 0.02);
+  --nav-active-bar: #1db954;
+}
+
 @layer base {
   *,
   *::before,
@@ -21,9 +104,9 @@
 @layer components {
   /* ── Glass card ──────────────────────────────── */
   .glass-card {
-    background: rgba(19, 23, 27, 0.95);
+    background: var(--glass-card-bg);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--glass-card-border);
   }
 
   /* ── Bento grid ──────────────────────────────── */
@@ -45,28 +128,34 @@
   }
 
   .nav-item:hover {
-    @apply bg-white/[0.04] text-on-surface;
+    @apply text-on-surface;
+    background-color: color-mix(in srgb, var(--color-on-surface) 4%, transparent);
   }
 
   .nav-item.router-link-active {
-    @apply bg-primary/[0.08] text-on-surface;
+    @apply text-on-surface;
+    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
   }
 
   .nav-item.router-link-active::before {
     content: '';
     position: absolute;
-    left: 0;
+    inset-inline-start: 0;
     top: 50%;
     transform: translateY(-50%);
     height: 1.125rem;
     width: 2px;
-    background: #4ff07f;
+    background: var(--nav-active-bar);
     border-radius: 0 2px 2px 0;
+  }
+
+  [dir='rtl'] .nav-item.router-link-active::before {
+    border-radius: 2px 0 0 2px;
   }
 
   /* ── Status dot (sidebar) ────────────────────── */
   .status-dot {
-    @apply ml-auto h-[6px] w-[6px] animate-status-pulse rounded-full bg-primary shadow-primary-glow;
+    @apply ms-auto h-[6px] w-[6px] animate-status-pulse rounded-full bg-primary shadow-primary-glow;
   }
 
   /* ── Buttons ─────────────────────────────────── */
@@ -79,7 +168,11 @@
   }
 
   .btn-secondary {
-    @apply btn inline-flex items-center border border-outline-variant bg-surface-container text-on-surface no-underline transition-all hover:bg-surface-container-high hover:border-white/20;
+    @apply btn inline-flex items-center border border-outline-variant bg-surface-container text-on-surface no-underline transition-all hover:bg-surface-container-high;
+  }
+
+  .btn-secondary:hover {
+    border-color: color-mix(in srgb, var(--color-on-surface) 20%, transparent);
   }
 
   /* ── Badge ───────────────────────────────────── */
@@ -102,7 +195,12 @@
 
   /* ── Log row (activity feed) ─────────────────── */
   .log-row {
-    @apply flex items-start gap-3 border-b border-white/[0.04] py-3.5 last:border-0;
+    @apply flex items-start gap-3 py-3.5;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-on-surface) 4%, transparent);
+  }
+
+  .log-row:last-child {
+    border-bottom: none;
   }
 
   .log-timestamp {
@@ -111,14 +209,15 @@
 
   /* ── Page header ─────────────────────────────── */
   .page-header {
-    @apply sticky top-0 z-10 border-b border-outline-variant bg-surface/95 px-margin-mobile py-4;
+    @apply sticky top-0 z-10 border-b border-outline-variant px-margin-mobile py-4;
+    background-color: color-mix(in srgb, var(--color-surface) 95%, transparent);
     backdrop-filter: blur(8px);
   }
 
   /* ── Skeleton ────────────────────────────────── */
   .skeleton {
     @apply relative overflow-hidden rounded-md;
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--skeleton-base);
   }
 
   .skeleton::after {
@@ -129,13 +228,21 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.02) 25%,
-      rgba(255, 255, 255, 0.06) 50%,
-      rgba(255, 255, 255, 0.02) 75%,
+      var(--skeleton-shimmer-low) 25%,
+      var(--skeleton-shimmer-mid) 50%,
+      var(--skeleton-shimmer-low) 75%,
       transparent 100%
     );
     animation: skeleton-sweep 1.8s ease-in-out infinite;
     animation-delay: var(--skeleton-delay, 0ms);
+  }
+
+  [dir='rtl'] .skeleton::after {
+    transform: translateX(100%);
+  }
+
+  [dir='rtl'] .skeleton::after {
+    animation-name: skeleton-sweep-rtl;
   }
 
   .skeleton-card {
@@ -145,6 +252,12 @@
   @keyframes skeleton-sweep {
     100% {
       transform: translateX(100%);
+    }
+  }
+
+  @keyframes skeleton-sweep-rtl {
+    100% {
+      transform: translateX(-100%);
     }
   }
 

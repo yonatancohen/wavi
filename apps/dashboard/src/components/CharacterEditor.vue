@@ -6,17 +6,17 @@
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-[18px] text-tertiary">psychology</span>
-        <h2 class="font-sora text-[15px] font-semibold text-on-surface">Group character</h2>
+        <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('character.title') }}</h2>
       </div>
       <div class="flex items-center gap-3">
-        <span v-if="isDirty" class="text-[11px] font-medium text-secondary">Unsaved changes</span>
+        <span v-if="isDirty" class="text-[11px] font-medium text-secondary">{{ t('character.unsaved') }}</span>
         <button
           class="btn btn-primary flex items-center gap-2"
           :disabled="!isDirty || saving"
           @click="save"
         >
           <span class="material-symbols-outlined text-[16px]">save</span>
-          {{ saving ? 'Saving…' : 'Save' }}
+          {{ saving ? t('character.saving') : t('character.save') }}
         </button>
       </div>
     </div>
@@ -30,7 +30,7 @@
 
     <div class="mb-5">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        Voice
+        {{ t('character.voice') }}
       </label>
       <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-3 text-[13px] leading-relaxed text-on-surface-variant">
         {{ localConfig.voice }}
@@ -39,7 +39,7 @@
 
     <div class="mb-5">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        Opinions
+        {{ t('character.opinions') }}
       </label>
       <div class="space-y-2">
         <textarea
@@ -54,7 +54,7 @@
 
     <div class="mb-5">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        Signature behavior
+        {{ t('character.signature') }}
       </label>
       <textarea
         v-model="localConfig.signature_behavior"
@@ -65,12 +65,12 @@
 
     <div>
       <label class="mb-3 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        Personality sliders
+        {{ t('character.sliders') }}
       </label>
       <div class="space-y-4">
         <div v-for="slider in sliders" :key="slider.key">
           <div class="mb-1.5 flex items-center justify-between text-[12px]">
-            <span class="text-on-surface">{{ slider.label }}</span>
+            <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
             <span class="font-mono tabular-nums text-on-surface-variant">
               {{ localConfig.sliders[slider.key] }}
             </span>
@@ -90,8 +90,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGroupsStore } from '../stores/groups'
 import type { GroupWithStats, CharacterConfig, PersonalitySliders } from '@wavi/shared'
+
+const { t } = useI18n()
 
 const props = defineProps<{ group: GroupWithStats }>()
 const emit = defineEmits<{ updated: [group: GroupWithStats] }>()
@@ -101,11 +104,11 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 
 const sliders: { key: keyof PersonalitySliders; label: string }[] = [
-  { key: 'formality', label: 'Formality' },
-  { key: 'humor', label: 'Humor' },
-  { key: 'verbosity', label: 'Verbosity' },
-  { key: 'assertiveness', label: 'Assertiveness' },
-  { key: 'empathy', label: 'Empathy' },
+  { key: 'formality', label: 'formality' },
+  { key: 'humor', label: 'humor' },
+  { key: 'verbosity', label: 'verbosity' },
+  { key: 'assertiveness', label: 'assertiveness' },
+  { key: 'empathy', label: 'empathy' },
 ]
 
 function cloneConfig(config: CharacterConfig): CharacterConfig {
@@ -137,7 +140,7 @@ async function save() {
     localConfig.value = updated.character_config ? cloneConfig(updated.character_config) : null
     emit('updated', updated)
   } catch (e) {
-    saveError.value = e instanceof Error ? e.message : 'Failed to save character'
+    saveError.value = e instanceof Error ? e.message : t('character.failedSave')
   } finally {
     saving.value = false
   }

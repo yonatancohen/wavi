@@ -2,10 +2,10 @@
   <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
     <div class="mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-primary">upload_file</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">Upload chat history</h2>
+      <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('ingest.title') }}</h2>
     </div>
     <p class="mb-4 text-[13px] leading-relaxed text-on-surface-variant">
-      Export your WhatsApp group chat as a
+      {{ t('ingest.body', { ext: '' }) }}
       <code class="rounded-md bg-surface-variant px-1.5 py-0.5 font-mono text-[12px] text-primary">.txt</code>
       file and upload it to build member profiles, relationship maps, and Wavi's group character.
     </p>
@@ -29,17 +29,17 @@
       />
       <span class="material-symbols-outlined mb-2 text-[32px] text-primary/70">description</span>
       <p class="mb-1 text-[13px] text-on-surface">
-        Drag & drop a WhatsApp export here, or
+        {{ t('ingest.dragDrop') }}
         <button
           type="button"
           class="font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50"
           :disabled="uploading || streaming"
           @click="fileInput?.click()"
         >
-          browse files
+          {{ t('ingest.browse') }}
         </button>
       </p>
-      <p class="font-mono text-[10px] text-on-surface-variant/60">.txt only</p>
+      <p class="font-mono text-[10px] text-on-surface-variant/60">{{ t('ingest.txtOnly') }}</p>
     </div>
 
     <div
@@ -52,7 +52,7 @@
     <div v-if="streaming || progress" class="mt-5">
       <div class="mb-3 flex items-center justify-between gap-3">
         <span class="text-[12px] font-semibold text-on-surface">
-          {{ progress ? STAGE_LABELS[progress.stage] ?? progress.stage : 'Starting…' }}
+          {{ progress ? (t(`stages.${progress.stage}`) ?? progress.stage) : t('ingest.starting') }}
         </span>
         <span class="font-mono text-[11px] tabular-nums text-on-surface-variant">
           {{ stageProgressPercent() }}%
@@ -78,15 +78,15 @@
           <span class="material-symbols-outlined text-[14px]">
             {{ isStageComplete(stage) ? 'check_circle' : isStageActive(stage) ? 'sync' : 'radio_button_unchecked' }}
           </span>
-          {{ STAGE_LABELS[stage] }}
+          {{ t(`stages.${stage}`) }}
         </li>
       </ul>
       <p
         v-if="progress && progress.total_messages > 0"
         class="mt-3 font-mono text-[10px] text-on-surface-variant"
       >
-        {{ progress.processed_messages.toLocaleString() }} / {{ progress.total_messages.toLocaleString() }} messages
-        <span v-if="progress.chunks_embedded"> · {{ progress.chunks_embedded }} chunks</span>
+        {{ t('ingest.messages', { processed: progress.processed_messages.toLocaleString(), total: progress.total_messages.toLocaleString() }) }}
+        <span v-if="progress.chunks_embedded"> · {{ t('ingest.chunks', { count: progress.chunks_embedded }) }}</span>
       </p>
     </div>
   </section>
@@ -94,12 +94,14 @@
 
 <script setup lang="ts">
 import { ref, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { API_BASE } from '../lib/api'
 import {
   useIngestionProgress,
   INGESTION_STAGES,
-  STAGE_LABELS,
 } from '../composables/useIngestionProgress'
+
+const { t } = useI18n()
 
 const props = defineProps<{ groupId: string }>()
 const emit = defineEmits<{ complete: [] }>()
@@ -121,7 +123,7 @@ const {
 
 async function uploadFile(file: File) {
   if (!file.name.toLowerCase().endsWith('.txt')) {
-    uploadError.value = 'Please upload a WhatsApp .txt export'
+    uploadError.value = t('ingest.invalidFile')
     return
   }
 
@@ -142,7 +144,7 @@ async function uploadFile(file: File) {
     }
     startStream(() => emit('complete'))
   } catch (e) {
-    uploadError.value = e instanceof Error ? e.message : 'Upload failed'
+    uploadError.value = e instanceof Error ? e.message : t('ingest.failedUpload')
   } finally {
     uploading.value = false
   }

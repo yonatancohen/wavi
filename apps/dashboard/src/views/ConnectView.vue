@@ -1,9 +1,9 @@
 <template>
   <div class="flex min-h-full flex-col bg-background">
     <header class="page-header">
-      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">Connect WhatsApp</h1>
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('connect.title') }}</h1>
       <p class="mt-0.5 text-[12px] text-on-surface-variant">
-        Scan the QR code to link your WhatsApp account to Wavi
+        {{ t('connect.subtitle') }}
       </p>
     </header>
 
@@ -17,14 +17,14 @@
             class="relative h-16 w-16 rounded-2xl object-contain ring-1 ring-primary/30"
           />
         </div>
-        <div class="mb-2 font-sora text-[18px] font-semibold text-on-surface">WhatsApp connected</div>
+        <div class="mb-2 font-sora text-[18px] font-semibold text-on-surface">{{ t('connect.connected.title') }}</div>
         <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
-          {{ phoneNumber ? `Linked to +${phoneNumber}.` : 'Your agent is linked and ready.' }}
-          Register groups to start listening and replying.
+          {{ phoneNumber ? t('connect.connected.bodyPhone', { phone: phoneNumber }) : t('connect.connected.body') }}
+          {{ t('groups.subtitle') }}
         </p>
         <RouterLink to="/groups" class="btn btn-primary inline-flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px]">group_add</span>
-          Register groups
+          {{ t('connect.connected.registerGroups') }}
         </RouterLink>
       </div>
 
@@ -39,9 +39,9 @@
             />
           </div>
           <div>
-            <h2 class="font-sora text-[20px] font-bold tracking-tight text-on-surface">Link Wavi to WhatsApp</h2>
+            <h2 class="font-sora text-[20px] font-bold tracking-tight text-on-surface">{{ t('connect.linking.title') }}</h2>
             <p class="mt-1 text-[13px] italic text-on-surface-variant">
-              Wavi is waiting to roast your friends…
+              {{ t('connect.linking.tagline') }}
             </p>
           </div>
         </div>
@@ -51,12 +51,12 @@
             class="mb-6 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"
           >
           {{ streamError }}
-          <button class="ml-3 underline" @click="retry">Retry</button>
+          <button class="ms-3 underline" @click="retry">{{ t('connect.retry') }}</button>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-2">
           <section class="flex min-h-[380px] flex-col rounded-xl border border-outline-variant bg-surface-container p-6">
-            <h3 class="mb-6 font-sora text-[15px] font-semibold text-primary">How to link</h3>
+            <h3 class="mb-6 font-sora text-[15px] font-semibold text-primary">{{ t('connect.steps.title') }}</h3>
             <ol class="flex flex-1 flex-col justify-center gap-5">
               <li class="flex items-start gap-4">
                 <span class="step-num">1</span>
@@ -82,12 +82,13 @@
           </section>
 
           <section class="flex min-h-[380px] flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container p-6">
+            <!-- QR always has white bg for scanning contrast in both themes -->
             <div class="rounded-2xl bg-white p-5 shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
               <div class="relative h-56 w-56 overflow-hidden rounded-xl sm:h-64 sm:w-64">
                 <LoadingState
                   v-if="processing"
                   variant="compact"
-                  message="Linking your account…"
+                  :message="t('connect.status.linking')"
                 />
                 <template v-else>
                   <img
@@ -99,11 +100,11 @@
                   <LoadingState
                     v-else
                     variant="compact"
-                    message="Generating QR code…"
+                    :message="t('connect.status.generating')"
                   />
                   <div
                     v-if="qrDataUrl"
-                    class="scan-line pointer-events-none absolute left-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
+                    class="scan-line pointer-events-none absolute start-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
                   />
                 </template>
               </div>
@@ -121,8 +122,8 @@
           </section>
         </div>
 
-        <p class="mt-6 text-center text-[12px] text-on-surface-variant lg:text-left">
-          Keep your phone on Wi-Fi for a faster sync. QR refreshes automatically.
+        <p class="mt-6 text-center text-[12px] text-on-surface-variant lg:text-start">
+          {{ t('connect.hint') }}
         </p>
       </template>
     </div>
@@ -132,8 +133,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { apiFetch, API_BASE } from '../lib/api'
 import LoadingState from '../components/LoadingState.vue'
+
+const { t } = useI18n()
 
 type AgentStatus = { connected: boolean; connecting?: boolean; phone_number: string | null }
 
@@ -144,9 +148,9 @@ const phoneNumber = ref<string | null>(null)
 const streamError = ref<string | null>(null)
 
 const statusMessage = computed(() => {
-  if (processing.value) return 'QR scanned — finishing setup…'
-  if (qrDataUrl.value) return 'Scan with your phone to connect'
-  return 'Waiting for connection…'
+  if (processing.value) return t('connect.status.scanned')
+  if (qrDataUrl.value) return t('connect.status.scan')
+  return t('connect.status.waiting')
 })
 
 const statusDotClass = computed(() => {
@@ -180,7 +184,7 @@ function startStatusPoll() {
         if (!connected.value && !qrDataUrl.value) startQrStream()
       }
     } catch {
-      // keep polling — API may still be initialising
+      // keep polling
     }
   }, 2000)
 }
@@ -214,8 +218,7 @@ function startQrStream() {
 
   qrTimeout = setTimeout(() => {
     if (!qrDataUrl.value && !connected.value && !processing.value) {
-      streamError.value =
-        'QR is taking too long. Make sure the API is running locally and VITE_API_URL points to it (use /api for local dev).'
+      streamError.value = t('connect.errors.timeout')
     }
   }, 20_000)
 
@@ -237,11 +240,9 @@ function startQrStream() {
     apiFetch<AgentStatus>('/agent/status')
       .then((s) => {
         if (s.connected) setConnected(s)
-        // API is up — SSE reconnects on its own; don't show a false error
       })
       .catch(() => {
-        streamError.value =
-          'Could not reach the API. Start it with `bun run dev` from the repo root, then retry.'
+        streamError.value = t('connect.errors.apiDown')
       })
   }
 }
@@ -259,8 +260,7 @@ async function loadStatus() {
     }
     startQrStream()
   } catch {
-    streamError.value =
-      'Could not reach the API. Start it with `bun run dev` from the repo root, then retry.'
+    streamError.value = t('connect.errors.apiDown')
   }
 }
 
@@ -282,6 +282,8 @@ onUnmounted(() => {
 }
 
 .step-num {
-  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-[12px] font-bold text-primary ring-1 ring-primary/20;
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-mono text-[12px] font-bold text-primary;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 </style>

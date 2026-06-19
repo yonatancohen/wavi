@@ -2,14 +2,14 @@
   <div class="flex min-h-screen flex-col bg-background">
     <header class="page-header flex min-h-14 items-center justify-between gap-4">
       <div>
-        <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">Groups</h1>
+        <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('groups.title') }}</h1>
         <p class="mt-0.5 text-[12px] text-on-surface-variant">
-          Register WhatsApp groups where Wavi should listen and reply
+          {{ t('groups.subtitle') }}
         </p>
       </div>
       <button class="btn btn-primary flex items-center gap-2" :disabled="discovering" @click="openDiscover">
         <span class="material-symbols-outlined text-[16px]">group_add</span>
-        {{ discovering ? 'Loading…' : 'Add from WhatsApp' }}
+        {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
       </button>
     </header>
 
@@ -33,11 +33,11 @@
             <span class="material-symbols-outlined text-2xl text-primary">group_off</span>
           </div>
         </div>
-        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">No groups registered yet</h2>
+        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">{{ t('groups.empty.title') }}</h2>
         <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
-          Connect WhatsApp, then add a group you're already in so Wavi knows where to show up.
+          {{ t('groups.empty.body') }}
         </p>
-        <button class="btn btn-primary" @click="openDiscover">Add from WhatsApp</button>
+        <button class="btn btn-primary" @click="openDiscover">{{ t('groups.empty.cta') }}</button>
       </div>
 
       <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
@@ -45,25 +45,25 @@
           v-for="group in groups"
           :key="group.id"
           :to="`/groups/${group.id}`"
-          class="group relative block overflow-hidden rounded-xl border border-white/[0.07] bg-surface-container p-5 no-underline transition-all hover:border-primary/30 hover:shadow-card-hover"
+          class="group relative block overflow-hidden rounded-xl border border-on-surface/[0.07] bg-surface-container p-5 no-underline transition-all hover:border-primary/30 hover:shadow-card-hover"
         >
           <!-- Status accent -->
           <div
-            class="absolute left-0 top-0 h-full w-[3px]"
+            class="absolute start-0 top-0 h-full w-[3px]"
             :class="group.status === 'active'
               ? 'bg-primary'
               : group.status === 'paused'
                 ? 'bg-error/70'
                 : 'bg-secondary/70'"
           />
-          <div class="pl-1">
+          <div class="ps-1">
             <div class="mb-3 flex items-start justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="material-symbols-outlined text-[16px] shrink-0 text-primary">forum</span>
                 <div class="min-w-0 font-sora text-[15px] font-semibold text-on-surface truncate">{{ group.name }}</div>
               </div>
               <span class="badge shrink-0 px-2 py-0.5" :class="statusBadgeClass(group.status)">
-                {{ statusLabel(group.status) }}
+                {{ statusLabel(group.status, t) }}
               </span>
             </div>
 
@@ -93,9 +93,9 @@
       <div class="flex max-h-[80vh] w-full max-w-[600px] flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container shadow-2xl">
         <div class="flex justify-between gap-4 border-b border-outline-variant px-6 py-5">
           <div>
-            <h2 class="font-sora text-[17px] font-semibold text-on-surface">Add group from WhatsApp</h2>
+            <h2 class="font-sora text-[17px] font-semibold text-on-surface">{{ t('groups.discover.title') }}</h2>
             <p class="mt-0.5 text-[12px] text-on-surface-variant">
-              Groups your linked WhatsApp account is already in
+              {{ t('groups.discover.subtitle') }}
             </p>
           </div>
           <button
@@ -113,26 +113,26 @@
             {{ discoverError }}
           </div>
           <p class="my-4 text-[13px] leading-relaxed text-on-surface-variant">
-            Make sure WhatsApp is connected under Agent → WhatsApp, and that this account is in at least one group.
+            {{ t('groups.discover.connectHint') }}
           </p>
-          <RouterLink to="/connect" class="btn btn-secondary" @click="closeDiscover">Go to Connect</RouterLink>
+          <RouterLink to="/connect" class="btn btn-secondary" @click="closeDiscover">{{ t('groups.discover.goToConnect') }}</RouterLink>
         </div>
 
         <div v-else-if="discovered.length === 0" class="px-6 py-12 text-center text-[13px] text-on-surface-variant">
-          No group chats found on this WhatsApp account.
+          {{ t('groups.discover.empty') }}
         </div>
 
         <div v-else class="flex flex-col gap-2 overflow-y-auto px-6 pb-6 pt-4">
           <div
             v-for="item in discovered"
             :key="item.wa_group_id"
-            class="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-surface-container-high/60 p-4"
+            class="flex items-center justify-between gap-4 rounded-xl border border-on-surface/[0.06] bg-surface-container-high/60 p-4"
           >
             <div>
               <div class="mb-0.5 text-[13px] font-semibold text-on-surface">{{ item.name }}</div>
               <div class="flex gap-3 font-mono text-[11px] text-on-surface-variant">
-                <span v-if="item.participant_count">{{ item.participant_count }} members</span>
-                <span v-if="item.registered" class="text-primary">Registered</span>
+                <span v-if="item.participant_count">{{ t('groups.discover.members', { count: item.participant_count }) }}</span>
+                <span v-if="item.registered" class="text-primary">{{ t('groups.discover.registered') }}</span>
               </div>
             </div>
             <div>
@@ -142,7 +142,7 @@
                 class="btn btn-secondary"
                 @click="closeDiscover"
               >
-                Open
+                {{ t('groups.discover.open') }}
               </RouterLink>
               <button
                 v-else
@@ -150,7 +150,7 @@
                 :disabled="registering === item.wa_group_id"
                 @click="register(item)"
               >
-                {{ registering === item.wa_group_id ? 'Adding…' : 'Register' }}
+                {{ registering === item.wa_group_id ? t('groups.discover.adding') : t('groups.discover.register') }}
               </button>
             </div>
           </div>
@@ -163,12 +163,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useGroupsStore } from '../stores/groups'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import type { DiscoveredWaGroup } from '@wavi/shared'
 
+const { t } = useI18n()
 const store = useGroupsStore()
 const router = useRouter()
 const { groups, discovered, loading, discovering, registering } = storeToRefs(store)
@@ -183,7 +185,7 @@ async function openDiscover() {
   try {
     await store.discoverGroups()
   } catch (e) {
-    discoverError.value = e instanceof Error ? e.message : 'Failed to load groups'
+    discoverError.value = e instanceof Error ? e.message : t('groups.failedDiscover')
   }
 }
 
@@ -200,7 +202,7 @@ async function register(item: DiscoveredWaGroup) {
     closeDiscover()
     router.push(`/groups/${group.id}`)
   } catch (e) {
-    discoverError.value = e instanceof Error ? e.message : 'Failed to register group'
+    discoverError.value = e instanceof Error ? e.message : t('groups.failedRegister')
   }
 }
 
@@ -208,7 +210,7 @@ onMounted(async () => {
   try {
     await store.fetchGroups()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load groups'
+    error.value = e instanceof Error ? e.message : t('groups.failedLoad')
   }
 })
 </script>
