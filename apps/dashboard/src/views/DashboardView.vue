@@ -53,7 +53,9 @@
             </span>
           </div>
 
-          <div v-if="loading" class="text-on-surface-variant">Loading groups…</div>
+          <div v-if="loading">
+            <LoadingSkeletons variant="dashboard-groups" :count="4" />
+          </div>
 
           <div
             v-else-if="activeGroups.length === 0"
@@ -175,6 +177,7 @@ import { storeToRefs } from 'pinia'
 import { useGroupsStore } from '../stores/groups'
 import { apiFetch } from '../lib/api'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
+import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 
 const store = useGroupsStore()
 const { groups, loading } = storeToRefs(store)

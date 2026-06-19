@@ -75,6 +75,7 @@ export default {
         'status-pulse': 'status-pulse 2s infinite',
         'neon-pulse': 'neon-pulse 2s infinite ease-in-out',
         'scan-line': 'scan-line 2.5s ease-in-out infinite',
+        'spin-slow': 'spin 1.4s linear infinite',
       },
       keyframes: {
         'status-pulse': {

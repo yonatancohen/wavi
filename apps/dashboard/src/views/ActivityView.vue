@@ -8,10 +8,7 @@
     </header>
 
     <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-8">
-      <div v-if="loading" class="flex items-center gap-3 text-on-surface-variant">
-        <div class="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
-        Loading activity…
-      </div>
+      <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
       <div
         v-else-if="error"
@@ -83,6 +80,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRepliesStore } from '../stores/replies'
 import { formatRelativeTime } from '../lib/ui'
+import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import type { Reply } from '@wavi/shared'
 
 type ReplyRow = Reply & {

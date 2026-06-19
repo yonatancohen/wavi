@@ -24,10 +24,7 @@
     </header>
 
     <div class="mx-auto w-full max-w-[800px] flex-1 px-margin-mobile py-8">
-      <div v-if="loading" class="flex items-center gap-3 text-on-surface-variant">
-        <div class="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
-        Loading…
-      </div>
+      <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div
         v-else-if="error"
@@ -132,6 +129,7 @@ import { ref, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useGroupsStore } from '../stores/groups'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
+import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import type { GroupWithStats } from '@wavi/shared'
 
 const route = useRoute()

@@ -68,4 +68,61 @@
   .badge {
     @apply whitespace-nowrap rounded-full text-[11px] font-semibold;
   }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-md;
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.02) 25%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.02) 75%,
+      transparent 100%
+    );
+    animation: skeleton-sweep 1.8s ease-in-out infinite;
+    animation-delay: var(--skeleton-delay, 0ms);
+  }
+
+  .skeleton-card {
+    animation: skeleton-enter 0.35s ease-out both;
+  }
+
+  @keyframes skeleton-sweep {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes skeleton-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      display: none;
+    }
+
+    .skeleton {
+      @apply animate-pulse;
+    }
+
+    .skeleton-card {
+      animation: none;
+    }
+  }
 }

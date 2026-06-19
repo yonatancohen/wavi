@@ -1,12 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { subscribeToQR } from '../whatsapp/client.js'
+import { pickDashboardOrigin } from '../lib/cors.js'
 
 export const agentRoute: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /api/agent/qr — SSE stream for QR code ───────────────
   fastify.get('/qr', async (req, reply) => {
     // Raw SSE bypasses @fastify/cors — set headers manually for EventSource
-    const origin = process.env.DASHBOARD_URL ?? 'http://localhost:5173'
+    const origin = pickDashboardOrigin(req.headers.origin)
     reply.hijack()
     reply.raw.setHeader('Access-Control-Allow-Origin', origin)
     reply.raw.setHeader('Access-Control-Allow-Credentials', 'true')

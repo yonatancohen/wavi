@@ -87,10 +87,11 @@
                   class="h-full w-full object-contain"
                   alt="WhatsApp QR Code"
                 />
-                <div v-else class="flex h-full w-full flex-col items-center justify-center gap-4 bg-[#f8f8f8]">
-                  <div class="h-10 w-10 animate-spin rounded-full border-[3px] border-[#e0e0e0] border-t-primary" />
-                  <p class="text-sm font-medium text-[#666]">Generating QR code…</p>
-                </div>
+                <LoadingState
+                  v-else
+                  variant="compact"
+                  message="Generating QR code…"
+                />
                 <div
                   v-if="qrDataUrl"
                   class="scan-line pointer-events-none absolute left-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
@@ -122,6 +123,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { apiFetch, API_BASE } from '../lib/api'
+import LoadingState from '../components/LoadingState.vue'
 
 type AgentStatus = { connected: boolean; phone_number: string | null }
 
@@ -179,33 +181,34 @@ function startQrStream() {
     apiFetch<AgentStatus>('/agent/status')
       .then((s) => {
         if (s.connected) setConnected(s)
+        // API is up — SSE reconnects on its own; don't show a false error
       })
       .catch(() => {
         streamError.value =
-          'Could not connect to the API. For local dev, set VITE_API_URL=/api in apps/dashboard/.env and restart.'
+          'Could not reach the API. Start it with `bun run dev` from the repo root, then retry.'
       })
   }
 }
 
-function retry() {
-  startQrStream()
-}
-
-onMounted(async () => {
+async function loadStatus() {
   try {
     const status = await apiFetch<AgentStatus>('/agent/status')
     if (status.connected) {
       setConnected(status)
       return
     }
+    startQrStream()
   } catch {
     streamError.value =
-      'Could not reach the API. For local dev, set VITE_API_URL=/api in apps/dashboard/.env and restart.'
-    return
+      'Could not reach the API. Start it with `bun run dev` from the repo root, then retry.'
   }
+}
 
-  startQrStream()
-})
+function retry() {
+  loadStatus()
+}
+
+onMounted(loadStatus)
 
 onUnmounted(closeStream)
 </script>

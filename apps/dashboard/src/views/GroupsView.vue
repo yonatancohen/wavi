@@ -21,10 +21,7 @@
         {{ error }}
       </div>
 
-      <div v-if="loading" class="flex items-center gap-3 text-on-surface-variant">
-        <div class="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
-        Loading groups…
-      </div>
+      <LoadingSkeletons v-if="loading" variant="group-cards" :count="4" />
 
       <div
         v-else-if="groups.length === 0"
@@ -95,10 +92,7 @@
           </button>
         </div>
 
-        <div v-if="discovering" class="flex items-center justify-center gap-3 px-6 py-12 text-on-surface-variant">
-          <div class="h-6 w-6 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
-          Loading WhatsApp groups…
-        </div>
+        <LoadingSkeletons v-if="discovering" variant="discover-list" :count="4" />
 
         <div v-else-if="discoverError" class="overflow-y-auto px-6 pb-6 pt-4">
           <div class="rounded-xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error">
@@ -158,6 +152,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useGroupsStore } from '../stores/groups'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
+import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import type { DiscoveredWaGroup } from '@wavi/shared'
 
 const store = useGroupsStore()

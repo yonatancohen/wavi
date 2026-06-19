@@ -10,6 +10,7 @@ import { healthRoute } from './routes/health.js'
 import { twilioRoute } from './routes/twilio.js'
 import { startReplyWorker } from './ai/worker.js'
 import { startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js'
+import { allowedDashboardOrigins } from './lib/cors.js'
 
 const server = Fastify({
   logger: {
@@ -22,7 +23,13 @@ const server = Fastify({
 
 // ── Plugins ──────────────────────────────────────────────────
 await server.register(cors, {
-  origin: process.env.DASHBOARD_URL ?? 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin || allowedDashboardOrigins().includes(origin)) {
+      cb(null, true)
+      return
+    }
+    cb(null, false)
+  },
   credentials: true,
 })
 await server.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } }) // 50MB
