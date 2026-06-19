@@ -7,6 +7,7 @@ on:
       - "apps/dashboard/**"
       - "packages/shared/**"
       - "vercel.json"
+  workflow_dispatch:
 
 jobs:
   deploy:
