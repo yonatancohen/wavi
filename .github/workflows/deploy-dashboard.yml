@@ -1,0 +1,40 @@
+name: Deploy Dashboard → Vercel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/dashboard/**"
+      - "packages/shared/**"
+      - "vercel.json"
+
+jobs:
+  deploy:
+    name: Vercel deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build shared
+        run: bun run --cwd packages/shared build
+
+      - name: Build dashboard
+        run: bun run --cwd apps/dashboard build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
