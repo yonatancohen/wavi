@@ -41,3 +41,4 @@ wa_session/
 supabase/.branches
 supabase/.temp
 .vercel
+.env*
