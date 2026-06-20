@@ -1,4 +1,4 @@
-import type { Client, Message as WAMessage } from 'whatsapp-web.js'
+import type { Client } from 'whatsapp-web.js'
 
 let clientRef: Client | null = null
 let phoneUser: string | null = null
@@ -46,7 +46,7 @@ export function getAgentWaJid(): string | null {
 
 /** True when the message tags the agent by name or native WA @ mention. */
 export function isAgentTagged(
-  msg: Pick<WAMessage, 'mentionedIds'>,
+  msg: { mentionedIds?: string[] },
   body: string,
   agentName = process.env.WA_AGENT_NAME ?? 'wavi',
 ): boolean {
