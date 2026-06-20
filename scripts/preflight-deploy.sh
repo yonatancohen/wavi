@@ -47,7 +47,14 @@ else
     warn "Twilio not configured (optional — only needed for DM bot path)"
   fi
 
-  [[ -z "$DASHBOARD_URL" ]] && warn "DASHBOARD_URL empty — deploy script sets this after Vercel prod deploy"
+  resolved_dashboard="$(resolve_dashboard_url "$ROOT")"
+  if [[ -n "$resolved_dashboard" ]]; then
+    ok "Dashboard URL (Railway CORS): $resolved_dashboard"
+  elif is_local_url "${DASHBOARD_URL:-}"; then
+    warn "DASHBOARD_URL is localhost — sync/deploy will use .deploy-dashboard-url for Railway"
+  else
+    warn "DASHBOARD_URL empty — deploy:dashboard:prod sets this on Railway after Vercel deploy"
+  fi
 fi
 
 # ── Dashboard env ─────────────────────────────────────────────

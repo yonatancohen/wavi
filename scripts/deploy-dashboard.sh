@@ -34,7 +34,7 @@ load_env_file "$ROOT/apps/dashboard/.env"
 
 # If API was just deployed, use its public URL for the dashboard build + Vercel sync
 if [[ -f "$ROOT/.deploy-api-url" ]]; then
-  API_BASE="$(cat "$ROOT/.deploy-api-url")"
+  API_BASE="$(normalize_url "$(cat "$ROOT/.deploy-api-url")")"
   export SYNC_VITE_API_URL="${API_BASE}/api"
   ok "Using API URL from last deploy: $SYNC_VITE_API_URL"
 fi
@@ -86,7 +86,8 @@ echo "$URL" > "$ROOT/.deploy-dashboard-url"
 if [[ "$IS_PROD" == true && -n "$URL" && -x "$(command -v railway)" ]]; then
   step "Setting DASHBOARD_URL on Railway for CORS"
   cd "$ROOT/apps/api"
-  railway variable set "DASHBOARD_URL=${URL}" --skip-deploys >/dev/null 2>&1 && ok "DASHBOARD_URL=${URL}" || warn "Could not set DASHBOARD_URL"
+  DASHBOARD_ORIGIN="$(normalize_url "$URL")"
+  railway variable set "DASHBOARD_URL=${DASHBOARD_ORIGIN}" --skip-deploys >/dev/null 2>&1 && ok "DASHBOARD_URL=${DASHBOARD_ORIGIN}" || warn "Could not set DASHBOARD_URL"
   cd "$ROOT"
 fi
 

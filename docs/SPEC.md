@@ -73,21 +73,21 @@ Wavi launches as a personal tool. The owner adds the agent to their own WhatsApp
 Creates the Wavi account, connects groups, tunes the agent's character. Accesses the web dashboard. In MVP: one person — the builder.
 
 **Group Members**  
-Everyone in the group. No account needed. Interact by tagging `@Wavi`. Experience should feel like tagging a person.
+Everyone in the group. No account needed. Interact by tagging `@wavi`. Experience should feel like tagging a person.
 
 ### 2.3 Use Case Matrix
 
 | Use case | Who triggers it | What Wavi does |
 |---|---|---|
 | Answer a question | Member tags Wavi | Responds using web knowledge + RAG history + personality |
-| Settle a debate | @Wavi settle this… | Takes a side in the agent's voice — not neutral |
-| Roast someone | @Wavi roast Dan | Uses Dan's profile + RAG history for a personalized roast |
-| Summarize chat | @Wavi summarize | Reads last N messages, returns summary in agent's voice |
-| Plan something | @Wavi plan a dinner Sat | Suggests based on RAG-retrieved group preferences and history |
-| Remember something | @Wavi remember X | Stores a group memory tied to that group |
-| Recall memory | @Wavi what does Dan owe? | Retrieves from structured memory store + semantic search |
+| Settle a debate | @wavi settle this… | Takes a side in the agent's voice — not neutral |
+| Roast someone | @wavi roast Dan | Uses Dan's profile + RAG history for a personalized roast |
+| Summarize chat | @wavi summarize | Reads last N messages, returns summary in agent's voice |
+| Plan something | @wavi plan a dinner Sat | Suggests based on RAG-retrieved group preferences and history |
+| Remember something | @wavi remember X | Stores a group memory tied to that group |
+| Recall memory | @wavi what does Dan owe? | Retrieves from structured memory store + semantic search |
 | Group digest | Scheduled by owner | Posts morning/weekly summary in character |
-| Explain the vibe | @Wavi describe this group | Character sketch of the group, in Wavi's voice |
+| Explain the vibe | @wavi describe this group | Character sketch of the group, in Wavi's voice |
 
 ---
 
@@ -118,7 +118,7 @@ Before going live, owner sees the synthesized character card: description, sampl
 
 | Component | Description |
 |---|---|
-| Name | Set by owner. Default: Wavi. Groups often rename their bots. |
+| Name | Set by owner. Default: wavi. Groups often rename their bots. |
 | Voice | 2-3 sentence description of how the agent talks. Generated, editable. |
 | Opinions | 3-5 positions on topics relevant to this group. |
 | Signature behavior | One recurring quirk. E.g. "Ends long replies with a one-liner." |
@@ -245,7 +245,7 @@ New message arrives via whatsapp-web.js
 When a member tags Wavi, the system runs two fetches in parallel — targeting a ~200ms total retrieval budget before the Claude call.
 
 ```
-Incoming: "@Wavi settle this — who's been right more, Dan or Sara?"
+Incoming: "@wavi settle this — who's been right more, Dan or Sara?"
 
 PARALLEL FETCH
 ──────────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ CREATE TABLE agents (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id        uuid REFERENCES owners(id) ON DELETE CASCADE,
   phone_number    text,
-  agent_name      text DEFAULT 'Wavi',
+  agent_name      text DEFAULT 'wavi',
   wa_session_data jsonb,
   created_at      timestamptz DEFAULT now()
 );
@@ -528,7 +528,7 @@ $$;
 
 ### F-02 — Tag & Reply
 
-- Detects tag by configured name (default `@Wavi`, owner can change)
+- Detects tag by configured name (default `@wavi`, owner can change)
 - Parallel fetch: structured context (Layer 1+3) + pgvector RAG (Layer 2)
 - Prompt assembled with full 8-block structure (see Section 4.8)
 - Reply delivered as WA message quoting the original
@@ -565,9 +565,9 @@ $$;
 
 ### F-06 — Group Memory
 
-- `@Wavi remember: [fact]` — stored in `group_memories` table
-- `@Wavi what do you remember?` — returns full memory list
-- `@Wavi forget [thing]` — semantic match to find and delete
+- `@wavi remember: [fact]` — stored in `group_memories` table
+- `@wavi what do you remember?` — returns full memory list
+- `@wavi forget [thing]` — semantic match to find and delete
 - Owner can view and manage all memories from dashboard
 
 ### F-07 — Error Recovery

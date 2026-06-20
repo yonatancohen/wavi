@@ -71,11 +71,12 @@ ok "Deploy triggered"
 cd "$ROOT/apps/api"
 DOMAIN=$(railway domain 2>/dev/null | grep -Eo '[^[:space:]]+\.(railway\.app|up\.railway\.app)' | head -1 || true)
 if [[ -z "$DOMAIN" ]]; then
-  DOMAIN=$(railway domain 2>/dev/null | grep -Eo 'https?://[^[:space:]]+' | head -1 | sed 's|^https://||;s|/.*$||')
+  DOMAIN=$(railway domain 2>/dev/null | grep -Eo 'https?://[^[:space:]]+' | head -1 | sed 's|^https://||;s|http://||;s|/.*$||')
 fi
 if [[ -n "$DOMAIN" ]]; then
-  ok "API URL: https://${DOMAIN}"
-  echo "https://${DOMAIN}" > "$ROOT/.deploy-api-url"
+  API_URL="$(normalize_url "$DOMAIN")"
+  ok "API URL: $API_URL"
+  echo "$API_URL" > "$ROOT/.deploy-api-url"
 else
   warn "No public domain yet — run: cd apps/api && railway domain"
 fi

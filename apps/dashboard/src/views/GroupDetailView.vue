@@ -63,7 +63,7 @@
             {{ t('groupDetail.setup.body', { live: '', mention: '' }) }}
             <strong class="text-on-surface">{{ t('groupDetail.setup.live') }}</strong>
             so Wavi replies when someone tags
-            <code class="rounded-md bg-surface-variant px-1.5 py-0.5 font-mono text-[12px] text-primary">@Wavi</code>
+            <code class="rounded-md bg-surface-variant px-1.5 py-0.5 font-mono text-[12px] text-primary">@wavi</code>
             in the chat.
           </p>
 

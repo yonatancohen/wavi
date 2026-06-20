@@ -5,7 +5,7 @@ import { appendToChunkBuffer } from '../jobs/chunker.js'
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared'
 import { getAgentWaJid } from './agent-identity.js'
 
-const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'Wavi'
+const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi'
 
 function waUserId(jid: string): string {
   return jid.split('@')[0] ?? jid

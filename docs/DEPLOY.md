@@ -70,7 +70,7 @@ WhatsApp login must survive redeploys:
 | `UPSTASH_REDIS_REST_URL` | yes | Same Redis for dev + prod |
 | `UPSTASH_REDIS_REST_TOKEN` | yes | |
 | `AGENT_ID` | yes | UUID from `agents` table |
-| `WA_AGENT_NAME` | yes | Default `Wavi` |
+| `WA_AGENT_NAME` | yes | Default `wavi` |
 | `DASHBOARD_URL` | prod | Set automatically after Vercel prod deploy |
 | `TWILIO_*` | optional | Only for Twilio DM path |
 | `PORT` | auto | `3000` (set by sync script) |

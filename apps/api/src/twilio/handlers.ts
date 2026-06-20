@@ -3,7 +3,7 @@ import { redis } from '../lib/redis.js'
 import { appendToChunkBuffer } from '../jobs/chunker.js'
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared'
 
-const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'Wavi'
+const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi'
 
 export async function handleTwilioMessage(from: string, body: string) {
   // from = 'whatsapp:+972501234567'

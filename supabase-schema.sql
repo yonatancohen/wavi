@@ -19,7 +19,7 @@ CREATE TABLE agents (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id        uuid REFERENCES owners(id) ON DELETE CASCADE,
   phone_number    text,
-  agent_name      text DEFAULT 'Wavi',
+  agent_name      text DEFAULT 'wavi',
   wa_session_data jsonb,
   created_at      timestamptz DEFAULT now()
 );

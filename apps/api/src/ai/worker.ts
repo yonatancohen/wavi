@@ -88,7 +88,7 @@ async function processReplyJob(job: {
     await db.from('messages').insert({
       group_id:       job.group_id,
       sender_wa_id:   'agent',
-      sender_name:    process.env.WA_AGENT_NAME ?? 'Wavi',
+      sender_name:    process.env.WA_AGENT_NAME ?? 'wavi',
       body:           replyText,
       is_agent_reply: true,
       timestamp:      new Date().toISOString(),

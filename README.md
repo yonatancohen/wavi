@@ -45,7 +45,7 @@ OPENAI_API_KEY=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 PORT=3000
-WA_AGENT_NAME=Wavi
+WA_AGENT_NAME=wavi
 AGENT_ID=<your agent row UUID from Supabase>
 ```
 
@@ -59,7 +59,7 @@ VITE_SUPABASE_ANON_KEY=
 ### 4. Create agent row in Supabase
 ```sql
 INSERT INTO owners (email) VALUES ('you@example.com') RETURNING id;
-INSERT INTO agents (owner_id, agent_name) VALUES ('<owner_id>', 'Wavi') RETURNING id;
+INSERT INTO agents (owner_id, agent_name) VALUES ('<owner_id>', 'wavi') RETURNING id;
 -- Copy the agent id into AGENT_ID env var
 ```
 

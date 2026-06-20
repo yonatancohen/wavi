@@ -94,7 +94,21 @@ sync_railway() {
   set_railway_var TWILIO_ACCOUNT_SID
   set_railway_var TWILIO_AUTH_TOKEN
   set_railway_var TWILIO_WHATSAPP_NUMBER
-  set_railway_var DASHBOARD_URL
+
+  resolved_dashboard="$(resolve_dashboard_url "$ROOT")"
+  if [[ -n "$resolved_dashboard" ]]; then
+    export DASHBOARD_URL="$resolved_dashboard"
+    # CORS is read at boot — must redeploy for this to take effect
+    if err=$(railway variable set "DASHBOARD_URL=${DASHBOARD_URL}" 2>&1); then
+      ok "DASHBOARD_URL (redeploy triggered)"
+    else
+      warn "failed: DASHBOARD_URL"
+      [[ -n "$err" ]] && echo -e "    ${RED}${err}${RESET}"
+      RAILWAY_FAILS=$((RAILWAY_FAILS + 1))
+    fi
+  else
+    warn "skipped DASHBOARD_URL — set production URL in apps/api/.env or run deploy:dashboard:prod first"
+  fi
 
   set_railway_literal "PORT=3000"
   set_railway_literal "NODE_ENV=production"
@@ -115,6 +129,14 @@ sync_vercel() {
   echo -e "\n${CYAN}${BOLD}Vercel (dashboard secrets)${RESET}"
   require_env_file "$ROOT/apps/dashboard/.env" "Dashboard env" || exit 1
   load_env_file "$ROOT/apps/dashboard/.env"
+
+  resolved_api="$(resolve_api_base_url "$ROOT")"
+  if [[ -n "$resolved_api" ]]; then
+    export VITE_API_URL="${resolved_api}/api"
+    ok "VITE_API_URL → $VITE_API_URL"
+  elif is_local_url "${VITE_API_URL:-}"; then
+    warn "VITE_API_URL is local (/api or localhost) — deploy API first or set production URL before syncing to Vercel"
+  fi
 
   [[ -n "${SYNC_VITE_API_URL:-}" ]] && export VITE_API_URL="$SYNC_VITE_API_URL"
 

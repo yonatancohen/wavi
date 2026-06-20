@@ -24,8 +24,9 @@ const server = Fastify({
 // ── Plugins ──────────────────────────────────────────────────
 await server.register(cors, {
   origin: (origin, cb) => {
-    if (!origin || allowedDashboardOrigins().includes(origin)) {
-      cb(null, true)
+    const allowed = allowedDashboardOrigins()
+    if (!origin || allowed.includes(origin)) {
+      cb(null, origin ?? allowed[0])
       return
     }
     cb(null, false)

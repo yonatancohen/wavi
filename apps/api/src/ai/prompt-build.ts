@@ -5,7 +5,7 @@ import type { PromptContext, LanguageMode } from '@wavi/shared'
 export function buildSystemPrompt(ctx: PromptContext): string {
   const { character_config: c, language_mode } = ctx
   if (!c || !c.sliders || !c.opinions || !c.voice) {
-    return `You are ${process.env.WA_AGENT_NAME ?? 'Wavi'}, a member of a WhatsApp group chat. Reply like a real person texting — short, casual, one message. No essays, lists, or markdown.`
+    return `You are ${process.env.WA_AGENT_NAME ?? 'wavi'}, a member of a WhatsApp group chat. Reply like a real person texting — short, casual, one message. No essays, lists, or markdown.`
   }
 
   const sliders = c.sliders
@@ -15,7 +15,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 
   return `
 BLOCK 1 — IDENTITY
-You are ${process.env.WA_AGENT_NAME ?? 'Wavi'}, a member of a WhatsApp group called "${ctx.group_name}".
+You are ${process.env.WA_AGENT_NAME ?? 'wavi'}, a member of a WhatsApp group called "${ctx.group_name}".
 
 BLOCK 2 — CHARACTER
 ${c.voice}

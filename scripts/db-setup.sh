@@ -86,7 +86,7 @@ fi
 # ── Seed initial agent row ────────────────────────────────────
 step "Creating initial agent row"
 
-AGENT_NAME=${WA_AGENT_NAME:-"Wavi"}
+AGENT_NAME=${WA_AGENT_NAME:-"wavi"}
 
 # Check if we already have an agent
 EXISTING=$(curl -s \
