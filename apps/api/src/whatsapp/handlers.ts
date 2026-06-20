@@ -3,34 +3,9 @@ import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { appendToChunkBuffer } from '../jobs/chunker.js'
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared'
-import { getAgentWaJid } from './agent-identity.js'
+import { isAgentTagged } from './agent-identity.js'
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi'
-
-function waUserId(jid: string): string {
-  return jid.split('@')[0] ?? jid
-}
-
-function isSameWaUser(a: string, b: string): boolean {
-  return waUserId(a) === waUserId(b)
-}
-
-/** True when the message tags the agent by name or native WA @ mention. */
-function isAgentTagged(msg: WAMessage, body: string): boolean {
-  if (body.toLowerCase().includes(`@${AGENT_NAME.toLowerCase()}`)) return true
-
-  const agentJid = getAgentWaJid()
-  if (!agentJid) return false
-
-  const agentUser = waUserId(agentJid)
-
-  if (msg.mentionedIds?.some((id) => isSameWaUser(id, agentJid))) return true
-
-  // Native mentions embed @phone in the body instead of the display name
-  if (agentUser && body.includes(`@${agentUser}`)) return true
-
-  return false
-}
 
 // ── Identity reconciliation ───────────────────────────────────
 // Ingestion writes user_profiles.wa_user_id = display name (e.g. "Dan Cohen")

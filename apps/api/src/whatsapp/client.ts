@@ -8,7 +8,7 @@ import qrcode from 'qrcode'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { handleIncomingMessage } from './handlers.js'
-import { bindAgentIdentity, clearAgentIdentity } from './agent-identity.js'
+import { bindAgentIdentity, clearAgentIdentity, resolveAgentIdentity } from './agent-identity.js'
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth')
@@ -191,8 +191,16 @@ async function markReady() {
 
   const info = waClient.info
   if (info) {
-    _waPhoneNumber = info.wid.user
-    bindAgentIdentity(waClient, _waPhoneNumber)
+    const { phoneUser, lidUser } = await resolveAgentIdentity(
+      waClient,
+      info.wid._serialized,
+      info.wid.user,
+    )
+    _waPhoneNumber = phoneUser
+    bindAgentIdentity(waClient, { phoneUser, lidUser })
+    if (lidUser) {
+      console.log(`[WA] Agent identity — phone: ${phoneUser}, lid: ${lidUser}`)
+    }
   }
 
   const readyMsg = JSON.stringify({ type: 'ready', phone_number: _waPhoneNumber })
@@ -205,7 +213,7 @@ async function markReady() {
   if (info) {
     await db
       .from('agents')
-      .update({ phone_number: info.wid.user })
+      .update({ phone_number: _waPhoneNumber })
       .eq('id', process.env.AGENT_ID!)
       .throwOnError()
   }
