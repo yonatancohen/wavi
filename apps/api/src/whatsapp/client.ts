@@ -171,7 +171,6 @@ export const waClient = new Client({
 // ── Events ───────────────────────────────────────────────────
 
 waClient.on('qr', async (qr) => {
-  console.log('[WA] QR received — broadcasting to dashboard')
   try {
     const dataUrl = await qrcode.toDataURL(qr)
     _lastQrPayload = JSON.stringify({ type: 'qr', data: dataUrl })
