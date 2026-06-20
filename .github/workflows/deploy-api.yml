@@ -1,13 +1,7 @@
 name: Deploy API → Railway
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/api/**"
-      - "packages/shared/**"
-      - "Dockerfile"
-      - "railway.toml"
+  # Disabled auto-deploy on push — run manually via Actions → Deploy API → Railway
   workflow_dispatch:
 
 jobs:
