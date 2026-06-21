@@ -27,6 +27,21 @@
     "health": {
       "restarting": "Restarting browser",
       "cdpFailures": "{count} recent CDP failure(s)"
+    },
+    "tooltip": {
+      "healthyTitle": "Agent is online",
+      "healthyBody": "WhatsApp is linked and listening. Wavi will reply when tagged in a registered group.",
+      "degradedTitle": "Session recovering",
+      "degradedBody": "WhatsApp is still connected but the browser hit an issue. Wavi is auto-recovering — replies may be briefly delayed.",
+      "connectingTitle": "Connecting…",
+      "connectingBody": "WhatsApp session is authenticating. This usually takes under 30 seconds.",
+      "offlineTitle": "Agent is offline",
+      "offlineBody": "WhatsApp is not linked. Go to Connect and scan the QR code to activate Wavi.",
+      "cdpFailures": "CDP failures",
+      "stuckOp": "Stuck op",
+      "restart": "Browser restart",
+      "restartActive": "In progress",
+      "lastRestart": "Last restart"
     }
   },
   "flows": {

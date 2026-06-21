@@ -27,6 +27,21 @@
     "health": {
       "restarting": "מפעיל מחדש את הדפדפן",
       "cdpFailures": "{count} כשלי CDP אחרונים"
+    },
+    "tooltip": {
+      "healthyTitle": "הסוכן מקוון",
+      "healthyBody": "וואטסאפ מחובר ומאזין. Wavi יגיב כאשר יתויג בקבוצה רשומה.",
+      "degradedTitle": "הסשן מתאושש",
+      "degradedBody": "וואטסאפ עדיין מחובר אך הדפדפן נתקל בבעיה. Wavi מתאושש אוטומטית — תשובות עלולות להתעכב.",
+      "connectingTitle": "מתחבר…",
+      "connectingBody": "סשן וואטסאפ מאומת. בדרך כלל לוקח פחות מ-30 שניות.",
+      "offlineTitle": "הסוכן לא מקוון",
+      "offlineBody": "וואטסאפ לא מחובר. עבור לחיבור וסרוק קוד QR כדי להפעיל את Wavi.",
+      "cdpFailures": "כשלי CDP",
+      "stuckOp": "פעולה תקועה",
+      "restart": "הפעלה מחדש",
+      "restartActive": "בתהליך",
+      "lastRestart": "הפעלה מחדש אחרונה"
     }
   },
   "flows": {
