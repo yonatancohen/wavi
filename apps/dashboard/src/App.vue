@@ -5,7 +5,7 @@
       class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex"
       :aria-label="t('nav.main')"
     >
-      <AppBrand :connected="agentConnected" />
+      <AppBrand />
       <div v-if="activeFlowTotal > 0" class="px-3 pb-3">
         <ActiveFlowsIndicator :total="activeFlowTotal" :flows="activeFlows" />
       </div>
@@ -45,24 +45,7 @@
             compact
           />
 
-          <div
-            class="flex items-center gap-1.5 rounded-full border px-2 py-1"
-            :class="agentConnected
-              ? 'border-primary/20 bg-primary/[0.07]'
-              : 'border-error/20 bg-error/[0.07]'"
-            :title="agentConnected ? t('status.connected') : t('status.offline')"
-          >
-            <div
-              class="h-1.5 w-1.5 rounded-full"
-              :class="agentConnected ? 'animate-status-pulse bg-primary' : 'bg-error'"
-            />
-            <span
-              class="font-mono text-[9px] font-semibold uppercase tracking-widest"
-              :class="agentConnected ? 'text-primary' : 'text-error'"
-            >
-              {{ agentConnected ? t('status.connected') : t('status.offline') }}
-            </span>
-          </div>
+          <AgentStatusBadge compact />
 
           <button
             type="button"
@@ -155,26 +138,28 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { apiFetch } from './lib/api'
 import { useTheme } from './composables/useTheme'
 import { useLocale } from './composables/useLocale'
 import { useGroupsStore } from './stores/groups'
 import { useFlowsStore } from './stores/flows'
+import { useAgentStore } from './stores/agent'
 import AppBrand from './components/AppBrand.vue'
 import AppNavLinks from './components/AppNavLinks.vue'
 import AppNavFooter from './components/AppNavFooter.vue'
 import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue'
+import AgentStatusBadge from './components/AgentStatusBadge.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const groupsStore = useGroupsStore()
 const flowsStore = useFlowsStore()
+const agentStore = useAgentStore()
 const { groups } = storeToRefs(groupsStore)
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
+const { connected: agentConnected } = storeToRefs(agentStore)
 const { mode, cycleMode } = useTheme()
 const { locale, toggleLocale } = useLocale()
 
-const agentConnected = ref(false)
 const settingsOpen = ref(false)
 
 const mobileNavItems = [
@@ -224,15 +209,13 @@ watch(settingsOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
 })
 
-onMounted(async () => {
+onMounted(() => {
   flowsStore.startPolling()
-  try {
-    const s = await apiFetch<{ connected: boolean }>('/agent/status')
-    agentConnected.value = s.connected
-  } catch {}
+  agentStore.startPolling()
 })
 
 onUnmounted(() => {
   flowsStore.stopPolling()
+  agentStore.stopPolling()
 })
 </script>

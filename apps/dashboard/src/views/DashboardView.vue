@@ -2,18 +2,7 @@
   <div class="flex min-h-screen flex-col bg-background">
     <header class="page-header hidden lg:flex h-14 items-center justify-between">
       <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('dashboard.title') }}</h1>
-      <div
-        class="flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
-        :class="agentConnected
-          ? 'border-primary/20 bg-primary/[0.07] text-primary'
-          : 'border-error/20 bg-error/[0.07] text-error'"
-      >
-        <div
-          class="h-1.5 w-1.5 rounded-full"
-          :class="agentConnected ? 'animate-status-pulse bg-primary' : 'bg-error'"
-        />
-        <span class="font-mono">{{ agentConnected ? t('status.online') : t('status.offline') }}</span>
-      </div>
+      <AgentStatusBadge />
     </header>
 
     <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
@@ -42,15 +31,8 @@
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div class="stat-cell">
             <span class="stat-cell-label">{{ t('dashboard.kpi.agent') }}</span>
-            <div class="mt-1 flex items-center gap-2">
-              <div
-                class="h-2 w-2 rounded-full"
-                :class="agentConnected ? 'animate-status-pulse bg-primary' : 'bg-error'"
-              />
-              <span
-                class="font-mono text-sm font-semibold"
-                :class="agentConnected ? 'text-primary' : 'text-error'"
-              >{{ agentConnected ? t('status.online') : t('status.offline') }}</span>
+            <div class="mt-1">
+              <AgentStatusBadge />
             </div>
           </div>
           <div class="stat-cell">
@@ -132,8 +114,11 @@
           </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="flex flex-col rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-4">
+        <!-- Session health + Quick Actions -->
+        <div class="flex flex-col gap-5 md:col-span-4">
+          <AgentHealthPanel />
+
+          <div class="flex flex-col rounded-xl border border-outline-variant bg-surface-container p-5">
           <div class="mb-4 flex items-center gap-2">
             <span class="material-symbols-outlined text-[18px] text-secondary">bolt</span>
             <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dashboard.quickActions.title') }}</h3>
@@ -170,6 +155,7 @@
               </div>
             </RouterLink>
           </div>
+        </div>
         </div>
 
         <!-- Recent Activity -->
@@ -223,23 +209,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useGroupsStore } from '../stores/groups'
 import { useFlowsStore } from '../stores/flows'
-import { apiFetch } from '../lib/api'
+import { useAgentStore } from '../stores/agent'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue'
+import AgentStatusBadge from '../components/AgentStatusBadge.vue'
+import AgentHealthPanel from '../components/AgentHealthPanel.vue'
 
 const { t } = useI18n()
 const store = useGroupsStore()
 const flowsStore = useFlowsStore()
+const agentStore = useAgentStore()
 const { groups, loading } = storeToRefs(store)
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
-const agentConnected = ref(false)
+const { connected: agentConnected, healthTier, connecting } = storeToRefs(agentStore)
 
 const activeGroups = computed(() =>
   groups.value.filter((g) => g.status === 'active'),
@@ -254,6 +243,8 @@ const totalRepliesToday = computed(() =>
 )
 
 const heroSubtitle = computed(() => {
+  if (healthTier.value === 'degraded') return t('dashboard.subtitle.degraded')
+  if (connecting.value) return t('dashboard.subtitle.connecting')
   if (!agentConnected.value) return t('dashboard.subtitle.disconnected')
   if (activeGroups.value.length === 0) return t('dashboard.subtitle.noGroups')
   return t('dashboard.subtitle.active', {
@@ -265,7 +256,25 @@ const heroSubtitle = computed(() => {
 const activityItems = computed(() => {
   const items = []
 
-  if (!agentConnected.value) {
+  if (healthTier.value === 'degraded') {
+    items.push({
+      title: 'WhatsApp',
+      body: t('dashboard.recentActivity.waDegraded'),
+      time: t('dashboard.recentActivity.now'),
+      icon: 'sync_problem',
+      iconBg: 'bg-secondary/15',
+      iconColor: 'text-secondary',
+    })
+  } else if (connecting.value) {
+    items.push({
+      title: 'WhatsApp',
+      body: t('dashboard.recentActivity.waConnecting'),
+      time: t('dashboard.recentActivity.now'),
+      icon: 'progress_activity',
+      iconBg: 'bg-tertiary/15',
+      iconColor: 'text-on-surface',
+    })
+  } else if (!agentConnected.value) {
     items.push({
       title: 'WhatsApp',
       body: t('dashboard.recentActivity.waOffline'),
@@ -311,11 +320,6 @@ const activityItems = computed(() => {
 })
 
 onMounted(async () => {
-  try {
-    const status = await apiFetch<{ connected: boolean }>('/agent/status')
-    agentConnected.value = status.connected
-  } catch {}
-
   try {
     await store.fetchGroups()
   } catch {}

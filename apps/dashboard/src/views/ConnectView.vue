@@ -135,11 +135,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { apiFetch, API_BASE } from '../lib/api'
+import type { AgentStatusResponse } from '@wavi/shared'
+import { useAgentStore } from '../stores/agent'
 import LoadingState from '../components/LoadingState.vue'
 
 const { t } = useI18n()
-
-type AgentStatus = { connected: boolean; connecting?: boolean; phone_number: string | null }
+const agentStore = useAgentStore()
 
 const qrDataUrl = ref<string | null>(null)
 const processing = ref(false)
@@ -175,7 +176,7 @@ function startStatusPoll() {
   streamError.value = null
   statusPoll = setInterval(async () => {
     try {
-      const status = await apiFetch<AgentStatus>('/agent/status')
+      const status = await apiFetch<AgentStatusResponse>('/agent/status')
       if (status.connected) {
         setConnected(status)
       } else if (!status.connecting) {
@@ -198,7 +199,7 @@ function closeStream() {
   }
 }
 
-function setConnected(status: AgentStatus) {
+function setConnected(status: Pick<AgentStatusResponse, 'connected' | 'phone_number'>) {
   connected.value = true
   processing.value = false
   phoneNumber.value = status.phone_number
@@ -206,6 +207,7 @@ function setConnected(status: AgentStatus) {
   streamError.value = null
   stopStatusPoll()
   closeStream()
+  void agentStore.refresh()
 }
 
 function startQrStream() {
@@ -237,7 +239,7 @@ function startQrStream() {
   }
 
   eventSource.onerror = () => {
-    apiFetch<AgentStatus>('/agent/status')
+    apiFetch<AgentStatusResponse>('/agent/status')
       .then((s) => {
         if (s.connected) setConnected(s)
       })
@@ -249,7 +251,7 @@ function startQrStream() {
 
 async function loadStatus() {
   try {
-    const status = await apiFetch<AgentStatus>('/agent/status')
+    const status = await apiFetch<AgentStatusResponse>('/agent/status')
     if (status.connected) {
       setConnected(status)
       return

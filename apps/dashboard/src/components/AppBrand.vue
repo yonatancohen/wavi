@@ -12,30 +12,13 @@
       </div>
     </div>
 
-    <div
-      class="flex w-fit items-center gap-2 rounded-full border px-2.5 py-1"
-      :class="connected
-        ? 'border-primary/20 bg-primary/[0.07]'
-        : 'border-error/20 bg-error/[0.07]'"
-    >
-      <div
-        class="h-1.5 w-1.5 rounded-full"
-        :class="connected ? 'animate-status-pulse bg-primary' : 'bg-error'"
-      />
-      <span
-        class="font-mono text-[10px] font-semibold uppercase tracking-widest"
-        :class="connected ? 'text-primary' : 'text-error'"
-      >
-        {{ connected ? t('status.connected') : t('status.offline') }}
-      </span>
-    </div>
+    <AgentStatusBadge />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-
-defineProps<{ connected: boolean }>()
+import AgentStatusBadge from './AgentStatusBadge.vue'
 
 const { t } = useI18n()
 </script>

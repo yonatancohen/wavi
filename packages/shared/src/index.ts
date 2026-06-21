@@ -37,6 +37,24 @@ export interface Agent {
   created_at: string
 }
 
+export interface WaHealthState {
+  consecutive_cdp_failures: number
+  last_forced_restart_at: string | null
+  restart_in_progress: boolean
+  cdp_op_in_flight: boolean
+  cdp_op_stuck_ms: number
+}
+
+export type WaConnectionState = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED'
+
+export interface AgentStatusResponse {
+  connected: boolean
+  connecting: boolean
+  state: WaConnectionState
+  phone_number: string | null
+  health: WaHealthState
+}
+
 // ── Character Config ─────────────────────────────────────────
 
 export interface PersonalitySliders {

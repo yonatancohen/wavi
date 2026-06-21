@@ -12,6 +12,11 @@ export interface ReplyJob {
   body: string
   wa_msg_id: string
   queued_at: number
+  /** Set when Claude succeeded but WhatsApp delivery failed — retry send only. */
+  reply_text?: string
+  delivery_attempts?: number
+  prompt_tokens?: number
+  completion_tokens?: number
 }
 
 export async function queueReplyJob(params: {

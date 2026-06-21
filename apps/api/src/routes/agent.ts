@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { subscribeToQR, getWaConnectionState } from '../whatsapp/client.js'
+import { subscribeToQR, getWaConnectionState, getWaHealthState } from '../whatsapp/client.js'
 import { pickDashboardOrigin } from '../lib/cors.js'
 
 export const agentRoute: FastifyPluginAsync = async (fastify) => {
@@ -35,11 +35,13 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
   // ── GET /api/agent/status ────────────────────────────────────
   fastify.get('/status', async (_req, _reply) => {
     const { connected, connecting, phone_number } = getWaConnectionState()
+    const health = getWaHealthState()
     return {
       connected,
       connecting,
       state: connected ? 'CONNECTED' : connecting ? 'CONNECTING' : 'DISCONNECTED',
       phone_number,
+      health,
     }
   })
 }

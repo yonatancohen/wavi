@@ -10,6 +10,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const REPLY_MODEL = 'claude-haiku-4-5'
 const MAX_TOKENS = 500
+const MAX_DELIVERY_ATTEMPTS = 5
 
 // ── Worker loop ───────────────────────────────────────────────
 
@@ -39,35 +40,48 @@ export async function startReplyWorker() {
 
 async function processReplyJob(job: ReplyJob) {
   const startTime = Date.now()
-  console.log(`[ReplyWorker] Processing job for group ${job.group_id}`)
+  const isDeliveryRetry = Boolean(job.reply_text)
+  console.log(
+    `[ReplyWorker] Processing job for group ${job.group_id}${isDeliveryRetry ? ' (delivery retry)' : ''}`,
+  )
 
   await markReplyFlowProcessing(job.flow_id)
 
+  let deliveryFailed = false
+
   try {
-    // ── Build context (parallel fetch) ─────────────────────
-    const ctx = await buildPromptContext({
-      groupId:        job.group_id,
-      senderWaId:     job.sender_wa_id,
-      currentMessage: job.body,
-    })
+    let replyText = job.reply_text?.trim() ?? ''
+    let inputTokens = job.prompt_tokens ?? 0
+    let outputTokens = job.completion_tokens ?? 0
 
-    const systemPrompt = buildSystemPrompt(ctx)
-    const conversationTurns = buildConversationTurns(ctx)
+    if (!replyText) {
+      // ── Build context (parallel fetch) ─────────────────────
+      const ctx = await buildPromptContext({
+        groupId:        job.group_id,
+        senderWaId:     job.sender_wa_id,
+        currentMessage: job.body,
+      })
 
-    // ── Call Claude ────────────────────────────────────────
-    const response = await anthropic.messages.create({
-      model:      REPLY_MODEL,
-      max_tokens: MAX_TOKENS,
-      system:     systemPrompt,
-      messages: [
-        ...conversationTurns,
-        { role: 'user', content: `${job.sender_name}: ${job.body}` },
-      ],
-    })
+      const systemPrompt = buildSystemPrompt(ctx)
+      const conversationTurns = buildConversationTurns(ctx)
 
-    const replyText = response.content[0].type === 'text'
-      ? response.content[0].text.trim()
-      : ''
+      // ── Call Claude ────────────────────────────────────────
+      const response = await anthropic.messages.create({
+        model:      REPLY_MODEL,
+        max_tokens: MAX_TOKENS,
+        system:     systemPrompt,
+        messages: [
+          ...conversationTurns,
+          { role: 'user', content: `${job.sender_name}: ${job.body}` },
+        ],
+      })
+
+      replyText = response.content[0].type === 'text'
+        ? response.content[0].text.trim()
+        : ''
+      inputTokens = response.usage.input_tokens
+      outputTokens = response.usage.output_tokens
+    }
 
     if (!replyText) {
       console.warn('[ReplyWorker] Empty reply generated')
@@ -77,7 +91,27 @@ async function processReplyJob(job: ReplyJob) {
     const latencyMs = Date.now() - startTime
 
     // ── Send via WhatsApp or Twilio ────────────────────────
-    await deliverReply(job.wa_group_id, replyText, job.wa_msg_id)
+    try {
+      await deliverReply(job.wa_group_id, replyText, job.wa_msg_id)
+    } catch (err) {
+      const attempt = (job.delivery_attempts ?? 0) + 1
+      if (attempt < MAX_DELIVERY_ATTEMPTS) {
+        deliveryFailed = true
+        await redis.lpush('reply_jobs', JSON.stringify({
+          ...job,
+          reply_text: replyText,
+          prompt_tokens: inputTokens,
+          completion_tokens: outputTokens,
+          delivery_attempts: attempt,
+        }))
+        console.warn(
+          `[ReplyWorker] Delivery failed (attempt ${attempt}/${MAX_DELIVERY_ATTEMPTS}), re-queued`,
+          err,
+        )
+        return
+      }
+      throw err
+    }
 
     // ── Store reply in DB ──────────────────────────────────
     await db.from('messages').insert({
@@ -93,8 +127,8 @@ async function processReplyJob(job: ReplyJob) {
       message_id:        job.message_id,
       group_id:          job.group_id,
       body:              replyText,
-      prompt_tokens:     response.usage.input_tokens,
-      completion_tokens: response.usage.output_tokens,
+      prompt_tokens:     inputTokens,
+      completion_tokens: outputTokens,
       latency_ms:        latencyMs,
     }).select('id').single()
 
@@ -107,12 +141,14 @@ async function processReplyJob(job: ReplyJob) {
       )
     }
 
-    console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${response.usage.input_tokens + response.usage.output_tokens} tokens)`)
+    console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${inputTokens + outputTokens} tokens)`)
 
   } catch (err) {
     console.error('[ReplyWorker] Job failed:', err)
   } finally {
-    await completeReplyFlow(job.flow_id)
+    if (!deliveryFailed) {
+      await completeReplyFlow(job.flow_id)
+    }
   }
 }
 

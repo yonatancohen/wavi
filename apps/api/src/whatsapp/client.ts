@@ -14,6 +14,198 @@ const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth')
 const WA_CACHE_PATH = process.env.WA_CACHE_PATH ?? path.join(API_ROOT, '.wwebjs_cache')
 
+function getProtocolTimeoutMs() {
+  const n = Number(process.env.WA_PROTOCOL_TIMEOUT_MS)
+  return Number.isFinite(n) && n > 0 ? n : 300_000
+}
+
+function isProtocolOrCdpError(err: unknown) {
+  if (!(err instanceof Error)) return false
+  return (
+    err.name === 'ProtocolError' ||
+    err.message.includes('Runtime.callFunctionOn timed out') ||
+    err.message.includes('Protocol error') ||
+    err.message.includes('Session closed')
+  )
+}
+
+// Serialize CDP calls — concurrent page.evaluate() calls can hang wwebjs.
+let waOpChain: Promise<unknown> = Promise.resolve()
+let waOpStartedAt: number | null = null
+
+function withWaLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    waOpStartedAt = Date.now()
+    try {
+      return await fn()
+    } finally {
+      waOpStartedAt = null
+    }
+  }
+  const next = waOpChain.then(run, run)
+  waOpChain = next.catch(() => {})
+  return next
+}
+
+function getHealthConfig() {
+  return {
+    probeIntervalMs: positiveEnvMs('WA_HEALTH_PROBE_INTERVAL_MS', 60_000),
+    probeTimeoutMs: positiveEnvMs('WA_HEALTH_PROBE_TIMEOUT_MS', 8_000),
+    stuckOpMs: positiveEnvMs('WA_STUCK_OP_MS', 45_000),
+    failureThreshold: positiveEnvInt('WA_CDP_FAILURE_THRESHOLD', 2),
+    restartCooldownMs: positiveEnvMs('WA_RESTART_COOLDOWN_MS', 120_000),
+  }
+}
+
+function positiveEnvMs(key: string, fallback: number) {
+  const n = Number(process.env[key])
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+function positiveEnvInt(key: string, fallback: number) {
+  const n = Number(process.env[key])
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback
+}
+
+let consecutiveCdpFailures = 0
+let lastForcedRestartAt = 0
+let restartInProgress = false
+let healthMonitorTimer: ReturnType<typeof setInterval> | null = null
+
+export function getWaHealthState() {
+  const stuckMs = waOpStartedAt ? Date.now() - waOpStartedAt : 0
+  return {
+    consecutive_cdp_failures: consecutiveCdpFailures,
+    last_forced_restart_at: lastForcedRestartAt
+      ? new Date(lastForcedRestartAt).toISOString()
+      : null,
+    restart_in_progress: restartInProgress,
+    cdp_op_in_flight: waOpStartedAt !== null,
+    cdp_op_stuck_ms: stuckMs,
+  }
+}
+
+function resetCdpFailures() {
+  consecutiveCdpFailures = 0
+}
+
+export function reportCdpFailure(source: string) {
+  consecutiveCdpFailures++
+  const { failureThreshold } = getHealthConfig()
+  console.warn(
+    `[WA] CDP failure ${consecutiveCdpFailures}/${failureThreshold} (${source})`,
+  )
+  if (consecutiveCdpFailures >= failureThreshold) {
+    void forceRestartWaClient(`cdp failures from ${source}`)
+  }
+}
+
+async function probeWaCdp(): Promise<boolean> {
+  const { probeTimeoutMs } = getHealthConfig()
+  try {
+    const state = await Promise.race([
+      waClient.getState(),
+      sleep(probeTimeoutMs).then(() => Promise.reject(new Error('health probe timeout'))),
+    ])
+    if (state === 'CONNECTED') {
+      resetCdpFailures()
+      return true
+    }
+    consecutiveCdpFailures++
+    console.warn(`[WA] Health probe: unexpected state "${state}"`)
+    return false
+  } catch (err) {
+    consecutiveCdpFailures++
+    console.warn('[WA] Health probe failed', err)
+    return false
+  }
+}
+
+async function forceRestartWaClient(reason: string) {
+  const { restartCooldownMs, failureThreshold } = getHealthConfig()
+  const now = Date.now()
+
+  if (restartInProgress) return
+  if (now - lastForcedRestartAt < restartCooldownMs) {
+    console.warn(`[WA] Skipping forced restart — cooldown active (${reason})`)
+    return
+  }
+
+  restartInProgress = true
+  lastForcedRestartAt = now
+  console.warn(`[WA] Forcing client restart: ${reason}`)
+
+  stopWaHealthMonitor()
+  _waConnected = false
+  _waConnecting = false
+  _waPhoneNumber = null
+  clearReadyFallback()
+  clearAgentIdentity()
+  waOpStartedAt = null
+  waOpChain = Promise.resolve()
+
+  try {
+    await waClient.destroy()
+  } catch (err) {
+    console.warn('[WA] destroy() during forced restart', err)
+  }
+
+  const userDataDir = getSessionUserDataDir()
+  const killed = killStaleBrowserProcesses(userDataDir)
+  if (killed > 0) {
+    console.log(`[WA] Killed ${killed} stale browser process(es) during restart`)
+  }
+  await sleep(500)
+  removeStaleSingletonLocks(userDataDir)
+
+  reconnectAttempts = 0
+  restartInProgress = false
+
+  try {
+    await initializeWithCleanup()
+    resetCdpFailures()
+    console.log('[WA] Forced restart complete — waiting for ready')
+  } catch (err) {
+    console.error('[WA] Forced restart failed', err)
+    scheduleReconnect()
+  }
+}
+
+function runWaHealthCheck() {
+  if (!_waConnected || restartInProgress || _waConnecting) return
+
+  const { stuckOpMs, failureThreshold } = getHealthConfig()
+
+  if (waOpStartedAt && Date.now() - waOpStartedAt > stuckOpMs) {
+    void forceRestartWaClient(
+      `CDP operation stuck for ${Math.round((Date.now() - waOpStartedAt) / 1000)}s`,
+    )
+    return
+  }
+
+  if (waOpStartedAt) return
+
+  void probeWaCdp().then((ok) => {
+    if (!ok && consecutiveCdpFailures >= failureThreshold) {
+      void forceRestartWaClient('health probe')
+    }
+  })
+}
+
+function startWaHealthMonitor() {
+  stopWaHealthMonitor()
+  const { probeIntervalMs } = getHealthConfig()
+  healthMonitorTimer = setInterval(runWaHealthCheck, probeIntervalMs)
+  console.log(`[WA] Health monitor started (every ${probeIntervalMs / 1000}s)`)
+}
+
+function stopWaHealthMonitor() {
+  if (healthMonitorTimer) {
+    clearInterval(healthMonitorTimer)
+    healthMonitorTimer = null
+  }
+}
+
 function getSessionUserDataDir() {
   return path.resolve(WA_DATA_PATH, 'session')
 }
@@ -157,7 +349,7 @@ export const waClient = new Client({
   puppeteer: {
     headless: true,
     // Railway Chromium can be slow; default CDP timeout is too low for getContact().
-    protocolTimeout: Number(process.env.WA_PROTOCOL_TIMEOUT_MS ?? 300_000),
+    protocolTimeout: getProtocolTimeoutMs(),
     ...(process.env.PUPPETEER_EXECUTABLE_PATH
       ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
       : {}),
@@ -219,6 +411,8 @@ async function markReady() {
       .eq('id', process.env.AGENT_ID!)
       .throwOnError()
   }
+
+  startWaHealthMonitor()
 }
 
 waClient.on('authenticated', () => {
@@ -251,6 +445,7 @@ waClient.on('disconnected', async (reason) => {
   _lastQrPayload = null
   clearReadyFallback()
   clearAgentIdentity()
+  stopWaHealthMonitor()
 
   // Notify dashboard via Supabase realtime
   await db
@@ -361,6 +556,7 @@ export function startWhatsAppClient() {
 }
 
 export async function stopWhatsAppClient() {
+  stopWaHealthMonitor()
   try {
     await waClient.destroy()
     console.log('[WA] Client stopped')
@@ -371,12 +567,38 @@ export async function stopWhatsAppClient() {
   }
 }
 
-export async function sendReply(
+async function waitUntilConnected(timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (_waConnected) return
+
+    try {
+      const state = await Promise.race([
+        waClient.getState(),
+        sleep(5_000).then(() => null as string | null),
+      ])
+      if (state === 'CONNECTED') return
+    } catch {
+      // browser may still be initialising
+    }
+
+    await sleep(1_000)
+  }
+
+  throw new Error('WhatsApp is not connected')
+}
+
+async function sendReplyOnce(
   waGroupId: string,
   replyBody: string,
   quotedMsgId?: string,
 ) {
+  await waitUntilConnected()
+
   const chat = await waClient.getChatById(waGroupId)
+  if (!chat) {
+    throw new Error(`WhatsApp chat not found: ${waGroupId}`)
+  }
 
   // Simulate human typing: ~40 chars/sec, clamped 1.5–5s, plus random jitter
   const typingMs = Math.min(Math.max(replyBody.length * 25, 1500), 5000)
@@ -391,4 +613,32 @@ export async function sendReply(
   } else {
     await chat.sendMessage(replyBody)
   }
+}
+
+export async function sendReply(
+  waGroupId: string,
+  replyBody: string,
+  quotedMsgId?: string,
+) {
+  return withWaLock(async () => {
+    const maxAttempts = 3
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await sendReplyOnce(waGroupId, replyBody, quotedMsgId)
+        return
+      } catch (err) {
+        if (!isProtocolOrCdpError(err) || attempt === maxAttempts) throw err
+
+        reportCdpFailure('sendReply')
+
+        console.warn(
+          `[WA] sendReply CDP error (attempt ${attempt}/${maxAttempts}), retrying…`,
+          err,
+        )
+
+        await sleep(2_000 * attempt)
+      }
+    }
+  })
 }

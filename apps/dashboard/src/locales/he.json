@@ -19,7 +19,15 @@
   "status": {
     "connected": "מחובר",
     "offline": "לא מקוון",
-    "online": "מקוון"
+    "online": "מקוון",
+    "connecting": "מתחבר",
+    "degraded": "מתאושש",
+    "connectingHint": "סשן וואטסאפ מאומת…",
+    "degradedHint": "הסשן מתאושש מתקלה בדפדפן",
+    "health": {
+      "restarting": "מפעיל מחדש את הדפדפן",
+      "cdpFailures": "{count} כשלי CDP אחרונים"
+    }
   },
   "flows": {
     "activeCount": "תגובה בתהליך | {count} תגובות בתהליך",
@@ -37,7 +45,9 @@
     "subtitle": {
       "disconnected": "חבר את וואטסאפ כדי לתת לWavi להתחיל לארגן את החיים הדיגיטליים שלך.",
       "noGroups": "וואטסאפ מחובר — הוסף קבוצה כדי שיהיה לWavi איפה לעבוד.",
-      "active": "Wavi פעיל ב-{count} {groups} ומוכן."
+      "active": "Wavi פעיל ב-{count} {groups} ומוכן.",
+      "degraded": "וואטסאפ מחובר אך הדפדפן מתאושש — תשובות עלולות להתעכב.",
+      "connecting": "סשן וואטסאפ עדיין מתחבר…"
     },
     "group": "קבוצה",
     "groups_word": "קבוצות",
@@ -47,6 +57,23 @@
       "activeGroups": "קבוצות פעילות",
       "messagesToday": "הודעות היום",
       "repliesToday": "תשובות היום"
+    },
+    "health": {
+      "title": "בריאות הסשן",
+      "offline": "וואטסאפ לא מחובר. התחבר כדי לראות את מצב הדפדפן.",
+      "goConnect": "עבור לחיבור",
+      "session": "סשן",
+      "phone": "טלפון",
+      "cdpFailures": "כשלי CDP",
+      "cdpOp": "פעולת דפדפן",
+      "cdpOpIdle": "במנוחה",
+      "cdpOpActive": "בתהליך",
+      "cdpOpStuck": "תקוע {duration}",
+      "restart": "הפעלה מחדש",
+      "restarting": "בתהליך…",
+      "lastRestart": "לפני {ago}",
+      "noRestart": "אין לאחרונה",
+      "degradedNote": "Wavi מתאושש אוטומטית. תשובות עלולות להתעכב לרגע."
     },
     "activeGroups": {
       "title": "קבוצות פעילות",
@@ -70,6 +97,8 @@
       "viewAll": "הצג הכל",
       "waOffline": "הסוכן לא מקוון. עבור לחיבור כדי לסרוק קוד QR.",
       "waOnline": "סשן הסוכן מחובר ומאזין.",
+      "waDegraded": "הסשן מחובר אך מתאושש מתקלה בדפדפן.",
+      "waConnecting": "סשן וואטסאפ מתחבר…",
       "now": "עכשיו",
       "today": "היום",
       "soon": "בקרוב",

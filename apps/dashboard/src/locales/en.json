@@ -19,7 +19,15 @@
   "status": {
     "connected": "Connected",
     "offline": "Offline",
-    "online": "Online"
+    "online": "Online",
+    "connecting": "Connecting",
+    "degraded": "Recovering",
+    "connectingHint": "WhatsApp session is authenticating…",
+    "degradedHint": "Session is recovering from a browser issue",
+    "health": {
+      "restarting": "Restarting browser",
+      "cdpFailures": "{count} recent CDP failure(s)"
+    }
   },
   "flows": {
     "activeCount": "{count} reply in progress | {count} replies in progress",
@@ -37,7 +45,9 @@
     "subtitle": {
       "disconnected": "Connect WhatsApp to let Wavi start organizing your chaotic digital life.",
       "noGroups": "WhatsApp is linked — register a group so Wavi has somewhere witty to work.",
-      "active": "Wavi is live in {count} {groups} and ready to roast."
+      "active": "Wavi is live in {count} {groups} and ready to roast.",
+      "degraded": "WhatsApp is linked but the browser is recovering — replies may lag for a moment.",
+      "connecting": "WhatsApp session is still connecting…"
     },
     "group": "group",
     "groups_word": "groups",
@@ -47,6 +57,23 @@
       "activeGroups": "Active groups",
       "messagesToday": "Messages today",
       "repliesToday": "Replies today"
+    },
+    "health": {
+      "title": "Session Health",
+      "offline": "WhatsApp is not linked. Connect to see live browser health.",
+      "goConnect": "Go to Connect",
+      "session": "Session",
+      "phone": "Phone",
+      "cdpFailures": "CDP failures",
+      "cdpOp": "Browser op",
+      "cdpOpIdle": "Idle",
+      "cdpOpActive": "In progress",
+      "cdpOpStuck": "Stuck {duration}",
+      "restart": "Browser restart",
+      "restarting": "In progress…",
+      "lastRestart": "{ago} ago",
+      "noRestart": "None recent",
+      "degradedNote": "Wavi is auto-recovering the WhatsApp browser. Replies may be delayed briefly."
     },
     "activeGroups": {
       "title": "Active Groups",
@@ -70,6 +97,8 @@
       "viewAll": "View all",
       "waOffline": "Agent is offline. Head to Connect to scan the QR code.",
       "waOnline": "Agent session is connected and listening.",
+      "waDegraded": "Session is connected but recovering from a browser hiccup.",
+      "waConnecting": "WhatsApp session is connecting…",
       "now": "Now",
       "today": "Today",
       "soon": "Soon",
