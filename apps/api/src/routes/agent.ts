@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { subscribeToQR, getWaConnectionState, getWaHealthState, restartWhatsAppClient } from '../whatsapp/client.js'
+import { subscribeToQR, getWaConnectionState, getWaHealthState, restartWhatsAppClient, waClient } from '../whatsapp/client.js'
 import { pickDashboardOrigin } from '../lib/cors.js'
 
 export const agentRoute: FastifyPluginAsync = async (fastify) => {
@@ -36,15 +36,21 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/status', async (_req, _reply) => {
     const { connected, connecting, phone_number } = getWaConnectionState()
     const health = getWaHealthState()
+
+    // waClient.info is populated in memory when session is live — use it
+    // to confirm connected state even if our internal flag is slightly behind.
+    const infoWid = waClient.info?.wid?._serialized ?? null
+    const infoPhone = waClient.info?.me?.user ?? null
+    const trueConnected = connected || Boolean(infoWid)
+
     return {
-      connected,
-      connecting,
-      state: connected ? 'CONNECTED' : connecting ? 'CONNECTING' : 'DISCONNECTED',
-      phone_number,
+      connected: trueConnected,
+      connecting: !trueConnected && connecting,
+      state: trueConnected ? 'CONNECTED' : connecting ? 'CONNECTING' : 'DISCONNECTED',
+      phone_number: phone_number ?? (infoPhone ? `+${infoPhone}` : null),
       health,
     }
   })
-
   // ── POST /api/agent/restart — force re-initialize WA browser ─
   fastify.post('/restart', async (_req, reply) => {
     restartWhatsAppClient().catch((err) => {

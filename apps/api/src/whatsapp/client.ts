@@ -101,6 +101,14 @@ export function reportCdpFailure(source: string) {
 }
 
 async function probeWaCdp(): Promise<boolean> {
+  // Fast path: waClient.info is populated in memory when the session is live.
+  // No CDP round-trip needed — if it has a wid, the browser is responsive.
+  if (waClient.info?.wid?._serialized) {
+    resetCdpFailures()
+    return true
+  }
+
+  // Slow path: info not yet populated — fall back to a CDP getState() call.
   const { probeTimeoutMs } = getHealthConfig()
   try {
     const state = await Promise.race([
@@ -295,6 +303,16 @@ function startReadyFallback() {
       _waConnecting = false
       return
     }
+
+    // Fast path: if waClient.info is already populated, the session is live.
+    // This avoids a CDP getState() call and catches the case where the ready
+    // event fired but markReady() was missed or delayed.
+    if (waClient.info?.wid?._serialized) {
+      console.log('[WA] Ready fallback — waClient.info is populated')
+      await markReady()
+      return
+    }
+
     try {
       const state = await Promise.race([
         waClient.getState(),
