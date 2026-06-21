@@ -383,6 +383,8 @@ export const waClient = new Client({
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
+      // Suppress navigator.webdriver flag so WhatsApp's anti-bot JS can't detect headless Chromium
+      '--disable-blink-features=AutomationControlled',
     ],
   },
 })

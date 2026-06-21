@@ -1,5 +1,5 @@
 <template>
-  <div class="relative inline-flex" @mouseenter="show = true" @mouseleave="show = false">
+  <div ref="wrapperRef" class="relative inline-flex" @mouseenter="onEnter" @mouseleave="show = false">
     <!-- Badge -->
     <div
       class="flex items-center gap-1.5 rounded-full border cursor-default"
@@ -34,10 +34,14 @@
     >
       <div
         v-if="show"
-        class="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)] pointer-events-none"
+        class="absolute bottom-full z-50 mb-2 w-56 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)] pointer-events-none"
+        :style="tooltipStyle"
       >
         <!-- Arrow -->
-        <div class="absolute -bottom-[5px] left-1/2 -translate-x-1/2 h-2.5 w-2.5 rotate-45 rounded-br-sm border-b border-r border-outline-variant bg-surface-container-highest" />
+        <div
+          class="absolute -bottom-[5px] h-2.5 w-2.5 rounded-br-sm border-b border-r border-outline-variant bg-surface-container-highest"
+          :style="arrowStyle"
+        />
 
         <div class="p-3">
           <!-- Header row -->
@@ -90,6 +94,39 @@ const agentStore = useAgentStore()
 const { healthTier, connected, connecting, health, phoneNumber } = storeToRefs(agentStore)
 
 const show = ref(false)
+const wrapperRef = ref<HTMLElement | null>(null)
+
+const TOOLTIP_WIDTH = 224 // w-56 = 14rem = 224px
+const VIEWPORT_MARGIN = 8
+
+const tooltipLeft = ref(0)
+const arrowLeft = ref(0)
+
+function onEnter() {
+  if (wrapperRef.value) {
+    const rect = wrapperRef.value.getBoundingClientRect()
+    const badgeCenterX = rect.left + rect.width / 2
+    const idealLeft = badgeCenterX - TOOLTIP_WIDTH / 2
+    const clampedLeft = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(idealLeft, window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN),
+    )
+    // offset from left edge of the wrapper element
+    tooltipLeft.value = clampedLeft - rect.left
+    // arrow points back to badge center relative to tooltip
+    arrowLeft.value = badgeCenterX - clampedLeft
+  }
+  show.value = true
+}
+
+const tooltipStyle = computed(() => ({
+  left: `${tooltipLeft.value}px`,
+}))
+
+const arrowStyle = computed(() => ({
+  left: `${arrowLeft.value}px`,
+  transform: 'translateX(-50%) rotate(45deg)',
+}))
 
 const label = computed(() => {
   switch (healthTier.value) {

@@ -112,9 +112,14 @@ sync_railway() {
   set_railway_literal "PORT=3000"
   set_railway_literal "NODE_ENV=production"
   set_railway_literal "WA_SESSION_PATH=/data/.wwebjs_auth"
+  set_railway_literal "WA_CACHE_PATH=/data/.wwebjs_cache"
   set_railway_literal "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
   set_railway_literal "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium"
   set_railway_literal "WA_PROTOCOL_TIMEOUT_MS=300000"
+  # Avoid false-positive restarts on slow Railway Chromium — default 2 is too aggressive
+  set_railway_literal "WA_CDP_FAILURE_THRESHOLD=4"
+  # Give restarts more breathing room so churn doesn't pile up
+  set_railway_literal "WA_RESTART_COOLDOWN_MS=300000"
 
   cd "$ROOT"
 
