@@ -198,8 +198,15 @@
     "hint": "Keep your phone on Wi-Fi for a faster sync. QR refreshes automatically.",
     "retry": "Retry",
     "errors": {
-      "timeout": "QR is taking too long. Make sure the API is running locally and VITE_API_URL points to it (use /api for local dev).",
-      "apiDown": "Could not reach the API. Start it with `bun run dev` from the repo root, then retry."
+      "timeout": "QR code timed out. Check your connection and retry.",
+      "apiDown": "Could not reach the API. Check Railway logs.",
+      "restartFailed": "Restart request failed — check Railway logs."
+    },
+    "troubleshoot": {
+      "title": "Browser stuck or offline?",
+      "body": "If WhatsApp keeps showing as disconnected, restart the browser process. Your session will be preserved — you should see a new QR within a few seconds.",
+      "restart": "Restart WhatsApp browser",
+      "restarting": "Restarting…"
     }
   },
   "activity": {

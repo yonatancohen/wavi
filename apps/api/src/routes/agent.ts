@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { subscribeToQR, getWaConnectionState, getWaHealthState } from '../whatsapp/client.js'
+import { subscribeToQR, getWaConnectionState, getWaHealthState, restartWhatsAppClient } from '../whatsapp/client.js'
 import { pickDashboardOrigin } from '../lib/cors.js'
 
 export const agentRoute: FastifyPluginAsync = async (fastify) => {
@@ -43,5 +43,13 @@ export const agentRoute: FastifyPluginAsync = async (fastify) => {
       phone_number,
       health,
     }
+  })
+
+  // ── POST /api/agent/restart — force re-initialize WA browser ─
+  fastify.post('/restart', async (_req, reply) => {
+    restartWhatsAppClient().catch((err) => {
+      console.error('[WA] Manual restart failed', err)
+    })
+    return reply.code(202).send({ ok: true, message: 'Restart initiated' })
   })
 }

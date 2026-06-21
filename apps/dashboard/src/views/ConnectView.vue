@@ -125,6 +125,23 @@
         <p class="mt-6 text-center text-[12px] text-on-surface-variant lg:text-start">
           {{ t('connect.hint') }}
         </p>
+
+        <div class="mt-8 rounded-xl border border-outline-variant/60 bg-surface-container p-5">
+          <p class="mb-1 font-sora text-[13px] font-semibold text-on-surface">{{ t('connect.troubleshoot.title') }}</p>
+          <p class="mb-4 text-[12px] leading-relaxed text-on-surface-variant">{{ t('connect.troubleshoot.body') }}</p>
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-high px-4 py-2 text-[13px] font-medium text-on-surface transition-all hover:border-primary/40 hover:text-primary active:scale-95 disabled:opacity-50"
+            :disabled="restarting"
+            @click="restartBrowser"
+          >
+            <span
+              class="material-symbols-outlined text-[16px]"
+              :class="restarting ? 'animate-spin' : ''"
+            >refresh</span>
+            {{ restarting ? t('connect.troubleshoot.restarting') : t('connect.troubleshoot.restart') }}
+          </button>
+        </div>
       </template>
     </div>
   </div>
@@ -147,6 +164,7 @@ const processing = ref(false)
 const connected = ref(false)
 const phoneNumber = ref<string | null>(null)
 const streamError = ref<string | null>(null)
+const restarting = ref(false)
 
 const statusMessage = computed(() => {
   if (processing.value) return t('connect.status.scanned')
@@ -268,6 +286,26 @@ async function loadStatus() {
 
 function retry() {
   loadStatus()
+}
+
+async function restartBrowser() {
+  if (restarting.value) return
+  restarting.value = true
+  streamError.value = null
+  closeStream()
+  stopStatusPoll()
+  qrDataUrl.value = null
+  processing.value = false
+  try {
+    await apiFetch('/agent/restart', { method: 'POST' })
+    // Give the server ~3s to kill the old browser, then start polling for QR
+    await new Promise((r) => setTimeout(r, 3000))
+    startQrStream()
+  } catch {
+    streamError.value = t('connect.errors.restartFailed')
+  } finally {
+    restarting.value = false
+  }
 }
 
 onMounted(loadStatus)

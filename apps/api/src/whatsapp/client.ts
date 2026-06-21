@@ -211,7 +211,12 @@ function getSessionUserDataDir() {
 }
 
 function isBrowserAlreadyRunningError(err: unknown) {
-  return err instanceof Error && err.message.includes('browser is already running')
+  if (!(err instanceof Error)) return false
+  return (
+    err.message.includes('browser is already running') ||
+    err.message.includes('Code: 21') ||
+    err.message.includes('profile appears to be in use')
+  )
 }
 
 function killStaleBrowserProcesses(userDataDir: string) {
@@ -526,11 +531,16 @@ function sleep(ms: number) {
 
 async function initializeWithCleanup() {
   const userDataDir = getSessionUserDataDir()
+
+  // Always remove stale singleton locks on startup — the lock file persists
+  // across Railway container restarts (shared volume) even though the process
+  // that created it is long gone.
+  removeStaleSingletonLocks(userDataDir)
+
   const killed = killStaleBrowserProcesses(userDataDir)
   if (killed > 0) {
     console.log(`[WA] Stopped ${killed} stale browser process(es) from a previous run`)
     await sleep(500)
-    removeStaleSingletonLocks(userDataDir)
   }
 
   try {
@@ -543,6 +553,34 @@ async function initializeWithCleanup() {
     removeStaleSingletonLocks(userDataDir)
     await waClient.initialize()
   }
+}
+
+export async function restartWhatsAppClient(): Promise<void> {
+  console.log('[WA] Manual restart requested')
+  stopWaHealthMonitor()
+
+  _waConnected = false
+  _waConnecting = false
+  _waPhoneNumber = null
+  _lastQrPayload = null
+  clearReadyFallback()
+  clearAgentIdentity()
+  waOpStartedAt = null
+  waOpChain = Promise.resolve()
+  consecutiveCdpFailures = 0
+
+  try { await waClient.destroy() } catch { /* ignore */ }
+
+  const userDataDir = getSessionUserDataDir()
+  killStaleBrowserProcesses(userDataDir)
+  await sleep(500)
+  removeStaleSingletonLocks(userDataDir)
+
+  starting = false
+  reconnectAttempts = 0
+  restartInProgress = false
+
+  await initializeWithCleanup()
 }
 
 export function startWhatsAppClient() {
