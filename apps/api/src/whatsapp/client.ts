@@ -156,6 +156,8 @@ export const waClient = new Client({
   },
   puppeteer: {
     headless: true,
+    // Railway Chromium can be slow; default CDP timeout is too low for getContact().
+    protocolTimeout: Number(process.env.WA_PROTOCOL_TIMEOUT_MS ?? 300_000),
     ...(process.env.PUPPETEER_EXECUTABLE_PATH
       ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
       : {}),

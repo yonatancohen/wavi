@@ -69,6 +69,23 @@ function isWaJid(id: string): boolean {
   return id.includes('@')
 }
 
+const GET_CONTACT_TIMEOUT_MS = 15_000
+
+async function getSenderPushname(msg: WAMessage, fallback: string): Promise<string> {
+  try {
+    const contact = await Promise.race([
+      msg.getContact(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('getContact timeout')), GET_CONTACT_TIMEOUT_MS),
+      ),
+    ])
+    return contact.pushname ?? fallback
+  } catch (err) {
+    console.warn('[WA] getContact failed — using sender id as display name:', err)
+    return fallback
+  }
+}
+
 async function reconcileRelationshipIds(
   groupId: string,
   oldId: string,
@@ -174,19 +191,18 @@ export async function handleIncomingMessage(msg: WAMessage) {
   // ── 4. Check if agent is tagged ───────────────────────────
   if (!isAgentTagged(msg, body)) {
     // Reconcile display-name profile keys non-blocking (only needs pushname)
-    msg.getContact().then((contact) => {
-      const pushname = contact.pushname
-      if (pushname) {
+    getSenderPushname(msg, senderWaId).then((pushname) => {
+      if (pushname && pushname !== senderWaId) {
         reconcileUserIdentity(group.id, senderWaId, pushname).catch((err) => {
           console.error('[Reconcile] Failed:', err)
         })
       }
-    }).catch(() => {})
+    })
     return
   }
 
   // Resolve push name — needed for reply context and reconciliation
-  const resolvedName = (await msg.getContact()).pushname ?? senderWaId
+  const resolvedName = await getSenderPushname(msg, senderWaId)
 
   // Reconcile display-name profile keys (non-blocking)
   reconcileUserIdentity(group.id, senderWaId, resolvedName).catch((err) => {
