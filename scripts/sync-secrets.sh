@@ -113,6 +113,8 @@ sync_railway() {
   set_railway_literal "NODE_ENV=production"
   set_railway_literal "WA_SESSION_PATH=/data/.wwebjs_auth"
   set_railway_literal "WA_CACHE_PATH=/data/.wwebjs_cache"
+  set_railway_literal "WA_PROVIDER=wwebjs"
+  set_railway_literal "WA_BAILEYS_AUTH_PATH=/data/.baileys_auth"
   set_railway_literal "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
   set_railway_literal "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium"
   set_railway_literal "WA_PROTOCOL_TIMEOUT_MS=300000"
