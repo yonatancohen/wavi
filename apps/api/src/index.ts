@@ -10,8 +10,26 @@ import { flowsRoute } from './routes/flows.js'
 import { healthRoute } from './routes/health.js'
 import { twilioRoute } from './routes/twilio.js'
 import { startReplyWorker } from './ai/worker.js'
-import { startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js'
+import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js'
 import { allowedDashboardOrigins, isOriginAllowed } from './lib/cors.js'
+
+// wwebjs runs some internal logic (e.g. re-injecting on a LOGOUT navigation)
+// from un-awaited handlers. When those throw — most notably the puppeteer
+// "page binding already exists" race — the rejection is unhandled and would
+// otherwise terminate the process, taking the API and reply worker with it.
+// Recover by restarting the WhatsApp client for known-transient WA errors;
+// anything else is genuinely fatal and is left to crash as before.
+process.on('unhandledRejection', (reason) => {
+  if (recoverFromUnhandledWaError(reason)) return
+  console.error('[Fatal] Unhandled promise rejection', reason)
+  process.exit(1)
+})
+
+process.on('uncaughtException', (err) => {
+  if (recoverFromUnhandledWaError(err)) return
+  console.error('[Fatal] Uncaught exception', err)
+  process.exit(1)
+})
 
 const server = Fastify({
   logger: {

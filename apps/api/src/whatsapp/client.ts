@@ -29,6 +29,39 @@ function isProtocolOrCdpError(err: unknown) {
   )
 }
 
+// wwebjs re-injects from an un-awaited `framenavigated` handler on LOGOUT. If
+// the puppeteer page still has its bindings registered, exposeFunction throws
+// "already exists", surfacing as an unhandled rejection that would otherwise
+// kill the whole process. Detect it (and other transient page/CDP failures
+// from wwebjs internals) so the process guard can recover instead of crashing.
+function isPageBindingAlreadyExistsError(err: unknown) {
+  if (!(err instanceof Error)) return false
+  return (
+    err.message.includes('already exists') &&
+    (err.message.includes('page binding') || err.message.includes('window['))
+  )
+}
+
+/**
+ * Decide whether an otherwise-unhandled error originated from wwebjs/puppeteer
+ * internals and is safe to recover from by restarting the client. Returns true
+ * if recovery was triggered (caller should swallow the error), false if the
+ * error is unrelated and should propagate.
+ */
+export function recoverFromUnhandledWaError(err: unknown): boolean {
+  if (isPageBindingAlreadyExistsError(err)) {
+    console.warn('[WA] Recovering from page-binding inject race', err)
+    void forceRestartWaClient('page binding already exists')
+    return true
+  }
+  if (isProtocolOrCdpError(err)) {
+    console.warn('[WA] Recovering from protocol/CDP error', err)
+    void forceRestartWaClient('unhandled protocol/CDP error')
+    return true
+  }
+  return false
+}
+
 // Serialize CDP calls — concurrent page.evaluate() calls can hang wwebjs.
 let waOpChain: Promise<unknown> = Promise.resolve()
 let waOpStartedAt: number | null = null
@@ -512,7 +545,19 @@ function scheduleReconnect() {
 
   setTimeout(async () => {
     try {
-      await waClient.initialize()
+      // Tear the client fully down before re-initialising. On a LOGOUT (and
+      // other disconnects) wwebjs keeps the puppeteer page alive, so calling
+      // initialize() on the same client re-injects into a page that already
+      // has its bindings (onQRChangedEvent, …) registered in puppeteer's
+      // internal #bindings map — which throws "already exists" and, because
+      // wwebjs re-injects from an un-awaited framenavigated handler, crashes
+      // the whole process. destroy() discards the page so we get a fresh one.
+      try {
+        await waClient.destroy()
+      } catch (destroyErr) {
+        console.warn('[WA] destroy() during reconnect', destroyErr)
+      }
+      await initializeWithCleanup()
       reconnectAttempts = 0
     } catch (err) {
       console.error('[WA] Reconnect failed', err)
