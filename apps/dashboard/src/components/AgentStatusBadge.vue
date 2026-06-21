@@ -26,20 +26,24 @@
     <!-- Tooltip -->
     <Transition
       enter-active-class="transition-all duration-150 ease-out"
-      enter-from-class="opacity-0 translate-y-1 scale-95"
+      :enter-from-class="showBelow ? 'opacity-0 -translate-y-1 scale-95' : 'opacity-0 translate-y-1 scale-95'"
       enter-to-class="opacity-100 translate-y-0 scale-100"
       leave-active-class="transition-all duration-100 ease-in"
       leave-from-class="opacity-100 translate-y-0 scale-100"
-      leave-to-class="opacity-0 translate-y-1 scale-95"
+      :leave-to-class="showBelow ? 'opacity-0 -translate-y-1 scale-95' : 'opacity-0 translate-y-1 scale-95'"
     >
       <div
         v-if="show"
-        class="absolute bottom-full z-50 mb-2 w-56 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)] pointer-events-none"
+        class="absolute z-50 w-56 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)] pointer-events-none"
+        :class="showBelow ? 'top-full mt-2' : 'bottom-full mb-2'"
         :style="tooltipStyle"
       >
-        <!-- Arrow -->
+        <!-- Arrow: points toward the badge -->
         <div
-          class="absolute -bottom-[5px] h-2.5 w-2.5 rounded-br-sm border-b border-r border-outline-variant bg-surface-container-highest"
+          class="absolute h-2.5 w-2.5 rounded-sm border-outline-variant bg-surface-container-highest"
+          :class="showBelow
+            ? '-top-[5px] rounded-tl-sm border-t border-l'
+            : '-bottom-[5px] rounded-br-sm border-b border-r'"
           :style="arrowStyle"
         />
 
@@ -94,10 +98,12 @@ const agentStore = useAgentStore()
 const { healthTier, connected, connecting, health, phoneNumber } = storeToRefs(agentStore)
 
 const show = ref(false)
+const showBelow = ref(false)
 const wrapperRef = ref<HTMLElement | null>(null)
 
 const TOOLTIP_WIDTH = 224 // w-56 = 14rem = 224px
 const VIEWPORT_MARGIN = 8
+const ESTIMATED_TOOLTIP_HEIGHT = 150
 
 const tooltipLeft = ref(0)
 const arrowLeft = ref(0)
@@ -105,15 +111,17 @@ const arrowLeft = ref(0)
 function onEnter() {
   if (wrapperRef.value) {
     const rect = wrapperRef.value.getBoundingClientRect()
+
+    // Flip below when not enough space above
+    showBelow.value = rect.top < ESTIMATED_TOOLTIP_HEIGHT + VIEWPORT_MARGIN
+
     const badgeCenterX = rect.left + rect.width / 2
     const idealLeft = badgeCenterX - TOOLTIP_WIDTH / 2
     const clampedLeft = Math.max(
       VIEWPORT_MARGIN,
       Math.min(idealLeft, window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN),
     )
-    // offset from left edge of the wrapper element
     tooltipLeft.value = clampedLeft - rect.left
-    // arrow points back to badge center relative to tooltip
     arrowLeft.value = badgeCenterX - clampedLeft
   }
   show.value = true
@@ -125,7 +133,7 @@ const tooltipStyle = computed(() => ({
 
 const arrowStyle = computed(() => ({
   left: `${arrowLeft.value}px`,
-  transform: 'translateX(-50%) rotate(45deg)',
+  transform: `translateX(-50%) rotate(${showBelow.value ? 225 : 45}deg)`,
 }))
 
 const label = computed(() => {
