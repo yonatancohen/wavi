@@ -160,6 +160,8 @@
   /* ── Buttons ─────────────────────────────────── */
   .btn {
     @apply cursor-pointer rounded-full border-none px-4 py-2.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-50;
+    min-height: 2.75rem;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .btn-primary {
@@ -189,7 +191,7 @@
   }
 
   .stat-cell-value {
-    @apply font-mono text-[26px] font-semibold leading-none tabular-nums text-on-surface;
+    @apply font-mono text-[22px] font-semibold leading-none tabular-nums text-on-surface sm:text-[26px];
   }
 
   /* ── Log row (activity feed) ─────────────────── */
@@ -208,9 +210,118 @@
 
   /* ── Page header ─────────────────────────────── */
   .page-header {
-    @apply sticky top-0 z-10 border-b border-outline-variant px-margin-mobile py-4;
+    @apply sticky z-10 border-b border-outline-variant px-margin-mobile py-4;
+    top: 0;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
     backdrop-filter: blur(8px);
+  }
+
+  @media (max-width: 1023px) {
+    .page-header {
+      top: calc(3.25rem + env(safe-area-inset-top, 0px));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-header {
+      @apply md:px-margin-desktop;
+    }
+  }
+
+  /* ── Main content area (mobile bottom nav clearance) ── */
+  .main-content {
+    padding-bottom: 0;
+  }
+
+  @media (max-width: 1023px) {
+    .main-content {
+      padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  /* ── Mobile top bar ──────────────────────────── */
+  .mobile-top-bar {
+    @apply sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-outline-variant px-margin-mobile py-2.5;
+    padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));
+    background-color: color-mix(in srgb, rgb(var(--color-surface-container-low)) 96%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  /* ── Mobile bottom navigation ────────────────── */
+  .mobile-bottom-nav {
+    @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-outline-variant bg-surface-container-low;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .mobile-bottom-nav-item {
+    @apply relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium text-on-surface-variant no-underline transition-colors;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav-item.router-link-active {
+    @apply text-primary;
+    background-color: color-mix(in srgb, rgb(var(--color-primary)) 6%, transparent);
+  }
+
+  .mobile-bottom-nav-label {
+    @apply max-w-full truncate leading-none;
+  }
+
+  .mobile-bottom-nav-dot {
+    @apply absolute end-[calc(50%-1.125rem)] top-2 h-1.5 w-1.5 animate-status-pulse rounded-full bg-primary;
+  }
+
+  [dir='rtl'] .mobile-bottom-nav-dot {
+    @apply start-[calc(50%-1.125rem)] end-auto;
+  }
+
+  /* ── Icon button (touch-friendly) ────────────── */
+  .icon-btn {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border-none bg-transparent text-on-surface-variant transition-colors;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .icon-btn:hover {
+    @apply bg-on-surface/[0.06] text-on-surface;
+  }
+
+  .icon-btn:active {
+    @apply scale-95;
+  }
+
+  /* ── Mobile settings sheet ───────────────────── */
+  .mobile-sheet-backdrop {
+    @apply fixed inset-0 z-40 bg-black/50;
+    animation: fade-in 0.2s ease-out both;
+  }
+
+  .mobile-sheet {
+    @apply fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border border-outline-variant bg-surface-container shadow-2xl;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: slide-up 0.3s ease-out both;
+  }
+
+  .mobile-sheet-row {
+    @apply flex w-full min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-colors;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-sheet-row:hover {
+    background-color: color-mix(in srgb, rgb(var(--color-on-surface)) 4%, transparent);
+  }
+
+  .mobile-sheet-row:active {
+    @apply scale-[0.99];
+  }
+
+  /* ── Responsive page actions ─────────────────── */
+  .page-header-actions {
+    @apply flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center;
+  }
+
+  .page-header-actions .btn {
+    @apply w-full justify-center sm:w-auto;
   }
 
   /* ── Skeleton ────────────────────────────────── */
@@ -286,6 +397,17 @@
 
     .nav-item.router-link-active::before {
       transition: none;
+    }
+
+    .mobile-sheet-backdrop,
+    .mobile-sheet {
+      animation: none;
+    }
+
+    .icon-btn:active,
+    .mobile-sheet-row:active,
+    .btn-primary:active {
+      transform: none;
     }
   }
 }

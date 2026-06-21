@@ -5,7 +5,13 @@
     "dashboard": "לוח בקרה",
     "groups": "קבוצות",
     "activity": "פעילות",
-    "whatsapp": "וואטסאפ"
+    "whatsapp": "וואטסאפ",
+    "main": "ניווט ראשי",
+    "settings": "הגדרות",
+    "appearance": "מראה",
+    "language": "שפה",
+    "close": "סגור",
+    "tapToChange": "הקש לשינוי"
   },
   "brand": {
     "tagline": "הסוכן החכם שלך"

@@ -1,19 +1,19 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header flex min-h-14 items-center justify-between gap-4">
-      <div>
+    <header class="page-header flex flex-col gap-3 sm:min-h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div class="min-w-0">
         <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('groups.title') }}</h1>
         <p class="mt-0.5 text-[12px] text-on-surface-variant">
           {{ t('groups.subtitle') }}
         </p>
       </div>
-      <button class="btn btn-primary flex items-center gap-2" :disabled="discovering" @click="openDiscover">
+      <button class="btn btn-primary flex shrink-0 items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
         <span class="material-symbols-outlined text-[16px]">group_add</span>
         {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
       </button>
     </header>
 
-    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7">
+    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
       <div
         v-if="error"
         class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"
@@ -40,7 +40,7 @@
         <button class="btn btn-primary" @click="openDiscover">{{ t('groups.empty.cta') }}</button>
       </div>
 
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+      <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
         <RouterLink
           v-for="group in groups"
           :key="group.id"
@@ -87,11 +87,11 @@
     <!-- Discover modal -->
     <div
       v-if="showDiscover"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
       @click.self="closeDiscover"
     >
-      <div class="flex max-h-[80vh] w-full max-w-[600px] flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container shadow-2xl">
-        <div class="flex justify-between gap-4 border-b border-outline-variant px-6 py-5">
+      <div class="flex max-h-[85vh] w-full max-w-[600px] flex-col overflow-hidden rounded-t-2xl border border-outline-variant bg-surface-container shadow-2xl sm:max-h-[80vh] sm:rounded-xl">
+        <div class="flex justify-between gap-4 border-b border-outline-variant px-5 py-4 sm:px-6 sm:py-5">
           <div>
             <h2 class="font-sora text-[17px] font-semibold text-on-surface">{{ t('groups.discover.title') }}</h2>
             <p class="mt-0.5 text-[12px] text-on-surface-variant">
@@ -126,7 +126,7 @@
           <div
             v-for="item in discovered"
             :key="item.wa_group_id"
-            class="flex items-center justify-between gap-4 rounded-xl border border-on-surface/[0.06] bg-surface-container-high/60 p-4"
+            class="flex flex-col gap-3 rounded-xl border border-on-surface/[0.06] bg-surface-container-high/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           >
             <div>
               <div class="mb-0.5 text-[13px] font-semibold text-on-surface">{{ item.name }}</div>
@@ -135,7 +135,7 @@
                 <span v-if="item.registered" class="text-primary">{{ t('groups.discover.registered') }}</span>
               </div>
             </div>
-            <div>
+            <div class="shrink-0">
               <RouterLink
                 v-if="item.registered && item.group_id"
                 :to="`/groups/${item.group_id}`"

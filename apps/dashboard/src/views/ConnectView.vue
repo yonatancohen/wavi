@@ -7,7 +7,7 @@
       </p>
     </header>
 
-    <div class="mx-auto w-full max-w-[1000px] flex-1 px-margin-mobile py-8">
+    <div class="mx-auto w-full max-w-[1000px] flex-1 px-margin-mobile py-8 lg:px-margin-desktop">
       <div v-if="connected" class="mx-auto max-w-md rounded-xl border border-primary/20 bg-surface-container p-10 text-center shadow-wavi-ring">
         <div class="relative mx-auto mb-6 inline-block">
           <div class="absolute inset-0 animate-neon-pulse rounded-2xl bg-primary opacity-20 blur-xl" />

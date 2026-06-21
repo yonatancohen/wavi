@@ -5,7 +5,13 @@
     "dashboard": "Dashboard",
     "groups": "Groups",
     "activity": "Activity",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "main": "Main navigation",
+    "settings": "Settings",
+    "appearance": "Appearance",
+    "language": "Language",
+    "close": "Close",
+    "tapToChange": "Tap to change"
   },
   "brand": {
     "tagline": "Your Witty AI Agent"

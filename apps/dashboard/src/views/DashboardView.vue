@@ -16,13 +16,13 @@
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 pb-24">
+    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
 
       <!-- Hero: greeting + KPI row -->
       <section class="mb-8 animate-slide-up">
         <div class="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h2 class="font-sora text-[22px] font-bold tracking-tight text-on-surface">
+            <h2 class="font-sora text-headline-lg-mobile font-bold tracking-tight text-on-surface sm:text-[22px]">
               {{ t('dashboard.welcome', { name: 'Human' }) }}
             </h2>
             <p class="mt-1 text-[13px] text-on-surface-variant">

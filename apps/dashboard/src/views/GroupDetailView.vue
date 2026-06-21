@@ -23,7 +23,7 @@
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-[800px] flex-1 px-margin-mobile py-7">
+    <div class="mx-auto w-full max-w-[800px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div

@@ -7,7 +7,7 @@
       </p>
     </header>
 
-    <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-7">
+    <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
       <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
       <div
