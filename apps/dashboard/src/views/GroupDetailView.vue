@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header">
+    <header class="page-header hidden lg:block">
       <RouterLink
         to="/groups"
         class="mb-2 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary"

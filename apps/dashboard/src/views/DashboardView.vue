@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header flex h-14 items-center justify-between">
+    <header class="page-header hidden lg:flex h-14 items-center justify-between">
       <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('dashboard.title') }}</h1>
       <div
         class="flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"

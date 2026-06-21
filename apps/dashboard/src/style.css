@@ -208,24 +208,10 @@
     @apply shrink-0 font-mono text-[10px] tabular-nums text-on-surface-variant;
   }
 
-  /* ── Page header ─────────────────────────────── */
+  /* ── Page header (desktop only — mobile uses app top bar) ── */
   .page-header {
-    @apply sticky z-10 border-b border-outline-variant px-margin-mobile py-4;
-    top: 0;
+    @apply border-b border-outline-variant px-margin-mobile py-4 lg:px-margin-desktop;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
-    backdrop-filter: blur(8px);
-  }
-
-  @media (max-width: 1023px) {
-    .page-header {
-      top: calc(3.25rem + env(safe-area-inset-top, 0px));
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .page-header {
-      @apply md:px-margin-desktop;
-    }
   }
 
   /* ── Main content area (mobile bottom nav clearance) ── */
@@ -241,10 +227,9 @@
 
   /* ── Mobile top bar ──────────────────────────── */
   .mobile-top-bar {
-    @apply sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-outline-variant px-margin-mobile py-2.5;
+    @apply flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant px-margin-mobile py-2.5;
     padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));
-    background-color: color-mix(in srgb, rgb(var(--color-surface-container-low)) 96%, transparent);
-    backdrop-filter: blur(10px);
+    background-color: rgb(var(--color-surface-container-low));
   }
 
   /* ── Mobile bottom navigation ────────────────── */

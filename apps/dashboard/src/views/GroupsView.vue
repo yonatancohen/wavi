@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header flex flex-col gap-3 sm:min-h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <header class="page-header hidden lg:flex lg:min-h-14 lg:items-center lg:justify-between lg:gap-4">
       <div class="min-w-0">
         <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('groups.title') }}</h1>
         <p class="mt-0.5 text-[12px] text-on-surface-variant">
@@ -14,6 +14,15 @@
     </header>
 
     <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+      <button
+        class="btn btn-primary mb-4 flex w-full items-center justify-center gap-2 lg:hidden"
+        :disabled="discovering"
+        @click="openDiscover"
+      >
+        <span class="material-symbols-outlined text-[16px]">group_add</span>
+        {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
+      </button>
+
       <div
         v-if="error"
         class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"

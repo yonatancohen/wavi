@@ -11,17 +11,26 @@
     </nav>
 
     <div class="flex min-w-0 flex-1 flex-col">
-      <!-- Mobile top bar -->
+      <!-- Mobile top bar (single header on mobile — page headers are desktop-only) -->
       <header class="mobile-top-bar lg:hidden">
-        <div class="flex min-w-0 items-center gap-2.5">
+        <div class="flex min-w-0 items-center gap-2">
+          <RouterLink
+            v-if="showMobileBack"
+            to="/groups"
+            class="icon-btn min-h-10 min-w-10 shrink-0"
+            :aria-label="t('groupDetail.back')"
+          >
+            <span class="material-symbols-outlined text-[20px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
+          </RouterLink>
           <img
+            v-else
             src="/wavi-mascot.jpg"
             alt=""
             class="h-8 w-8 shrink-0 rounded-lg object-contain ring-1 ring-outline-variant/30"
           />
           <div class="min-w-0">
-            <p class="truncate font-sora text-[14px] font-bold tracking-tight text-on-surface">Wavi</p>
-            <p class="truncate text-[10px] text-on-surface-variant">{{ t('brand.tagline') }}</p>
+            <p class="truncate font-sora text-[14px] font-bold tracking-tight text-on-surface">{{ mobilePageTitle }}</p>
+            <p v-if="mobilePageSubtitle" class="truncate text-[10px] text-on-surface-variant">{{ mobilePageSubtitle }}</p>
           </div>
         </div>
 
@@ -132,18 +141,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { apiFetch } from './lib/api'
 import { useTheme } from './composables/useTheme'
 import { useLocale } from './composables/useLocale'
+import { useGroupsStore } from './stores/groups'
 import AppBrand from './components/AppBrand.vue'
 import AppNavLinks from './components/AppNavLinks.vue'
 import AppNavFooter from './components/AppNavFooter.vue'
 
 const { t } = useI18n()
 const route = useRoute()
+const groupsStore = useGroupsStore()
+const { groups } = storeToRefs(groupsStore)
 const { mode, cycleMode } = useTheme()
 const { locale, toggleLocale } = useLocale()
 
@@ -161,6 +174,33 @@ function isNavActive(to: string) {
   if (to === '/') return route.path === '/'
   return route.path === to || route.path.startsWith(`${to}/`)
 }
+
+const showMobileBack = computed(() =>
+  route.path.startsWith('/groups/') && route.path !== '/groups',
+)
+
+const mobilePageTitle = computed(() => {
+  const path = route.path
+  if (path === '/') return t('dashboard.title')
+  if (path === '/groups') return t('groups.title')
+  if (path === '/activity') return t('activity.title')
+  if (path === '/connect') return t('connect.title')
+  if (showMobileBack.value) {
+    const id = route.params.id as string
+    const group = groups.value.find((g) => g.id === id)
+    return group?.name ?? t('groupDetail.group')
+  }
+  return 'Wavi'
+})
+
+const mobilePageSubtitle = computed(() => {
+  const path = route.path
+  if (path === '/') return t('brand.tagline')
+  if (path === '/groups') return t('groups.subtitle')
+  if (path === '/activity') return t('activity.subtitle')
+  if (path === '/connect') return t('connect.subtitle')
+  return null
+})
 
 watch(() => route.path, () => {
   settingsOpen.value = false
