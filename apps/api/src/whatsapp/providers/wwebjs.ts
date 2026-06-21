@@ -122,6 +122,41 @@ type LidPhoneClient = InstanceType<typeof Client> & {
   getContactLidAndPhone?: (ids: string[]) => Promise<Array<{ lid?: string; pn?: string }>>
 }
 
+type PuppeteerPage = {
+  exposeFunction: (name: string, fn: (...args: unknown[]) => unknown) => Promise<void>
+}
+
+type ClientWithPage = InstanceType<typeof Client> & { pupPage?: PuppeteerPage | null }
+
+// wwebjs re-runs inject() from an un-awaited `framenavigated` listener on
+// LOGOUT. After the navigation, window[name] is reset so its "if absent" guard
+// passes, but puppeteer still has the binding registered internally, so
+// page.exposeFunction throws "already exists". Because the listener is async and
+// un-awaited, that rejection is unhandled and crashes the (Bun) process before
+// our global handler can reliably intercept it. Puppeteer already re-exposes
+// bindings across navigations via its init script, so swallowing the duplicate
+// here is safe and removes the crash at its source.
+const hardenedPages = new WeakSet<object>()
+
+function hardenPageBindings(client: InstanceType<typeof Client>) {
+  const page = (client as ClientWithPage).pupPage
+  if (!page || hardenedPages.has(page)) return
+
+  const originalExposeFunction = page.exposeFunction.bind(page)
+  page.exposeFunction = async (name, fn) => {
+    try {
+      await originalExposeFunction(name, fn)
+    } catch (err) {
+      if (isPageBindingAlreadyExistsError(err)) {
+        console.warn(`[WA] Ignoring duplicate page binding "${name}" during re-inject`)
+        return
+      }
+      throw err
+    }
+  }
+  hardenedPages.add(page)
+}
+
 function waUserId(jid: string): string {
   return jid.split('@')[0] ?? jid
 }
@@ -425,6 +460,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
 
   // ── Events ────────────────────────────────────────────────
   waClient.on('qr', async (qr) => {
+    hardenPageBindings(waClient)
     try {
       const dataUrl = await qrcode.toDataURL(qr)
       _lastQrPayload = JSON.stringify({ type: 'qr', data: dataUrl })
@@ -435,6 +471,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
   })
 
   waClient.on('authenticated', () => {
+    hardenPageBindings(waClient)
     console.log('[WA] Authenticated ✓')
     _waConnecting = true
     broadcastQR(JSON.stringify({ type: 'authenticated' }))
@@ -446,6 +483,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
   })
 
   waClient.on('loading_screen', (percent, message) => {
+    hardenPageBindings(waClient)
     console.log(`[WA] Loading ${percent}% — ${message}`)
   })
 
@@ -535,6 +573,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
     setTimeout(async () => {
       try {
         await waClient.initialize()
+        hardenPageBindings(waClient)
         reconnectAttempts = 0
       } catch (err) {
         console.error('[WA] Reconnect failed', err)
@@ -564,6 +603,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
       removeStaleSingletonLocks(userDataDir)
       await waClient.initialize()
     }
+    hardenPageBindings(waClient)
   }
 
   // ── Send helpers ──────────────────────────────────────────

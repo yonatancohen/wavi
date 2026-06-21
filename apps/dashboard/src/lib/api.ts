@@ -3,9 +3,13 @@ const BASE = API_BASE
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData
-  const headers = isFormData
-    ? { ...init?.headers }
-    : { 'Content-Type': 'application/json', ...init?.headers }
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+  }
+  // Fastify rejects Content-Type: application/json with an empty body.
+  if (init?.body != null && !isFormData && !('Content-Type' in headers)) {
+    headers['Content-Type'] = 'application/json'
+  }
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers,

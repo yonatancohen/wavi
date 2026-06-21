@@ -40,6 +40,22 @@ const server = Fastify({
   },
 })
 
+// Accept POST/PUT with Content-Type: application/json and no body (e.g. /api/agent/restart).
+server.removeContentTypeParser('application/json')
+server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  const text = typeof body === 'string' ? body : body.toString('utf8')
+  if (text.length === 0) {
+    done(null, undefined)
+    return
+  }
+  try {
+    done(null, JSON.parse(text))
+  } catch (err) {
+    ;(err as Error & { statusCode?: number }).statusCode = 400
+    done(err as Error, undefined)
+  }
+})
+
 // ── Plugins ──────────────────────────────────────────────────
 await server.register(cors, {
   origin: (origin, cb) => {
