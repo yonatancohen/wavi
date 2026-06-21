@@ -30,25 +30,21 @@ vercel whoami &>/dev/null || error "Run: vercel login"
 ok "Vercel: $(vercel whoami 2>/dev/null)"
 
 require_env_file "$ROOT/apps/dashboard/.env" "Dashboard env" || error "Create apps/dashboard/.env from .env.example"
-load_env_file "$ROOT/apps/dashboard/.env"
 
-# If API was just deployed, use its public URL for the dashboard build + Vercel sync
-if [[ -f "$ROOT/.deploy-api-url" ]]; then
-  API_BASE="$(normalize_url "$(cat "$ROOT/.deploy-api-url")")"
-  export SYNC_VITE_API_URL="${API_BASE}/api"
-  ok "Using API URL from last deploy: $SYNC_VITE_API_URL"
-fi
-
-if [[ "$VITE_API_URL" == http://localhost:* ]]; then
-  warn "VITE_API_URL still points to localhost — set it to your Railway API URL in apps/dashboard/.env"
-fi
+# Always resolve API URL from Railway / last deploy — never rely on local /api for prod builds.
+API_BASE="$(resolve_api_base_url "$ROOT")"
+[[ -z "$API_BASE" ]] && API_BASE="$(refresh_deploy_api_url "$ROOT" || true)"
+[[ -n "$API_BASE" ]] && export SYNC_VITE_API_URL="${API_BASE}/api"
+[[ -n "${SYNC_VITE_API_URL:-}" ]] && ok "API URL for dashboard: $SYNC_VITE_API_URL"
 
 step "Syncing secrets to Vercel"
 SYNC_VITE_API_URL="${SYNC_VITE_API_URL:-}" bash "$ROOT/scripts/sync-secrets.sh" dashboard
 
 [[ "$ENV_ONLY" == true ]] && { ok "Secrets synced"; exit 0; }
 
-[[ -n "${SYNC_VITE_API_URL:-}" ]] && export VITE_API_URL="$SYNC_VITE_API_URL"
+step "Preparing build environment"
+prepare_dashboard_vite_env "$ROOT" || error "Could not resolve VITE_* vars for build"
+ok "Build will use VITE_API_URL=$VITE_API_URL"
 
 step "Building shared"
 bun run --cwd "$ROOT/packages/shared" build
@@ -82,13 +78,25 @@ cd "$ROOT"
 ok "Deployed: $URL"
 echo "$URL" > "$ROOT/.deploy-dashboard-url"
 
-# Wire CORS on API if we know the dashboard URL
-if [[ "$IS_PROD" == true && -n "$URL" && -x "$(command -v railway)" ]]; then
-  step "Setting DASHBOARD_URL on Railway for CORS"
-  cd "$ROOT/apps/api"
-  DASHBOARD_ORIGIN="$(normalize_url "$URL")"
-  railway variable set "DASHBOARD_URL=${DASHBOARD_ORIGIN}" >/dev/null 2>&1 && ok "DASHBOARD_URL=${DASHBOARD_ORIGIN} (redeploy triggered)" || warn "Could not set DASHBOARD_URL"
-  cd "$ROOT"
+if [[ "$IS_PROD" == true ]]; then
+  ALIAS="$(save_dashboard_alias "$ROOT" "$URL" || true)"
+  [[ -n "$ALIAS" ]] && ok "Production alias: $ALIAS"
+
+  if [[ -x "$(command -v railway)" ]]; then
+    step "Syncing DASHBOARD_URL to Railway for CORS"
+    load_env_file "$ROOT/apps/api/.env" 2>/dev/null || true
+    DASHBOARD_ORIGIN="$(resolve_dashboard_url "$ROOT")"
+    if [[ -n "$DASHBOARD_ORIGIN" ]]; then
+      (
+        cd "$ROOT/apps/api"
+        railway variable set "DASHBOARD_URL=${DASHBOARD_ORIGIN}" >/dev/null 2>&1 \
+          && ok "DASHBOARD_URL → $DASHBOARD_ORIGIN" \
+          || warn "Could not set DASHBOARD_URL on Railway"
+      )
+    else
+      warn "DASHBOARD_URL not resolved — set it in apps/api/.env (e.g. https://wavi-fawn.vercel.app)"
+    fi
+  fi
 fi
 
 echo ""

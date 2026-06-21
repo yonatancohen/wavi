@@ -36,6 +36,7 @@ wa_session/
 # Deploy artifacts
 .deploy-api-url
 .deploy-dashboard-url
+.deploy-dashboard-alias
 
 # Supabase local
 supabase/.branches

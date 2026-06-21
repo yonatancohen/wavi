@@ -66,12 +66,28 @@ else
   require_key "Supabase URL" VITE_SUPABASE_URL
   require_key "Supabase anon key" VITE_SUPABASE_ANON_KEY
 
-  if [[ "$VITE_API_URL" == http://localhost:* ]]; then
-    warn "VITE_API_URL is localhost — OK for dev; deploy:prod will set Railway URL automatically"
+  if [[ "$VITE_API_URL" == /api ]]; then
+    warn "VITE_API_URL is /api (local proxy) — deploy resolves Railway URL automatically"
+  elif [[ "$VITE_API_URL" == http://localhost:* ]]; then
+    warn "VITE_API_URL is localhost — OK for dev; deploy resolves Railway URL automatically"
   elif [[ -n "$VITE_API_URL" ]]; then
     ok "API URL configured"
   else
     fail "VITE_API_URL is missing"
+  fi
+
+  resolved_api="$(resolve_api_base_url "$ROOT")"
+  if [[ -n "$resolved_api" ]]; then
+    ok "Resolved production API: ${resolved_api}/api"
+  else
+    warn "Could not resolve Railway API URL — run deploy:api first or check railway domain"
+  fi
+
+  resolved_dashboard="$(resolve_dashboard_url "$ROOT")"
+  if [[ -n "$resolved_dashboard" ]]; then
+    ok "Resolved dashboard URL (CORS): $resolved_dashboard"
+  else
+    warn "Dashboard URL not resolved — set DASHBOARD_URL in apps/api/.env or deploy dashboard to prod first"
   fi
 fi
 

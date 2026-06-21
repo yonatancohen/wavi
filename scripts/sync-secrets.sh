@@ -98,9 +98,8 @@ sync_railway() {
   resolved_dashboard="$(resolve_dashboard_url "$ROOT")"
   if [[ -n "$resolved_dashboard" ]]; then
     export DASHBOARD_URL="$resolved_dashboard"
-    # CORS is read at boot — must redeploy for this to take effect
     if err=$(railway variable set "DASHBOARD_URL=${DASHBOARD_URL}" 2>&1); then
-      ok "DASHBOARD_URL (redeploy triggered)"
+      ok "DASHBOARD_URL → $DASHBOARD_URL"
     else
       warn "failed: DASHBOARD_URL"
       [[ -n "$err" ]] && echo -e "    ${RED}${err}${RESET}"
@@ -128,17 +127,11 @@ sync_railway() {
 sync_vercel() {
   echo -e "\n${CYAN}${BOLD}Vercel (dashboard secrets)${RESET}"
   require_env_file "$ROOT/apps/dashboard/.env" "Dashboard env" || exit 1
-  load_env_file "$ROOT/apps/dashboard/.env"
 
-  resolved_api="$(resolve_api_base_url "$ROOT")"
-  if [[ -n "$resolved_api" ]]; then
-    export VITE_API_URL="${resolved_api}/api"
-    ok "VITE_API_URL → $VITE_API_URL"
-  elif is_local_url "${VITE_API_URL:-}"; then
-    warn "VITE_API_URL is local (/api or localhost) — deploy API first or set production URL before syncing to Vercel"
+  if ! prepare_dashboard_vite_env "$ROOT"; then
+    fail "Could not resolve dashboard VITE_* vars — deploy API first"
   fi
-
-  [[ -n "${SYNC_VITE_API_URL:-}" ]] && export VITE_API_URL="$SYNC_VITE_API_URL"
+  ok "VITE_API_URL → $VITE_API_URL"
 
   command -v vercel &>/dev/null || fail "Vercel CLI not installed. Run: bun add -g vercel"
   vercel whoami &>/dev/null || fail "Not logged in to Vercel. Run: vercel login"
@@ -154,8 +147,10 @@ sync_vercel() {
 
     [[ -z "$value" ]] && { warn "skipped (empty): $key"; return; }
 
-    if err=$(printf '%s' "$value" | vercel env add "$key" "$env" --force --yes 2>&1); then
+    if err=$(printf '%s' "$value" | vercel env update "$key" "$env" --yes 2>&1); then
       ok "$key ($env)"
+    elif err=$(printf '%s' "$value" | vercel env add "$key" "$env" --yes 2>&1); then
+      ok "$key ($env, added)"
     else
       warn "failed: $key ($env)"
       [[ -n "$err" ]] && echo -e "    ${RED}${err}${RESET}"
@@ -174,6 +169,14 @@ sync_vercel() {
 
   if [[ "$VERCEL_FAILS" -gt 0 ]]; then
     fail "$VERCEL_FAILS Vercel variable(s) failed — fix errors above and retry."
+  fi
+
+  step_verify="Verifying Vercel env"
+  echo -e "\n${CYAN}${step_verify}${RESET}"
+  if verify_vercel_env "$ROOT" production; then
+    ok "Vercel production env verified"
+  else
+    fail "Vercel production env verification failed — VITE_* vars are empty on Vercel"
   fi
 
   ok "Vercel secrets synced"
