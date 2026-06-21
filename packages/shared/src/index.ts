@@ -122,6 +122,11 @@ export interface Message {
   created_at: string
 }
 
+export interface MessagesPage {
+  messages: Message[]
+  has_more: boolean
+}
+
 // ── User Profiles ────────────────────────────────────────────
 
 export interface UserProfileData {

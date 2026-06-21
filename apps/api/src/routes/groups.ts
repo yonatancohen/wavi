@@ -138,6 +138,41 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return mapGroupRow(data)
   })
 
+  // Messages (cursor pagination — latest first, load older via ?before=)
+  fastify.get<{
+    Params: { id: string }
+    Querystring: { limit?: string; before?: string }
+  }>('/:id/messages', async (req, reply) => {
+    const { data: group } = await db
+      .from('groups')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('agent_id', getAgentId())
+      .maybeSingle()
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' })
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit ?? '50', 10) || 50, 1), 100)
+
+    let q = db
+      .from('messages')
+      .select('id, group_id, sender_wa_id, sender_name, body, is_agent_reply, flagged_miss, timestamp, created_at')
+      .eq('group_id', req.params.id)
+      .order('timestamp', { ascending: false })
+      .limit(limit + 1)
+
+    if (req.query.before) {
+      q = q.lt('timestamp', req.query.before)
+    }
+
+    const { data } = await q.throwOnError()
+    const rows = data ?? []
+    const has_more = rows.length > limit
+    const messages = rows.slice(0, limit).reverse()
+
+    return { messages, has_more }
+  })
+
   // Members
   fastify.get<{ Params: { id: string } }>('/:id/members', async (req, reply) => {
     const { data: group } = await db

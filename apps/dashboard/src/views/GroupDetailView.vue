@@ -1,18 +1,41 @@
 <template>
   <div class="flex flex-col bg-background">
-    <header class="page-header sticky top-0 z-10 hidden lg:block">
+    <!-- Mobile tab bar (desktop header is hidden below lg) -->
+    <nav
+      v-if="group && !loading && !error"
+      class="group-tabs-mobile"
+      role="tablist"
+      :aria-label="group.name"
+    >
+      <div class="group-tabs rounded-[10px] bg-surface-container-high/50">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="group-tab"
+          :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
+          :aria-selected="activeTab === tab.id"
+          @click="activeTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+    </nav>
+
+    <header class="page-header page-header--group sticky top-0 z-10 hidden lg:block">
       <RouterLink
         to="/groups"
-        class="mb-2 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary"
+        class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary"
       >
         <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
         {{ t('groupDetail.back') }}
       </RouterLink>
 
-      <div v-if="group" class="flex flex-wrap items-start justify-between gap-3">
+      <div v-if="group" class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
-          <h1 class="font-sora text-[17px] font-bold tracking-tight text-on-surface">{{ group.name }}</h1>
-          <p class="mt-0.5 truncate font-mono text-[10px] text-on-surface-variant/60">{{ group.wa_group_id }}</p>
+          <h1 class="font-sora text-[18px] font-bold tracking-tight text-on-surface">{{ group.name }}</h1>
+          <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">{{ group.wa_group_id }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
@@ -47,59 +70,57 @@
           </button>
         </div>
       </div>
-      <h1 v-else class="font-sora text-[17px] font-bold tracking-tight text-on-surface">
+      <h1 v-else class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
         {{ t('groupDetail.group') }}
       </h1>
 
       <div
         v-if="group && !loading"
-        class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-outline-variant/60 pt-3 font-mono text-[11px] tabular-nums"
+        class="group-stats"
       >
-        <span>
+        <span class="group-stat">
           <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
-          <span class="ms-1.5 font-semibold text-primary">{{ group.message_count_today }}</span>
+          <span class="font-semibold text-primary">{{ group.message_count_today }}</span>
         </span>
-        <span class="text-outline-variant/80">·</span>
-        <span>
+        <span class="group-stat">
           <span class="text-on-surface-variant">{{ t('groupDetail.stats.repliesToday') }}</span>
-          <span class="ms-1.5 font-semibold text-secondary">{{ group.reply_count_today }}</span>
+          <span class="font-semibold text-secondary">{{ group.reply_count_today }}</span>
         </span>
-        <span class="text-outline-variant/80">·</span>
-        <span>
+        <span class="group-stat">
           <span class="text-on-surface-variant">{{ t('groupDetail.stats.status') }}</span>
           <span
-            class="ms-1.5 font-semibold"
+            class="font-semibold"
             :class="group.status === 'active' ? 'text-primary' : group.status === 'paused' ? 'text-error' : 'text-secondary'"
           >{{ statusLabel(group.status, t) }}</span>
         </span>
       </div>
 
-      <nav
+      <div
         v-if="group && !loading && !error"
-        class="-mx-margin-mobile mt-3 flex gap-0 overflow-x-auto border-t border-outline-variant/60 px-margin-mobile"
-        role="tablist"
-        :aria-label="group.name"
+        class="group-tabs-bar"
       >
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          type="button"
-          role="tab"
-          class="group-tab"
-          :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
-          :aria-selected="activeTab === tab.id"
-          @click="activeTab = tab.id"
+        <nav
+          class="group-tabs rounded-[10px] bg-surface-container-high/50"
+          role="tablist"
+          :aria-label="group.name"
         >
-          <span
-            class="material-symbols-outlined text-[14px]"
-            :class="tab.done ? 'text-primary' : 'text-on-surface-variant/40'"
-          >{{ tab.done ? 'check_circle' : 'radio_button_unchecked' }}</span>
-          {{ tab.label }}
-        </button>
-      </nav>
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            type="button"
+            role="tab"
+            class="group-tab"
+            :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
+            :aria-selected="activeTab === tab.id"
+            @click="activeTab = tab.id"
+          >
+            {{ tab.label }}
+          </button>
+        </nav>
+      </div>
     </header>
 
-    <div class="mx-auto w-full max-w-[960px] flex-1 px-margin-mobile py-5 lg:px-margin-desktop">
+    <div class="mx-auto w-full max-w-[960px] flex-1 px-margin-mobile py-5 lg:px-margin-desktop lg:py-6">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div
@@ -137,6 +158,10 @@
         <div v-show="activeTab === 'dynamics'" class="group-panel">
           <DynamicsSection ref="dynamicsRef" :group-id="group.id" />
         </div>
+
+        <div v-show="activeTab === 'messages'" class="group-panel">
+          <MessagesSection ref="messagesRef" :group-id="group.id" />
+        </div>
       </template>
     </div>
   </div>
@@ -152,10 +177,11 @@ import LoadingSkeletons from '../components/LoadingSkeletons.vue'
 import IngestUpload from '../components/IngestUpload.vue'
 import MembersSection from '../components/MembersSection.vue'
 import DynamicsSection from '../components/DynamicsSection.vue'
+import MessagesSection from '../components/MessagesSection.vue'
 import CharacterEditor from '../components/CharacterEditor.vue'
 import type { GroupWithStats } from '@wavi/shared'
 
-type GroupTab = 'setup' | 'character' | 'people' | 'dynamics'
+type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -170,30 +196,16 @@ const activeTab = ref<GroupTab>('setup')
 
 const membersRef = ref<InstanceType<typeof MembersSection> | null>(null)
 const dynamicsRef = ref<InstanceType<typeof DynamicsSection> | null>(null)
+const messagesRef = ref<InstanceType<typeof MessagesSection> | null>(null)
 
 const tabs = computed(() => {
   if (!group.value) return []
   return [
-    {
-      id: 'setup' as const,
-      label: t('groupDetail.tabs.setup'),
-      done: group.value.status === 'active' && hasIngestedData.value,
-    },
-    {
-      id: 'character' as const,
-      label: t('groupDetail.tabs.character'),
-      done: group.value.character_config !== null,
-    },
-    {
-      id: 'people' as const,
-      label: t('groupDetail.tabs.people'),
-      done: hasIngestedData.value,
-    },
-    {
-      id: 'dynamics' as const,
-      label: t('groupDetail.tabs.dynamics'),
-      done: hasIngestedData.value,
-    },
+    { id: 'setup' as const, label: t('groupDetail.tabs.setup') },
+    { id: 'character' as const, label: t('groupDetail.tabs.character') },
+    { id: 'people' as const, label: t('groupDetail.tabs.people') },
+    { id: 'dynamics' as const, label: t('groupDetail.tabs.dynamics') },
+    { id: 'messages' as const, label: t('groupDetail.tabs.messages') },
   ]
 })
 

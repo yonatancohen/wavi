@@ -110,7 +110,8 @@
       "setup": "Setup",
       "character": "Character",
       "people": "People",
-      "dynamics": "Dynamics"
+      "dynamics": "Dynamics",
+      "messages": "Messages"
     },
     "setup": {
       "title": "Setup",
@@ -226,10 +227,20 @@
       "conflict": "Conflict"
     }
   },
+  "messages": {
+    "title": "Messages",
+    "empty": "No messages yet. They'll appear here once the group is active or after uploading chat history.",
+    "failedLoad": "Failed to load messages",
+    "loadingMore": "Loading older messages…",
+    "scrollUp": "Scroll up for older messages",
+    "count": "{count} shown",
+    "agent": "Wavi"
+  },
   "loading": {
     "default": "Loading…",
     "members": "Loading members…",
-    "relationships": "Loading relationships…"
+    "relationships": "Loading relationships…",
+    "messages": "Loading messages…"
   },
   "errors": {
     "failedGroups": "Failed to load groups"

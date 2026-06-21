@@ -110,7 +110,8 @@
       "setup": "הגדרה",
       "character": "אישיות",
       "people": "אנשים",
-      "dynamics": "דינמיקה"
+      "dynamics": "דינמיקה",
+      "messages": "הודעות"
     },
     "setup": {
       "title": "הגדרה",
@@ -226,10 +227,20 @@
       "conflict": "קונפליקט"
     }
   },
+  "messages": {
+    "title": "הודעות",
+    "empty": "אין הודעות עדיין. הן יופיעו כאן כשהקבוצה פעילה או לאחר העלאת היסטוריית הצ'אט.",
+    "failedLoad": "טעינת ההודעות נכשלה",
+    "loadingMore": "טוען הודעות ישנות…",
+    "scrollUp": "גלול למעלה להודעות ישנות יותר",
+    "count": "{count} מוצגות",
+    "agent": "Wavi"
+  },
   "loading": {
     "default": "טוען…",
     "members": "טוען חברים…",
-    "relationships": "טוען קשרים…"
+    "relationships": "טוען קשרים…",
+    "messages": "טוען הודעות…"
   },
   "errors": {
     "failedGroups": "טעינת קבוצות נכשלה"
