@@ -32,6 +32,7 @@ Thumbs.db
 .wwebjs_auth/
 .wwebjs_cache/
 wa_session/
+.baileys_auth/
 
 # Deploy artifacts
 .deploy-api-url
