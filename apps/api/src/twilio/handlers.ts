@@ -12,7 +12,7 @@ export async function handleTwilioMessage(from: string, body: string) {
   // ── 1. Find or auto-create a conversation record ──────────
   let { data: group } = await db
     .from('groups')
-    .select('id, status, character_config, language_mode')
+    .select('id, name, status, character_config, language_mode')
     .eq('wa_group_id', from)
     .single()
 
@@ -26,7 +26,7 @@ export async function handleTwilioMessage(from: string, body: string) {
         character_config: {},
         language_mode:    'auto',
       })
-      .select('id, status, character_config, language_mode')
+      .select('id, name, status, character_config, language_mode')
       .single()
       .throwOnError()
     group = created
@@ -73,18 +73,17 @@ export async function handleTwilioMessage(from: string, body: string) {
   }
 
   // ── 5. Queue reply job ────────────────────────────────────
-  const job = {
+  const { queueReplyJob } = await import('../lib/reply-queue.js')
+  await queueReplyJob({
     group_id:     group.id,
-    wa_group_id:  from,          // for 1:1 Twilio this IS the reply destination
+    group_name:   group.name,
+    wa_group_id:  from,
     message_id:   stored?.id,
     sender_wa_id: from,
     sender_name:  senderPhone,
     body,
-    wa_msg_id:    '',            // not used for Twilio sends
-    queued_at:    Date.now(),
-  }
-
-  await redis.lpush('reply_jobs', JSON.stringify(job))
+    wa_msg_id:    '',
+  })
 }
 
 function getRateLimitResponse(characterConfig: any): string {

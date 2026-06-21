@@ -3,6 +3,8 @@ import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js'
 import { detectNegativeReaction, generateApology } from './recovery.js'
+import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js'
+import type { ReplyJob } from '../lib/reply-queue.js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -24,7 +26,7 @@ export async function startReplyWorker() {
         continue
       }
 
-      const job = typeof raw === 'string' ? JSON.parse(raw) : raw
+      const job = typeof raw === 'string' ? JSON.parse(raw) as ReplyJob : raw as ReplyJob
       await processReplyJob(job)
     } catch (err) {
       console.error('[ReplyWorker] Error:', err)
@@ -35,18 +37,11 @@ export async function startReplyWorker() {
 
 // ── Process one reply job ─────────────────────────────────────
 
-async function processReplyJob(job: {
-  group_id:    string
-  wa_group_id: string
-  message_id:  string
-  sender_wa_id: string
-  sender_name: string
-  body:        string
-  wa_msg_id:   string
-  queued_at:   number
-}) {
+async function processReplyJob(job: ReplyJob) {
   const startTime = Date.now()
   console.log(`[ReplyWorker] Processing job for group ${job.group_id}`)
+
+  await markReplyFlowProcessing(job.flow_id)
 
   try {
     // ── Build context (parallel fetch) ─────────────────────
@@ -116,6 +111,8 @@ async function processReplyJob(job: {
 
   } catch (err) {
     console.error('[ReplyWorker] Job failed:', err)
+  } finally {
+    await completeReplyFlow(job.flow_id)
   }
 }
 

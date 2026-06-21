@@ -6,6 +6,7 @@ import { groupsRoute } from './routes/groups.js'
 import { agentRoute } from './routes/agent.js'
 import { ingestRoute } from './routes/ingest.js'
 import { repliesRoute } from './routes/replies.js'
+import { flowsRoute } from './routes/flows.js'
 import { healthRoute } from './routes/health.js'
 import { twilioRoute } from './routes/twilio.js'
 import { startReplyWorker } from './ai/worker.js'
@@ -40,6 +41,7 @@ await server.register(agentRoute,   { prefix: '/api/agent' })
 await server.register(groupsRoute,  { prefix: '/api/groups' })
 await server.register(ingestRoute,  { prefix: '/api/ingest' })
 await server.register(repliesRoute, { prefix: '/api/replies' })
+await server.register(flowsRoute,   { prefix: '/api/flows' })
 await server.register(twilioRoute,  { prefix: '/twilio' })
 
 // ── Start ─────────────────────────────────────────────────────

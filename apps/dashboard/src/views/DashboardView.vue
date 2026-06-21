@@ -174,6 +174,13 @@
 
         <!-- Recent Activity -->
         <div class="rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-12">
+          <ActiveFlowsIndicator
+            v-if="activeFlowTotal > 0"
+            class="mb-4"
+            :total="activeFlowTotal"
+            :flows="activeFlows"
+          />
+
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px] text-primary">history</span>
@@ -221,13 +228,17 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useGroupsStore } from '../stores/groups'
+import { useFlowsStore } from '../stores/flows'
 import { apiFetch } from '../lib/api'
 import { statusBadgeClass, statusLabel } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
+import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue'
 
 const { t } = useI18n()
 const store = useGroupsStore()
+const flowsStore = useFlowsStore()
 const { groups, loading } = storeToRefs(store)
+const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
 const agentConnected = ref(false)
 
 const activeGroups = computed(() =>

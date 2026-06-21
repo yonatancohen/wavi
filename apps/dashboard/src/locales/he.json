@@ -21,6 +21,11 @@
     "offline": "לא מקוון",
     "online": "מקוון"
   },
+  "flows": {
+    "activeCount": "תגובה בתהליך | {count} תגובות בתהליך",
+    "queued": "בתור",
+    "processing": "חושב"
+  },
   "theme": {
     "light": "בהיר",
     "dark": "כהה",

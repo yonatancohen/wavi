@@ -21,6 +21,11 @@
     "offline": "Offline",
     "online": "Online"
   },
+  "flows": {
+    "activeCount": "{count} reply in progress | {count} replies in progress",
+    "queued": "Queued",
+    "processing": "Thinking"
+  },
   "theme": {
     "light": "Light",
     "dark": "Dark",

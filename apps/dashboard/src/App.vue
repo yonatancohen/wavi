@@ -6,6 +6,9 @@
       :aria-label="t('nav.main')"
     >
       <AppBrand :connected="agentConnected" />
+      <div v-if="activeFlowTotal > 0" class="px-3 pb-3">
+        <ActiveFlowsIndicator :total="activeFlowTotal" :flows="activeFlows" />
+      </div>
       <AppNavLinks :connected="agentConnected" />
       <AppNavFooter />
     </nav>
@@ -35,6 +38,13 @@
         </div>
 
         <div class="flex shrink-0 items-center gap-1.5">
+          <ActiveFlowsIndicator
+            v-if="activeFlowTotal > 0"
+            :total="activeFlowTotal"
+            :flows="activeFlows"
+            compact
+          />
+
           <div
             class="flex items-center gap-1.5 rounded-full border px-2 py-1"
             :class="agentConnected
@@ -141,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -149,14 +159,18 @@ import { apiFetch } from './lib/api'
 import { useTheme } from './composables/useTheme'
 import { useLocale } from './composables/useLocale'
 import { useGroupsStore } from './stores/groups'
+import { useFlowsStore } from './stores/flows'
 import AppBrand from './components/AppBrand.vue'
 import AppNavLinks from './components/AppNavLinks.vue'
 import AppNavFooter from './components/AppNavFooter.vue'
+import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const groupsStore = useGroupsStore()
+const flowsStore = useFlowsStore()
 const { groups } = storeToRefs(groupsStore)
+const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
 const { mode, cycleMode } = useTheme()
 const { locale, toggleLocale } = useLocale()
 
@@ -211,9 +225,14 @@ watch(settingsOpen, (open) => {
 })
 
 onMounted(async () => {
+  flowsStore.startPolling()
   try {
     const s = await apiFetch<{ connected: boolean }>('/agent/status')
     agentConnected.value = s.connected
   } catch {}
+})
+
+onUnmounted(() => {
+  flowsStore.stopPolling()
 })
 </script>

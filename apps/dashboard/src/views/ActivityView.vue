@@ -8,6 +8,13 @@
     </header>
 
     <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+      <ActiveFlowsIndicator
+        v-if="activeFlowTotal > 0"
+        class="mb-5"
+        :total="activeFlowTotal"
+        :flows="activeFlows"
+      />
+
       <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
       <div
@@ -96,9 +103,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { useRepliesStore } from '../stores/replies'
+import { useFlowsStore } from '../stores/flows'
 import { formatRelativeTime } from '../lib/ui'
 import LoadingSkeletons from '../components/LoadingSkeletons.vue'
+import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue'
 import type { Reply } from '@wavi/shared'
 
 const { t, locale } = useI18n()
@@ -109,6 +119,8 @@ type ReplyRow = Reply & {
 }
 
 const store = useRepliesStore()
+const flowsStore = useFlowsStore()
+const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
 const error = ref<string | null>(null)
 
 const loading = computed(() => store.loading)

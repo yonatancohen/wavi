@@ -197,6 +197,25 @@ export interface GroupMemory {
   created_at: string
 }
 
+// ── Reply flows (in-flight tag → reply pipeline) ─────────────
+
+export type ReplyFlowStatus = 'queued' | 'processing'
+
+export interface ReplyFlow {
+  id: string
+  group_id: string
+  group_name: string
+  sender_name: string
+  message_preview: string
+  status: ReplyFlowStatus
+  queued_at: string
+}
+
+export interface ActiveReplyFlows {
+  total: number
+  flows: ReplyFlow[]
+}
+
 // ── Replies ──────────────────────────────────────────────────
 
 export interface Reply {
@@ -265,6 +284,7 @@ export type RealtimeEvent =
   | { type: 'ingestion_progress'; payload: IngestionProgress }
   | { type: 'wa_disconnected'; payload: { agent_id: string } }
   | { type: 'rate_limited';   payload: { group_id: string; wa_user_id: string; user_name: string } }
+  | { type: 'reply_flow_updated'; payload: ActiveReplyFlows }
 
 // ── Prompt Assembly ──────────────────────────────────────────
 

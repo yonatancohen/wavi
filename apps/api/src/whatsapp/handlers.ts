@@ -157,7 +157,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
   // ── 1. Find group in DB ───────────────────────────────────
   const { data: group } = await db
     .from('groups')
-    .select('id, status, character_config, language_mode')
+    .select('id, name, status, character_config, language_mode')
     .eq('wa_group_id', waGroupId)
     .single()
 
@@ -237,18 +237,17 @@ export async function handleIncomingMessage(msg: WAMessage) {
   }
 
   // ── 6. Queue reply job ────────────────────────────────────
-  const job = {
+  const { queueReplyJob } = await import('../lib/reply-queue.js')
+  await queueReplyJob({
     group_id:     group.id,
+    group_name:   group.name,
     wa_group_id:  waGroupId,
     message_id:   stored?.id,
     sender_wa_id: senderWaId,
     sender_name:  resolvedName,
     body,
     wa_msg_id:    msg.id._serialized,
-    queued_at:    Date.now(),
-  }
-
-  await redis.lpush('reply_jobs', JSON.stringify(job))
+  })
 }
 
 // ── Rate limit response stays in character ────────────────────
