@@ -28,7 +28,27 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Deploy to Vercel
-        run: npx vercel deploy --prod --yes --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        id: vercel
+        run: |
+          set -euo pipefail
+          DEPLOY_OUT=$(npx vercel deploy --prod --yes --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
+          echo "$DEPLOY_OUT"
+          URL=$(echo "$DEPLOY_OUT" | grep -Eo 'https://[^[:space:]]+\.vercel\.app' | tail -1)
+          if [ -z "$URL" ]; then
+            echo "::error::Could not parse Vercel deploy URL"
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "$URL" > .deploy-dashboard-url
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Set DASHBOARD_URL on Railway (CORS)
+        if: steps.vercel.outputs.url != ''
+        run: |
+          npm install -g @railway/cli@5.2.0
+          railway variable set "DASHBOARD_URL=${{ steps.vercel.outputs.url }}" --service wavi-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: apps/api

@@ -87,7 +87,7 @@ if [[ "$IS_PROD" == true && -n "$URL" && -x "$(command -v railway)" ]]; then
   step "Setting DASHBOARD_URL on Railway for CORS"
   cd "$ROOT/apps/api"
   DASHBOARD_ORIGIN="$(normalize_url "$URL")"
-  railway variable set "DASHBOARD_URL=${DASHBOARD_ORIGIN}" --skip-deploys >/dev/null 2>&1 && ok "DASHBOARD_URL=${DASHBOARD_ORIGIN}" || warn "Could not set DASHBOARD_URL"
+  railway variable set "DASHBOARD_URL=${DASHBOARD_ORIGIN}" >/dev/null 2>&1 && ok "DASHBOARD_URL=${DASHBOARD_ORIGIN} (redeploy triggered)" || warn "Could not set DASHBOARD_URL"
   cd "$ROOT"
 fi
 
