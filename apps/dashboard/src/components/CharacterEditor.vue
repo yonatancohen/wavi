@@ -1,7 +1,7 @@
 <template>
   <section
     v-if="localConfig"
-    class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5"
+    class="rounded-xl border border-outline-variant bg-surface-container p-4"
   >
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
@@ -28,16 +28,16 @@
       {{ saveError }}
     </div>
 
-    <div class="mb-5">
+    <div class="mb-4">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.voice') }}
       </label>
-      <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-3 text-[13px] leading-relaxed text-on-surface-variant">
+      <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
         {{ localConfig.voice }}
       </p>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-4">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.opinions') }}
       </label>
@@ -52,7 +52,7 @@
       </div>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-4">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.signature') }}
       </label>
@@ -64,12 +64,12 @@
     </div>
 
     <div>
-      <label class="mb-3 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.sliders') }}
       </label>
-      <div class="space-y-4">
+      <div class="grid gap-3 sm:grid-cols-2">
         <div v-for="slider in sliders" :key="slider.key">
-          <div class="mb-1.5 flex items-center justify-between text-[12px]">
+          <div class="mb-1 flex items-center justify-between text-[12px]">
             <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
             <span class="font-mono tabular-nums text-on-surface-variant">
               {{ localConfig.sliders[slider.key] }}

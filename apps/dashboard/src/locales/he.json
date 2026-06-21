@@ -106,10 +106,17 @@
       "repliesToday": "תשובות היום",
       "status": "סטטוס"
     },
+    "tabs": {
+      "setup": "הגדרה",
+      "character": "אישיות",
+      "people": "אנשים",
+      "dynamics": "דינמיקה"
+    },
     "setup": {
       "title": "הגדרה",
-      "body": "לאחר הרישום, הגדר את הקבוצה ל{live} כדי ש-Wavi יגיב כשמישהו מתייג את {mention} בצ'אט.",
+      "body": "הגדר את הקבוצה ל{live} כדי ש-Wavi יגיב כשמישהו מתייג את {mention} בצ'אט.",
       "live": "פעיל",
+      "mention": "@wavi",
       "goLive": "הפעל",
       "pause": "השהה",
       "resume": "חדש",

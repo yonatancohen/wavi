@@ -1,8 +1,8 @@
 <template>
-  <div class="flex min-h-screen bg-background">
+  <div class="flex h-screen overflow-hidden bg-background">
     <!-- Desktop sidebar -->
     <nav
-      class="hidden w-[240px] shrink-0 flex-col border-e border-outline-variant bg-surface-container-low lg:flex"
+      class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex"
       :aria-label="t('nav.main')"
     >
       <AppBrand :connected="agentConnected" />
@@ -10,7 +10,7 @@
       <AppNavFooter />
     </nav>
 
-    <div class="flex min-w-0 flex-1 flex-col">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <!-- Mobile top bar (single header on mobile — page headers are desktop-only) -->
       <header class="mobile-top-bar lg:hidden">
         <div class="flex min-w-0 items-center gap-2">
@@ -66,7 +66,7 @@
         </div>
       </header>
 
-      <main class="main-content flex-1 overflow-x-hidden">
+      <main class="main-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
         <RouterView />
       </main>
 

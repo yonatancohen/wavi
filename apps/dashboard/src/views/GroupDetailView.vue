@@ -1,6 +1,6 @@
 <template>
-  <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header hidden lg:block">
+  <div class="flex flex-col bg-background">
+    <header class="page-header sticky top-0 z-10 hidden lg:block">
       <RouterLink
         to="/groups"
         class="mb-2 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary"
@@ -8,22 +8,98 @@
         <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
         {{ t('groupDetail.back') }}
       </RouterLink>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="font-sora text-[17px] font-bold tracking-tight text-on-surface">{{ group?.name ?? t('groupDetail.group') }}</h1>
-          <p class="mt-0.5 break-all font-mono text-[10px] text-on-surface-variant/60">{{ group?.wa_group_id }}</p>
+
+      <div v-if="group" class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h1 class="font-sora text-[17px] font-bold tracking-tight text-on-surface">{{ group.name }}</h1>
+          <p class="mt-0.5 truncate font-mono text-[10px] text-on-surface-variant/60">{{ group.wa_group_id }}</p>
         </div>
-        <span
-          v-if="group"
-          class="badge shrink-0 px-2.5 py-1"
-          :class="statusBadgeClass(group.status)"
-        >
-          {{ statusLabel(group.status, t) }}
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
+            {{ statusLabel(group.status, t) }}
+          </span>
+          <button
+            v-if="group.status !== 'active'"
+            class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
+            :disabled="saving"
+            @click="goLive"
+          >
+            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+            {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
+          </button>
+          <button
+            v-if="group.status === 'active'"
+            class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]"
+            :disabled="saving"
+            @click="pause"
+          >
+            <span class="material-symbols-outlined text-[16px]">pause</span>
+            {{ t('groupDetail.setup.pause') }}
+          </button>
+          <button
+            v-if="group.status === 'paused'"
+            class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]"
+            :disabled="saving"
+            @click="goLive"
+          >
+            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+            {{ t('groupDetail.setup.resume') }}
+          </button>
+        </div>
+      </div>
+      <h1 v-else class="font-sora text-[17px] font-bold tracking-tight text-on-surface">
+        {{ t('groupDetail.group') }}
+      </h1>
+
+      <div
+        v-if="group && !loading"
+        class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-outline-variant/60 pt-3 font-mono text-[11px] tabular-nums"
+      >
+        <span>
+          <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
+          <span class="ms-1.5 font-semibold text-primary">{{ group.message_count_today }}</span>
+        </span>
+        <span class="text-outline-variant/80">·</span>
+        <span>
+          <span class="text-on-surface-variant">{{ t('groupDetail.stats.repliesToday') }}</span>
+          <span class="ms-1.5 font-semibold text-secondary">{{ group.reply_count_today }}</span>
+        </span>
+        <span class="text-outline-variant/80">·</span>
+        <span>
+          <span class="text-on-surface-variant">{{ t('groupDetail.stats.status') }}</span>
+          <span
+            class="ms-1.5 font-semibold"
+            :class="group.status === 'active' ? 'text-primary' : group.status === 'paused' ? 'text-error' : 'text-secondary'"
+          >{{ statusLabel(group.status, t) }}</span>
         </span>
       </div>
+
+      <nav
+        v-if="group && !loading && !error"
+        class="-mx-margin-mobile mt-3 flex gap-0 overflow-x-auto border-t border-outline-variant/60 px-margin-mobile"
+        role="tablist"
+        :aria-label="group.name"
+      >
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="group-tab"
+          :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
+          :aria-selected="activeTab === tab.id"
+          @click="activeTab = tab.id"
+        >
+          <span
+            class="material-symbols-outlined text-[14px]"
+            :class="tab.done ? 'text-primary' : 'text-on-surface-variant/40'"
+          >{{ tab.done ? 'check_circle' : 'radio_button_unchecked' }}</span>
+          {{ tab.label }}
+        </button>
+      </nav>
     </header>
 
-    <div class="mx-auto w-full max-w-[800px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+    <div class="mx-auto w-full max-w-[960px] flex-1 px-margin-mobile py-5 lg:px-margin-desktop">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div
@@ -34,119 +110,40 @@
       </div>
 
       <template v-else-if="group">
-        <!-- Stats -->
-        <div class="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3">
-          <div class="stat-cell">
-            <span class="stat-cell-label">{{ t('groupDetail.stats.messagesToday') }}</span>
-            <span class="stat-cell-value text-primary">{{ group.message_count_today }}</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-cell-label">{{ t('groupDetail.stats.repliesToday') }}</span>
-            <span class="stat-cell-value text-secondary">{{ group.reply_count_today }}</span>
-          </div>
-          <div class="col-span-2 stat-cell md:col-span-1">
-            <span class="stat-cell-label">{{ t('groupDetail.stats.status') }}</span>
-            <span
-              class="mt-1 font-mono text-[15px] font-semibold"
-              :class="group.status === 'active' ? 'text-primary' : group.status === 'paused' ? 'text-error' : 'text-secondary'"
-            >{{ statusLabel(group.status, t) }}</span>
-          </div>
+        <div v-show="activeTab === 'setup'" class="space-y-4">
+          <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+            <p class="text-[13px] leading-relaxed text-on-surface-variant">
+              {{ t('groupDetail.setup.body', { live: t('groupDetail.setup.live'), mention: t('groupDetail.setup.mention') }) }}
+            </p>
+          </section>
+          <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
         </div>
 
-        <!-- Setup section -->
-        <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
-          <div class="mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px] text-primary">tune</span>
-            <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('groupDetail.setup.title') }}</h2>
-          </div>
-          <p class="mb-5 text-[13px] leading-relaxed text-on-surface-variant">
-            {{ t('groupDetail.setup.body', { live: '', mention: '' }) }}
-            <strong class="text-on-surface">{{ t('groupDetail.setup.live') }}</strong>
-            so Wavi replies when someone tags
-            <code class="rounded-md bg-surface-variant px-1.5 py-0.5 font-mono text-[12px] text-primary">@wavi</code>
-            in the chat.
-          </p>
+        <div v-show="activeTab === 'character'">
+          <CharacterEditor :group="group" @updated="onCharacterUpdated" />
+          <section
+            v-if="!group.character_config"
+            class="rounded-xl border border-dashed border-outline-variant bg-surface-variant/20 px-6 py-10 text-center"
+          >
+            <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">psychology</span>
+            <p class="text-[13px] text-on-surface-variant">{{ t('groupDetail.nextSteps.uploadHistory') }}</p>
+          </section>
+        </div>
 
-          <div class="flex flex-wrap gap-3">
-            <button
-              v-if="group.status !== 'active'"
-              class="btn btn-primary flex items-center gap-2"
-              :disabled="saving"
-              @click="goLive"
-            >
-              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-              {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
-            </button>
-            <button
-              v-if="group.status === 'active'"
-              class="btn btn-secondary flex items-center gap-2"
-              :disabled="saving"
-              @click="pause"
-            >
-              <span class="material-symbols-outlined text-[18px]">pause</span>
-              {{ t('groupDetail.setup.pause') }}
-            </button>
-            <button
-              v-if="group.status === 'paused'"
-              class="btn btn-secondary flex items-center gap-2"
-              :disabled="saving"
-              @click="goLive"
-            >
-              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-              {{ t('groupDetail.setup.resume') }}
-            </button>
-          </div>
-        </section>
+        <div v-show="activeTab === 'people'" class="group-panel">
+          <MembersSection ref="membersRef" :group-id="group.id" />
+        </div>
 
-        <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
-
-        <CharacterEditor :group="group" @updated="onCharacterUpdated" />
-
-        <MembersSection ref="membersRef" :group-id="group.id" />
-
-        <DynamicsSection ref="dynamicsRef" :group-id="group.id" />
-
-        <!-- Progress checklist -->
-        <section class="rounded-xl border border-outline-variant bg-surface-container p-5">
-          <div class="mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px] text-tertiary">checklist</span>
-            <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('groupDetail.nextSteps.title') }}</h2>
-          </div>
-          <ul class="space-y-3">
-            <li class="flex items-start gap-3">
-              <span class="material-symbols-outlined mt-0.5 text-[16px] text-primary">check_circle</span>
-              <span class="text-[13px] text-on-surface">{{ t('groupDetail.nextSteps.register') }}</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span
-                class="material-symbols-outlined mt-0.5 text-[16px]"
-                :class="group.status === 'active' ? 'text-primary' : 'text-on-surface-variant'"
-              >{{ group.status === 'active' ? 'check_circle' : 'radio_button_unchecked' }}</span>
-              <span class="text-[13px]" :class="group.status === 'active' ? 'text-on-surface' : 'text-on-surface-variant'">{{ t('groupDetail.nextSteps.goLive') }}</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span
-                class="material-symbols-outlined mt-0.5 text-[16px]"
-                :class="hasIngestedData ? 'text-primary' : 'text-on-surface-variant'"
-              >{{ hasIngestedData ? 'check_circle' : 'radio_button_unchecked' }}</span>
-              <span class="text-[13px]" :class="hasIngestedData ? 'text-on-surface' : 'text-on-surface-variant'">{{ t('groupDetail.nextSteps.uploadHistory') }}</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span
-                class="material-symbols-outlined mt-0.5 text-[16px]"
-                :class="group.character_config ? 'text-primary' : 'text-on-surface-variant'"
-              >{{ group.character_config ? 'check_circle' : 'radio_button_unchecked' }}</span>
-              <span class="text-[13px]" :class="group.character_config ? 'text-on-surface' : 'text-on-surface-variant'">{{ t('groupDetail.nextSteps.reviewCharacter') }}</span>
-            </li>
-          </ul>
-        </section>
+        <div v-show="activeTab === 'dynamics'" class="group-panel">
+          <DynamicsSection ref="dynamicsRef" :group-id="group.id" />
+        </div>
       </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useGroupsStore } from '../stores/groups'
@@ -158,6 +155,8 @@ import DynamicsSection from '../components/DynamicsSection.vue'
 import CharacterEditor from '../components/CharacterEditor.vue'
 import type { GroupWithStats } from '@wavi/shared'
 
+type GroupTab = 'setup' | 'character' | 'people' | 'dynamics'
+
 const { t } = useI18n()
 const route = useRoute()
 const store = useGroupsStore()
@@ -167,9 +166,36 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const hasIngestedData = ref(false)
+const activeTab = ref<GroupTab>('setup')
 
 const membersRef = ref<InstanceType<typeof MembersSection> | null>(null)
 const dynamicsRef = ref<InstanceType<typeof DynamicsSection> | null>(null)
+
+const tabs = computed(() => {
+  if (!group.value) return []
+  return [
+    {
+      id: 'setup' as const,
+      label: t('groupDetail.tabs.setup'),
+      done: group.value.status === 'active' && hasIngestedData.value,
+    },
+    {
+      id: 'character' as const,
+      label: t('groupDetail.tabs.character'),
+      done: group.value.character_config !== null,
+    },
+    {
+      id: 'people' as const,
+      label: t('groupDetail.tabs.people'),
+      done: hasIngestedData.value,
+    },
+    {
+      id: 'dynamics' as const,
+      label: t('groupDetail.tabs.dynamics'),
+      done: hasIngestedData.value,
+    },
+  ]
+})
 
 async function load() {
   loading.value = true
@@ -189,6 +215,7 @@ async function onIngestionComplete() {
   try {
     group.value = await store.fetchGroup(group.value.id)
     hasIngestedData.value = true
+    activeTab.value = 'character'
     await Promise.all([
       membersRef.value?.reload(),
       dynamicsRef.value?.reload(),

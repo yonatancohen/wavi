@@ -1,17 +1,15 @@
 <template>
-  <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
-    <div class="mb-4 flex items-center gap-2">
+  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+    <div class="mb-3 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-primary">upload_file</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('ingest.title') }}</h2>
     </div>
-    <p class="mb-4 text-[13px] leading-relaxed text-on-surface-variant">
-      {{ t('ingest.body', { ext: '' }) }}
-      <code class="rounded-md bg-surface-variant px-1.5 py-0.5 font-mono text-[12px] text-primary">.txt</code>
-      file and upload it to build member profiles, relationship maps, and Wavi's group character.
+    <p class="mb-3 text-[13px] leading-relaxed text-on-surface-variant">
+      {{ t('ingest.body', { ext: '.txt' }) }}
     </p>
 
     <div
-      class="relative rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors"
+      class="relative rounded-xl border-2 border-dashed px-5 py-5 text-center transition-colors"
       :class="dragOver
         ? 'border-primary bg-primary/[0.06]'
         : 'border-outline-variant bg-surface-variant/30 hover:border-primary/40'"

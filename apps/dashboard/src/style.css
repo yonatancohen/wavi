@@ -212,6 +212,7 @@
   .page-header {
     @apply border-b border-outline-variant px-margin-mobile py-4 lg:px-margin-desktop;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
+    backdrop-filter: blur(8px);
   }
 
   /* ── Main content area (mobile bottom nav clearance) ── */
@@ -307,6 +308,29 @@
 
   .page-header-actions .btn {
     @apply w-full justify-center sm:w-auto;
+  }
+
+  /* ── Group detail tabs ───────────────────────── */
+  .group-tab {
+    @apply relative flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[12px] font-semibold transition-colors;
+  }
+
+  .group-tab-inactive {
+    @apply border-transparent text-on-surface-variant hover:text-on-surface;
+  }
+
+  .group-tab-active {
+    @apply border-primary text-on-surface;
+  }
+
+  .group-panel {
+    @apply max-h-[calc(100vh-12.5rem)] overflow-y-auto overscroll-y-contain pe-0.5;
+  }
+
+  @media (max-width: 768px) {
+    .group-panel {
+      max-height: none;
+    }
   }
 
   /* ── Skeleton ────────────────────────────────── */

@@ -106,10 +106,17 @@
       "repliesToday": "Replies today",
       "status": "Status"
     },
+    "tabs": {
+      "setup": "Setup",
+      "character": "Character",
+      "people": "People",
+      "dynamics": "Dynamics"
+    },
     "setup": {
       "title": "Setup",
-      "body": "After registering, set the group to {live} so Wavi replies when someone tags {mention} in the chat.",
+      "body": "Set the group to {live} so Wavi replies when someone tags {mention} in the chat.",
       "live": "Live",
+      "mention": "@wavi",
       "goLive": "Go Live",
       "pause": "Pause",
       "resume": "Resume",

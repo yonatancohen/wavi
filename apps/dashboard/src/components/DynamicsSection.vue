@@ -1,5 +1,5 @@
 <template>
-  <section class="mb-4 rounded-xl border border-outline-variant bg-surface-container p-5">
+  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
     <div class="mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-tertiary">hub</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dynamics.title') }}</h2>
