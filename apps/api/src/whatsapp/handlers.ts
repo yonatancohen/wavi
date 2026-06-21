@@ -1,4 +1,4 @@
-import type { Message as WAMessage } from 'whatsapp-web.js'
+import type { InboundMessage } from './provider.js'
 import { db } from '../db/client.js'
 import { redis } from '../lib/redis.js'
 import { appendToChunkBuffer } from '../jobs/chunker.js'
@@ -69,23 +69,6 @@ function isWaJid(id: string): boolean {
   return id.includes('@')
 }
 
-const GET_CONTACT_TIMEOUT_MS = 15_000
-
-async function getSenderPushname(msg: WAMessage, fallback: string): Promise<string> {
-  try {
-    const contact = await Promise.race([
-      msg.getContact(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('getContact timeout')), GET_CONTACT_TIMEOUT_MS),
-      ),
-    ])
-    return contact.pushname ?? fallback
-  } catch (err) {
-    console.warn('[WA] getContact failed — using sender id as display name:', err)
-    return fallback
-  }
-}
-
 async function reconcileRelationshipIds(
   groupId: string,
   oldId: string,
@@ -142,16 +125,14 @@ async function reconcileRelationshipIds(
   }
 }
 
-export async function handleIncomingMessage(msg: WAMessage) {
-  const chat = await msg.getChat()
-
+export async function handleIncomingMessage(msg: InboundMessage) {
   // Only handle group messages
-  if (!chat.isGroup) return
+  if (!msg.isGroup) return
 
-  const waGroupId = chat.id._serialized
-  console.log(`[WA] Group message received — wa_group_id: ${waGroupId} | name: ${chat.name}`)
+  const waGroupId = msg.waGroupId
+  console.log(`[WA] Group message received — wa_group_id: ${waGroupId} | name: ${msg.chatName}`)
 
-  const senderWaId = msg.author ?? msg.from
+  const senderWaId = msg.senderWaId
   const body = msg.body
 
   // ── 1. Find group in DB ───────────────────────────────────
@@ -164,7 +145,6 @@ export async function handleIncomingMessage(msg: WAMessage) {
   if (!group || group.status === 'paused') return
 
   // ── 2. Store message ──────────────────────────────────────
-  // Resolve display name lazily — avoid a WA API round-trip for every message
   const senderName = senderWaId
 
   const { data: stored } = await db
@@ -175,7 +155,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
       sender_name:    senderName,
       body,
       is_agent_reply: false,
-      timestamp:      new Date(msg.timestamp * 1000).toISOString(),
+      timestamp:      new Date(msg.timestampMs).toISOString(),
     })
     .select('id')
     .single()
@@ -185,13 +165,13 @@ export async function handleIncomingMessage(msg: WAMessage) {
     sender_wa_id: senderWaId,
     sender_name:  senderName,
     body,
-    timestamp:    new Date(msg.timestamp * 1000),
+    timestamp:    new Date(msg.timestampMs),
   })
 
   // ── 4. Check if agent is tagged ───────────────────────────
   if (!isAgentTagged(msg, body)) {
     // Reconcile display-name profile keys non-blocking (only needs pushname)
-    getSenderPushname(msg, senderWaId).then((pushname) => {
+    msg.resolvePushName().then((pushname) => {
       if (pushname && pushname !== senderWaId) {
         reconcileUserIdentity(group.id, senderWaId, pushname).catch((err) => {
           console.error('[Reconcile] Failed:', err)
@@ -202,7 +182,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
   }
 
   // Resolve push name — needed for reply context and reconciliation
-  const resolvedName = await getSenderPushname(msg, senderWaId)
+  const resolvedName = await msg.resolvePushName()
 
   // Reconcile display-name profile keys (non-blocking)
   reconcileUserIdentity(group.id, senderWaId, resolvedName).catch((err) => {
@@ -214,13 +194,11 @@ export async function handleIncomingMessage(msg: WAMessage) {
   const currentCount = await redis.incr(rateLimitKey)
 
   if (currentCount === 1) {
-    // First call in window — set TTL
     await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW)
   }
 
   if (currentCount > RATE_LIMIT_MAX) {
     if (currentCount === RATE_LIMIT_MAX + 1) {
-      // Send exactly one in-character rate limit message
       await db.from('messages').insert({
         group_id:       group.id,
         sender_wa_id:   'agent',
@@ -231,7 +209,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
       })
 
       const { sendReply } = await import('./client.js')
-      await sendReply(waGroupId, getRateLimitResponse(group.character_config), msg.id._serialized)
+      await sendReply(waGroupId, getRateLimitResponse(group.character_config), msg.waMsgId)
     }
     return
   }
@@ -246,7 +224,7 @@ export async function handleIncomingMessage(msg: WAMessage) {
     sender_wa_id: senderWaId,
     sender_name:  resolvedName,
     body,
-    wa_msg_id:    msg.id._serialized,
+    wa_msg_id:    msg.waMsgId,
   })
 }
 
