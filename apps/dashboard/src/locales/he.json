@@ -116,7 +116,7 @@
       "title": "הגדרה",
       "body": "הגדר את הקבוצה ל{live} כדי ש-Wavi יגיב כשמישהו מתייג את {mention} בצ'אט.",
       "live": "פעיל",
-      "mention": "@wavi",
+      "mention": "{'@'}wavi",
       "goLive": "הפעל",
       "pause": "השהה",
       "resume": "חדש",

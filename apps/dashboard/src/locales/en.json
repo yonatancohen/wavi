@@ -116,7 +116,7 @@
       "title": "Setup",
       "body": "Set the group to {live} so Wavi replies when someone tags {mention} in the chat.",
       "live": "Live",
-      "mention": "@wavi",
+      "mention": "{'@'}wavi",
       "goLive": "Go Live",
       "pause": "Pause",
       "resume": "Resume",
