@@ -1,12 +1,6 @@
 name: Deploy Dashboard → Vercel
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/dashboard/**"
-      - "packages/shared/**"
-      - "vercel.json"
   workflow_dispatch:
 
 jobs:
