@@ -248,9 +248,11 @@ function removeStaleSingletonLocks(userDataDir: string) {
   for (const name of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
     try {
       const target = path.join(userDataDir, name)
-      if (fs.existsSync(target)) fs.unlinkSync(target)
+      // Use lstat (not stat) so we detect dangling symlinks that existsSync misses.
+      fs.lstatSync(target)
+      fs.unlinkSync(target)
     } catch {
-      // ignore — lock may still be held
+      // file doesn't exist or can't be removed — ignore
     }
   }
 }
