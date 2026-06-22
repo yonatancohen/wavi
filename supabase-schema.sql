@@ -32,7 +32,7 @@ CREATE TABLE groups (
   status           text DEFAULT 'pending_setup',
   character_config jsonb,
   character_locked boolean DEFAULT false,
-  language_mode    text DEFAULT 'auto',
+  language_mode    text DEFAULT 'he', -- actively-tuned default; 'en'/'auto' also supported
   created_at       timestamptz DEFAULT now()
 );
 
