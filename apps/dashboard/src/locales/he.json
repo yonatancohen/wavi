@@ -133,6 +133,7 @@
     "autoPaused": "קבוצות הושהו אוטומטית",
     "testChatTitle": "צ'אט בדיקה (מנהל)",
     "testChatSummary": "{replies} תצוגות מקדימות · {tokens} טוקנים · ${amount} משוער",
+    "testChatSubline": "{tokens} טוקנים · ${amount} משוער",
     "failedLoad": "טעינת נתוני עלות נכשלה"
   },
   "groups": {

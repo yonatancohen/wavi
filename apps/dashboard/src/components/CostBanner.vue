@@ -13,7 +13,7 @@
     <div v-if="loading" class="text-[13px] text-on-surface-variant">{{ t('loading.default') }}</div>
 
     <template v-else-if="stats">
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <div>
           <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.inputTokens') }}</p>
           <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ stats.total_input_tokens.toLocaleString() }}</p>
@@ -30,6 +30,20 @@
           <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.estimatedSpend') }}</p>
           <p class="font-mono text-[15px] font-semibold tabular-nums text-primary">${{ stats.spent_usd_estimate.toFixed(2) }}</p>
         </div>
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.testChatTitle') }}</p>
+          <div class="flex flex-wrap items-end gap-x-2.5 gap-y-0.5">
+            <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ stats.test_chat.replies.toLocaleString() }}</p>
+            <p class="text-[11px] leading-snug text-on-surface-variant">
+              {{
+                t('cost.testChatSubline', {
+                  tokens: (stats.test_chat.input_tokens + stats.test_chat.output_tokens).toLocaleString(),
+                  amount: stats.test_chat.spent_usd_estimate.toFixed(2),
+                })
+              }}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div v-if="stats.budget_usd != null" class="mt-4 flex flex-wrap items-center gap-2 text-[12px]">
@@ -40,19 +54,6 @@
         <span v-if="stats.auto_paused" class="rounded-full bg-error/15 px-2.5 py-0.5 font-semibold text-error">
           {{ t('cost.autoPaused') }}
         </span>
-      </div>
-
-      <div v-if="stats.test_chat.replies > 0" class="mt-4 rounded-lg border border-outline-variant/60 bg-surface-variant/20 px-3 py-2.5">
-        <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.testChatTitle') }}</p>
-        <p class="mt-1 text-[12px] text-on-surface-variant">
-          {{
-            t('cost.testChatSummary', {
-              replies: stats.test_chat.replies.toLocaleString(),
-              tokens: (stats.test_chat.input_tokens + stats.test_chat.output_tokens).toLocaleString(),
-              amount: stats.test_chat.spent_usd_estimate.toFixed(2),
-            })
-          }}
-        </p>
       </div>
 
       <p v-if="loadError" class="mt-3 text-[12px] text-error">{{ loadError }}</p>

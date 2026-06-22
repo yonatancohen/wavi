@@ -133,6 +133,7 @@
     "autoPaused": "Groups auto-paused",
     "testChatTitle": "Test chat (admin)",
     "testChatSummary": "{replies} previews · {tokens} tokens · ${amount} est.",
+    "testChatSubline": "{tokens} tokens · ${amount} est.",
     "failedLoad": "Failed to load cost stats"
   },
   "groups": {
