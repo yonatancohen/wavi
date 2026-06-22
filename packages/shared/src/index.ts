@@ -59,6 +59,10 @@ export interface PersonalitySliders {
   empathy: number; // 0–100
 }
 
+export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
+
+export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-haiku-4-5';
+
 export interface CharacterConfig {
   voice: string; // 2-3 sentence voice description
   opinions: string[]; // 3-5 opinions on group-relevant topics
@@ -66,6 +70,7 @@ export interface CharacterConfig {
   sliders: PersonalitySliders;
   preset: 'custom' | 'professional' | 'casual' | 'comedian' | 'warm';
   version: number;
+  reply_model?: ReplyModel;
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
@@ -300,6 +305,19 @@ export type RealtimeEvent =
 
 // ── Prompt Assembly ──────────────────────────────────────────
 
+export interface QuotedMessageContext {
+  body: string;
+  sender_wa_id: string;
+  sender_name: string;
+}
+
+export interface MentionedPerson {
+  display_name: string;
+  behavioral_summary: string;
+  sensitivity_flags: string[];
+  relationships: string[];
+}
+
 export interface PromptContext {
   character_config: CharacterConfig;
   group_name: string;
@@ -308,8 +326,25 @@ export interface PromptContext {
   sender_profile: UserProfile;
   relevant_relationships: RelationshipPair[];
   group_memories: GroupMemory[];
+  mentioned_people: MentionedPerson[];
   rag_chunks: string[]; // top 5 message chunk summaries
   rag_episode_summaries: string[]; // top 3 episode summaries
   recent_messages: Message[]; // last 20 verbatim
+  resolved_display_names: Record<string, string>;
+  quoted_message?: QuotedMessageContext | null;
   current_message: string;
+}
+
+// ── Cost observability ───────────────────────────────────────
+
+export interface CostStats {
+  month: string;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_replies: number;
+  avg_latency_ms: number;
+  budget_usd: number | null;
+  spent_usd_estimate: number;
+  budget_exceeded: boolean;
+  auto_paused: boolean;
 }
