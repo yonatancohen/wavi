@@ -138,7 +138,9 @@ export function createBaileysProvider(): WhatsAppProvider {
 
       if (connection === 'connecting') {
         _connecting = true
-        broadcastSSE(JSON.stringify({ type: 'authenticated' }))
+        // Do NOT send 'authenticated' here — that fires before the QR is even
+        // generated and causes the dashboard to replace the QR with a spinner,
+        // making it impossible for the user to scan.
       }
 
       if (connection === 'open') {
@@ -157,18 +159,23 @@ export function createBaileysProvider(): WhatsAppProvider {
           console.log(`[Baileys] Connected — phone: ${phoneUser}`)
         }
 
-        const readyMsg = JSON.stringify({ type: 'ready', phone_number: _phoneNumber })
-        for (const sub of qrSubscribers) {
-          sub.send(readyMsg)
-          sub.close()
-        }
+        // 1. Tell the dashboard QR was scanned and we are finalising
+        broadcastSSE(JSON.stringify({ type: 'authenticated' }))
+        // 2. Tell the dashboard we are fully connected
+        broadcastSSE(JSON.stringify({ type: 'ready', phone_number: _phoneNumber }))
+        // Close all remaining QR subscribers — they got the events above
+        for (const sub of qrSubscribers) sub.close()
         qrSubscribers.clear()
 
-        await db
-          .from('agents')
-          .update({ phone_number: _phoneNumber })
-          .eq('id', process.env.AGENT_ID!)
-          .throwOnError()
+        try {
+          await db
+            .from('agents')
+            .update({ phone_number: _phoneNumber })
+            .eq('id', process.env.AGENT_ID!)
+            .throwOnError()
+        } catch (err) {
+          console.error('[Baileys] Failed to persist phone_number to DB:', err)
+        }
       }
 
       if (connection === 'close') {
@@ -294,9 +301,9 @@ export function createBaileysProvider(): WhatsAppProvider {
         return () => {}
       }
 
-      if (_connecting) {
-        client.send(JSON.stringify({ type: 'authenticated' }))
-      } else if (_lastQrPayload) {
+      // Replay the last QR if we have one — do NOT send 'authenticated' for
+      // the pre-QR connecting phase (it would hide the QR behind a spinner).
+      if (_lastQrPayload) {
         client.send(_lastQrPayload)
       }
 
