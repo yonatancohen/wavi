@@ -1,10 +1,23 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats, CostStats, TestReplyRequest, TestReplyResponse } from '@wavi/shared';
+import type {
+  CreateGroupRequest,
+  DiscoveredWaGroup,
+  Group,
+  GroupWithStats,
+  CostStats,
+  TestReplyRequest,
+  TestReplyResponse,
+  UpdateMemberRequest,
+  MergeMembersRequest,
+  UserProfileData,
+} from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { generateReplyText } from '../ai/generate.js';
+import { getProfileAliases } from '../lib/alias-store.js';
+import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -232,6 +245,120 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     const { data } = await db.from('user_profiles').select('*').eq('group_id', req.params.id).order('msg_count', { ascending: false }).throwOnError();
     return data;
+  });
+
+  fastify.patch<{ Params: { id: string; profileId: string }; Body: UpdateMemberRequest }>('/:id/members/:profileId', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: profile } = await db.from('user_profiles').select('*').eq('id', req.params.profileId).eq('group_id', req.params.id).maybeSingle();
+    if (!profile) return reply.code(404).send({ error: 'Member not found' });
+
+    const body = req.body ?? {};
+    const updates: Record<string, unknown> = { last_updated: new Date().toISOString() };
+    const profileData = { ...(profile.profile_data as UserProfileData) };
+
+    if (body.display_name?.trim()) {
+      const newName = body.display_name.trim();
+      if (newName !== profile.display_name) {
+        // Keep the previous label as an alias so Wavi still recognizes old references
+        profileData.aliases = mergeAliases(getProfileAliases(profileData), profile.display_name ?? '').filter((a) => normalizeNameForMatch(a) !== normalizeNameForMatch(newName));
+        updates.profile_data = profileData;
+      }
+      updates.display_name = newName;
+    }
+
+    const aliasInputs = [...(body.add_aliases ?? []), ...(body.add_alias?.trim() ? [body.add_alias.trim()] : [])];
+    if (aliasInputs.length) {
+      const expanded = aliasInputs.flatMap((raw) =>
+        raw
+          .split(/[,;\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      );
+      profileData.aliases = mergeAliases(getProfileAliases(profileData), ...expanded);
+      updates.profile_data = profileData;
+    }
+
+    if (body.remove_alias?.trim()) {
+      const norm = normalizeNameForMatch(body.remove_alias);
+      profileData.aliases = getProfileAliases(profileData).filter((a) => normalizeNameForMatch(a) !== norm);
+      updates.profile_data = profileData;
+    }
+
+    const { data, error } = await db.from('user_profiles').update(updates).eq('id', req.params.profileId).select().single();
+    if (error) return reply.code(500).send({ error: error.message });
+    return data;
+  });
+
+  fastify.post<{ Params: { id: string }; Body: MergeMembersRequest }>('/:id/members/merge', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { keep_profile_id, merge_profile_id } = req.body ?? {};
+    if (!keep_profile_id || !merge_profile_id || keep_profile_id === merge_profile_id) {
+      return reply.code(400).send({ error: 'keep_profile_id and merge_profile_id are required and must differ' });
+    }
+
+    const { data: keep } = await db.from('user_profiles').select('*').eq('id', keep_profile_id).eq('group_id', req.params.id).maybeSingle();
+    const { data: merge } = await db.from('user_profiles').select('*').eq('id', merge_profile_id).eq('group_id', req.params.id).maybeSingle();
+
+    if (!keep || !merge) return reply.code(404).send({ error: 'One or both profiles not found' });
+
+    const keepData = keep.profile_data as UserProfileData;
+    const mergeData = merge.profile_data as UserProfileData;
+    const mergedAliases = mergeAliases(getProfileAliases(keepData), merge.display_name, merge.wa_user_id, ...getProfileAliases(mergeData));
+
+    await db
+      .from('user_profiles')
+      .update({
+        msg_count: (keep.msg_count ?? 0) + (merge.msg_count ?? 0),
+        profile_data: { ...keepData, aliases: mergedAliases },
+        last_updated: new Date().toISOString(),
+      })
+      .eq('id', keep.id);
+
+    // Rewire relationship rows from merged id → kept id
+    const oldId = merge.wa_user_id;
+    const newId = keep.wa_user_id;
+    const { data: relRows } = await db.from('relationship_map').select('*').eq('group_id', req.params.id).or(`user_a_wa_id.eq.${oldId},user_b_wa_id.eq.${oldId}`);
+
+    for (const row of relRows ?? []) {
+      let userA = row.user_a_wa_id === oldId ? newId : row.user_a_wa_id;
+      let userB = row.user_b_wa_id === oldId ? newId : row.user_b_wa_id;
+      if (userA === userB) {
+        await db.from('relationship_map').delete().eq('id', row.id);
+        continue;
+      }
+      let nameA = row.user_a_wa_id === oldId ? keep.display_name : row.user_a_name;
+      let nameB = row.user_b_wa_id === oldId ? keep.display_name : row.user_b_name;
+      if (userA > userB) {
+        [userA, userB] = [userB, userA];
+        [nameA, nameB] = [nameB, nameA];
+      }
+      await db.from('relationship_map').delete().eq('id', row.id);
+      await db.from('relationship_map').upsert(
+        {
+          group_id: req.params.id,
+          user_a_wa_id: userA,
+          user_b_wa_id: userB,
+          user_a_name: nameA,
+          user_b_name: nameB,
+          interaction_score: row.interaction_score,
+          conflict_score: row.conflict_score,
+          solidarity_score: row.solidarity_score,
+          signals: row.signals,
+          narrative: row.narrative,
+          last_updated: new Date().toISOString(),
+        },
+        { onConflict: 'group_id,user_a_wa_id,user_b_wa_id' },
+      );
+    }
+
+    await db.from('user_profiles').delete().eq('id', merge.id);
+
+    const { data: updated } = await db.from('user_profiles').select('*').eq('id', keep.id).single();
+    return updated;
   });
 
   // Relationships
