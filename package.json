@@ -34,6 +34,7 @@
     "logs": "bash scripts/logs.sh",
     "test:parser": "bun scripts/test-parser.mjs",
     "test": "bun run --filter '@wavi/api' test",
+    "replay": "bun run --filter '@wavi/api' replay",
     "build": "bun run --filter '*' build",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "eslint .",

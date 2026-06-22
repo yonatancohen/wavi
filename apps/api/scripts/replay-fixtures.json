@@ -1,0 +1,17 @@
+{
+  "cases": [
+    {
+      "name": "Dan Cohen — who is he?",
+      "groupId": "aa5ca30b-e88c-4cd9-8b0b-437cb28f1c55",
+      "sender": "Yoni Cohen",
+      "message": "@wavi מי זה Dan Cohen? וואו"
+    },
+    {
+      "name": "English greeting",
+      "groupId": "aa5ca30b-e88c-4cd9-8b0b-437cb28f1c55",
+      "sender": "Alice",
+      "message": "@wavi hey what's up?",
+      "skipClaude": true
+    }
+  ]
+}
