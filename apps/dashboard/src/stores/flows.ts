@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { apiFetch } from '../lib/api'
 import type { ActiveReplyFlows } from '@wavi/shared'
 
-const POLL_MS = 2500
+const POLL_MS = 30_000
 
 export const useFlowsStore = defineStore('flows', () => {
   const total = ref(0)
