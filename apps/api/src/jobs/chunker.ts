@@ -1,7 +1,7 @@
 import { redis } from '../lib/redis.js';
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
-import { generateEpisodeSummary, generateGroupContext } from '../ai/summarizer.js';
+import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
 import { profileUser } from '../ai/profiler.js';
 
 const CHUNK_SIZE = 50;
@@ -58,7 +58,10 @@ export async function flushChunkBuffer(groupId: string) {
     const msgFrom = messages[0].timestamp;
     const msgTo = messages[messages.length - 1].timestamp;
 
-    const summary = await generateChunkSummary(content);
+    const { data: group } = await db.from('groups').select('name, language_mode').eq('id', groupId).single();
+    const languageMode = (group?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
+
+    const summary = await generateChunkSummary(content, languageMode);
     const embedding = await embed(content);
 
     await db.from('message_chunks').insert({
@@ -97,12 +100,15 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
 
   if (!recentMessages || recentMessages.length < 20) return;
 
+  const { data: groupMeta } = await db.from('groups').select('language_mode').eq('id', groupId).single();
+  const languageMode = (groupMeta?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
+
   const content = recentMessages
     .reverse()
     .map((m) => `${m.sender_name}: ${m.body}`)
     .join('\n');
 
-  const summary = await generateEpisodeSummary(content);
+  const summary = await generateEpisodeSummary(content, languageMode);
   const embedding = await embed(summary);
 
   const msgFrom = recentMessages[0].timestamp;
@@ -120,7 +126,8 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
 }
 
 async function maybeGenerateGroupContext(groupId: string) {
-  const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
+  const { data: group } = await db.from('groups').select('name, language_mode').eq('id', groupId).single();
+  const languageMode = (group?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
 
   const { data: episodes } = await db.from('episode_summaries').select('summary').eq('group_id', groupId).order('created_at', { ascending: false }).limit(5);
 
@@ -134,6 +141,7 @@ async function maybeGenerateGroupContext(groupId: string) {
     groupName: group?.name ?? 'the group',
     recentContent,
     previousContext: prevCtx?.summary_text ?? '',
+    languageMode,
   });
 
   await db.from('group_contexts').insert({
@@ -189,24 +197,4 @@ async function maybeReProfileUser(groupId: string, waUserId: string, displayName
   if (!recentMessages || recentMessages.length < 5) return;
 
   await profileUser(groupId, waUserId, displayName, recentMessages.reverse());
-}
-
-// ── Chunk summary (1 sentence, cheap Haiku call) ──────────────
-
-async function generateChunkSummary(content: string): Promise<string> {
-  const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 100,
-    messages: [
-      {
-        role: 'user',
-        content: `Summarize this WhatsApp group conversation in ONE sentence (max 20 words). Focus on the main topic or event.\n\n${content.slice(0, 2000)}`,
-      },
-    ],
-  });
-
-  return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group conversation.';
 }

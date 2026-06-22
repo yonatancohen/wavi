@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
-import type { RelationshipSignals } from '@wavi/shared';
+import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
+import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -52,7 +53,7 @@ function detectDefense(body: string, targetName: string): boolean {
   return DEFENSE_POSITIVE.some((w) => lower.includes(w));
 }
 
-export async function buildRelationshipMap(groupId: string, messages: HistoryMessage[]): Promise<void> {
+export async function buildRelationshipMap(groupId: string, messages: HistoryMessage[], languageMode: LanguageMode = 'auto'): Promise<void> {
   const members = new Map<string, string>();
   for (const msg of messages) {
     if (!members.has(msg.sender_name)) {
@@ -148,7 +149,7 @@ export async function buildRelationshipMap(groupId: string, messages: HistoryMes
 
   for (let i = 0; i < narrativePairs.length; i += 5) {
     const batch = narrativePairs.slice(i, i + 5);
-    const batchNarratives = await generateNarrativesBatch(batch);
+    const batchNarratives = await generateNarrativesBatch(batch, languageMode);
     for (const [key, narrative] of batchNarratives) {
       narratives.set(key, narrative);
     }
@@ -175,7 +176,10 @@ export async function buildRelationshipMap(groupId: string, messages: HistoryMes
   });
 }
 
-async function generateNarrativesBatch(pairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }>): Promise<Map<string, string>> {
+async function generateNarrativesBatch(
+  pairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }>,
+  languageMode: LanguageMode = 'auto',
+): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   if (pairs.length === 0) return result;
 
@@ -192,7 +196,9 @@ async function generateNarrativesBatch(pairs: Array<PairData & { interaction_sco
     messages: [
       {
         role: 'user',
-        content: `For each pair below, write ONE sentence of prose describing their group dynamic (max 30 words each). Return JSON array of strings in the same order as the pairs.
+        content: `${synthesisLanguageInstruction(languageMode)}
+
+For each pair below, write ONE sentence of prose describing their group dynamic (max 30 words each). Return JSON array of strings in the same order as the pairs.
 
 ${pairDescriptions}
 

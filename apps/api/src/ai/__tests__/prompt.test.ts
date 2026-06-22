@@ -27,9 +27,11 @@ function makeContext(overrides: Partial<PromptContext> = {}): PromptContext {
     sender_profile: null as any,
     relevant_relationships: [],
     group_memories: [],
+    mentioned_people: [],
     rag_chunks: [],
     rag_episode_summaries: [],
     recent_messages: [],
+    resolved_display_names: {},
     current_message: 'hello',
     ...overrides,
   };
@@ -132,7 +134,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Coffee > tea');
     expect(prompt).toContain('BLOCK 1');
     expect(prompt).toContain('WHATSAPP FORMAT');
-    expect(prompt).toContain('BLOCK 9');
+    expect(prompt).toContain('BLOCK 10');
   });
 
   it('uses auto-language instruction when language_mode is auto', () => {
@@ -146,9 +148,10 @@ describe('buildSystemPrompt', () => {
         version: 1,
       },
       language_mode: 'auto',
+      current_message: 'hello there',
     });
     const prompt = buildSystemPrompt(ctx);
-    expect(prompt).toContain('same language as the message');
+    expect(prompt).toMatch(/natural English|natural Hebrew/);
   });
 
   it('uses explicit language instruction for fixed language_mode', () => {
@@ -162,10 +165,11 @@ describe('buildSystemPrompt', () => {
         version: 1,
       },
       language_mode: 'he',
+      current_message: 'שלום',
     });
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('Hebrew');
-    expect(prompt).not.toContain('same language');
+    expect(prompt).toContain('Never transliterate');
   });
 
   it('describes formality correctly at extremes', () => {

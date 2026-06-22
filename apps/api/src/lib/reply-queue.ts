@@ -1,6 +1,8 @@
 import { redis } from './redis.js';
 import { registerReplyFlow } from './reply-flows.js';
 
+import type { QuotedMessageContext } from '@wavi/shared';
+
 export interface ReplyJob {
   flow_id: string;
   group_id: string;
@@ -11,6 +13,7 @@ export interface ReplyJob {
   sender_name: string;
   body: string;
   wa_msg_id: string;
+  quoted_message?: QuotedMessageContext | null;
   queued_at: number;
   /** Set when Claude succeeded but WhatsApp delivery failed — retry send only. */
   reply_text?: string;
@@ -28,6 +31,7 @@ export async function queueReplyJob(params: {
   sender_name: string;
   body: string;
   wa_msg_id: string;
+  quoted_message?: QuotedMessageContext | null;
 }) {
   const flow_id = await registerReplyFlow({
     group_id: params.group_id,

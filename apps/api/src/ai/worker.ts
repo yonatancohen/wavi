@@ -4,13 +4,22 @@ import { redis } from '../lib/redis.js';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
 import { detectNegativeReaction, generateApology } from './recovery.js';
 import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js';
+import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import type { ReplyJob } from '../lib/reply-queue.js';
+import { DEFAULT_REPLY_MODEL, type ReplyModel } from '@wavi/shared';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const REPLY_MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 500;
 const MAX_DELIVERY_ATTEMPTS = 5;
+
+function getAgentId(): string | null {
+  return process.env.AGENT_ID ?? null;
+}
+
+function resolveReplyModel(config: { reply_model?: ReplyModel } | null | undefined): ReplyModel {
+  return config?.reply_model ?? DEFAULT_REPLY_MODEL;
+}
 
 // ── Worker loop ───────────────────────────────────────────────
 
@@ -19,7 +28,6 @@ export async function startReplyWorker() {
 
   while (true) {
     try {
-      // Block-pop from Redis queue (poll every 1s)
       const raw = await redis.rpop('reply_jobs');
 
       if (!raw) {
@@ -48,24 +56,33 @@ async function processReplyJob(job: ReplyJob) {
   let deliveryFailed = false;
 
   try {
+    const agentId = getAgentId();
+    if (agentId) {
+      const stats = await maybeAutoPauseOnBudget(agentId);
+      if (stats) {
+        console.warn('[ReplyWorker] Skipping reply — budget auto-pause active');
+        return;
+      }
+    }
+
     let replyText = job.reply_text?.trim() ?? '';
     let inputTokens = job.prompt_tokens ?? 0;
     let outputTokens = job.completion_tokens ?? 0;
 
     if (!replyText) {
-      // ── Build context (parallel fetch) ─────────────────────
       const ctx = await buildPromptContext({
         groupId: job.group_id,
         senderWaId: job.sender_wa_id,
         currentMessage: job.body,
+        quotedMessage: job.quoted_message,
       });
 
+      const replyModel = resolveReplyModel(ctx.character_config);
       const systemPrompt = buildSystemPrompt(ctx);
       const conversationTurns = buildConversationTurns(ctx);
 
-      // ── Call Claude ────────────────────────────────────────
       const response = await anthropic.messages.create({
-        model: REPLY_MODEL,
+        model: replyModel,
         max_tokens: MAX_TOKENS,
         system: systemPrompt,
         messages: [...conversationTurns, { role: 'user', content: `${job.sender_name}: ${job.body}` }],
@@ -83,7 +100,6 @@ async function processReplyJob(job: ReplyJob) {
 
     const latencyMs = Date.now() - startTime;
 
-    // ── Send via WhatsApp or Twilio ────────────────────────
     try {
       await deliverReply(job.wa_group_id, replyText, job.wa_msg_id);
     } catch (err) {
@@ -106,7 +122,6 @@ async function processReplyJob(job: ReplyJob) {
       throw err;
     }
 
-    // ── Store reply in DB ──────────────────────────────────
     await db.from('messages').insert({
       group_id: job.group_id,
       sender_wa_id: 'agent',
@@ -129,14 +144,11 @@ async function processReplyJob(job: ReplyJob) {
       .select('id')
       .single();
 
-    // ── Store job ID for reaction monitoring ───────────────
     if (replyRecord?.id) {
-      await redis.setex(
-        `pending_reaction:${job.group_id}:${replyRecord.id}`,
-        120, // monitor for 2 minutes
-        JSON.stringify({ wa_group_id: job.wa_group_id, reply_body: replyText }),
-      );
+      await redis.setex(`pending_reaction:${job.group_id}:${replyRecord.id}`, 120, JSON.stringify({ wa_group_id: job.wa_group_id, reply_body: replyText }));
     }
+
+    if (agentId) await maybeAutoPauseOnBudget(agentId);
 
     console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${inputTokens + outputTokens} tokens)`);
   } catch (err) {
@@ -151,8 +163,6 @@ async function processReplyJob(job: ReplyJob) {
 // ── Reaction monitor (called by message handler) ──────────────
 
 export async function checkForNegativeReaction(params: { groupId: string; senderWaId: string; body: string; waGroupId: string }) {
-  // Scan for pending reaction keys — KEYS is O(N) and blocks Redis;
-  // SCAN iterates incrementally and is safe on large keyspaces.
   const keys: string[] = [];
   let cursor = 0;
   do {
@@ -168,14 +178,12 @@ export async function checkForNegativeReaction(params: { groupId: string; sender
   const isNegative = detectNegativeReaction(params.body);
   if (!isNegative) return;
 
-  // Get group character config for in-character apology
   const { data: group } = await db.from('groups').select('character_config').eq('id', params.groupId).single();
 
   const apology = await generateApology(group?.character_config);
 
   await deliverReply(params.waGroupId, apology);
 
-  // Flag reply as miss
   for (const key of keys) {
     const parts = key.split(':');
     const replyId = parts[parts.length - 1];

@@ -1,17 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { LanguageMode } from '@wavi/shared';
+import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Episode summary (every 100 messages) ─────────────────────
 
-export async function generateEpisodeSummary(content: string): Promise<string> {
+export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto'): Promise<string> {
+  const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 150,
     messages: [
       {
         role: 'user',
-        content: `Summarize this WhatsApp group conversation in 2-3 sentences. Focus on: what happened, who was involved, and any decisions or notable moments.\n\n${content.slice(0, 4000)}`,
+        content: `${lang}\n\nSummarize this WhatsApp group conversation in 2-3 sentences. Focus on: what happened, who was involved, and any decisions or notable moments.\n\n${content.slice(0, 4000)}`,
       },
     ],
   });
@@ -21,14 +24,15 @@ export async function generateEpisodeSummary(content: string): Promise<string> {
 
 // ── Rolling group context (every 100 messages) ────────────────
 
-export async function generateGroupContext(params: { groupName: string; recentContent: string; previousContext: string }): Promise<string> {
+export async function generateGroupContext(params: { groupName: string; recentContent: string; previousContext: string; languageMode?: LanguageMode }): Promise<string> {
+  const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 200,
     messages: [
       {
         role: 'user',
-        content: `You are analyzing a WhatsApp group called "${params.groupName}".
+        content: `${lang}\n\nYou are analyzing a WhatsApp group called "${params.groupName}".
 
 Previous context: ${params.previousContext || 'None'}
 
@@ -49,7 +53,7 @@ Write a SHORT context summary (max 150 words) covering:
 
 // ── Character synthesis (Sonnet — used at setup only) ─────────
 
-export async function synthesizeCharacter(params: { groupName: string; episodeSummaries: string[]; userProfiles: string[]; languageMode: string }): Promise<{
+export async function synthesizeCharacter(params: { groupName: string; episodeSummaries: string[]; userProfiles: string[]; languageMode: LanguageMode }): Promise<{
   voice: string;
   opinions: string[];
   signature_behavior: string;
@@ -61,13 +65,14 @@ export async function synthesizeCharacter(params: { groupName: string; episodeSu
     empathy: number;
   };
 }> {
+  const lang = synthesisLanguageInstruction(params.languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 800,
     messages: [
       {
         role: 'user',
-        content: `You are designing an AI persona for a WhatsApp group called "${params.groupName}".
+        content: `${lang}\n\nYou are designing an AI persona for a WhatsApp group called "${params.groupName}".
 
 Based on the group's history below, create a character that FITS this group's energy — a slightly exaggerated version of their own vibe.
 
@@ -100,7 +105,6 @@ Respond in valid JSON only (no markdown, no explanation):
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean);
   } catch {
-    // Fallback defaults if parsing fails
     return {
       voice: `A friendly, witty member of ${params.groupName} who knows everyone well.`,
       opinions: ['Pineapple does not belong on pizza', 'Sleep is underrated', 'Group chats are better with AI'],
@@ -108,4 +112,21 @@ Respond in valid JSON only (no markdown, no explanation):
       sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65 },
     };
   }
+}
+
+/** Chunk summary (1 sentence). */
+export async function generateChunkSummary(content: string, languageMode: LanguageMode = 'auto'): Promise<string> {
+  const lang = synthesisLanguageInstruction(languageMode);
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 100,
+    messages: [
+      {
+        role: 'user',
+        content: `${lang}\n\nSummarize this WhatsApp group conversation in ONE sentence (max 20 words). Focus on the main topic or event.\n\n${content.slice(0, 2000)}`,
+      },
+    ],
+  });
+
+  return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group conversation.';
 }

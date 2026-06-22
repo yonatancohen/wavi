@@ -1,11 +1,12 @@
 import { db } from '../db/client.js';
-import type { UserProfileData } from '@wavi/shared';
+import type { UserProfileData, LanguageMode } from '@wavi/shared';
+import { synthesisLanguageInstruction } from './language.js';
 
 interface ProfileMessage {
   body: string;
 }
 
-export async function profileUser(groupId: string, waUserId: string, displayName: string, messages: ProfileMessage[]): Promise<void> {
+export async function profileUser(groupId: string, waUserId: string, displayName: string, messages: ProfileMessage[], languageMode: LanguageMode = 'auto'): Promise<void> {
   if (messages.length < 5) return;
 
   const sample = messages
@@ -16,13 +17,16 @@ export async function profileUser(groupId: string, waUserId: string, displayName
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+  const lang = synthesisLanguageInstruction(languageMode);
   const response = await client.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 300,
     messages: [
       {
         role: 'user',
-        content: `Analyze this person's WhatsApp messages and return JSON only:
+        content: `${lang} (the "behavioral_summary" field in particular).
+
+Analyze this person's WhatsApp messages and return JSON only:
 {
   "humor_type": "sarcastic|absurdist|self-deprecating|dad-jokes|dry|none",
   "humor_score": <0-100>,
@@ -64,7 +68,7 @@ ${sample.slice(0, 2000)}`,
   }
 }
 
-export async function buildUserProfilesFromHistory(groupId: string, messages: Array<{ sender_name: string; body: string; timestamp: Date }>) {
+export async function buildUserProfilesFromHistory(groupId: string, messages: Array<{ sender_name: string; body: string; timestamp: Date }>, languageMode: LanguageMode = 'auto') {
   const byUser: Record<string, string[]> = {};
   for (const msg of messages) {
     if (!byUser[msg.sender_name]) byUser[msg.sender_name] = [];
@@ -77,6 +81,7 @@ export async function buildUserProfilesFromHistory(groupId: string, messages: Ar
       name, // display name placeholder until live reconciliation
       name,
       bodies.map((body) => ({ body })),
+      languageMode,
     );
   }
 }
