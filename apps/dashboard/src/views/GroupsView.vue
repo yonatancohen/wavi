@@ -15,7 +15,7 @@
       </button>
     </header>
 
-    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+    <div class="page-content py-7">
       <button class="btn btn-primary mb-4 flex w-full items-center justify-center gap-2 lg:hidden" :disabled="discovering" @click="openDiscover">
         <span class="material-symbols-outlined text-[16px]">group_add</span>
         {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}

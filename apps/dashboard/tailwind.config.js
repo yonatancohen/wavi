@@ -66,8 +66,8 @@ export default {
       },
       spacing: {
         gutter: '16px',
-        'margin-mobile': '20px',
-        'margin-desktop': '40px',
+        'margin-mobile': '16px',
+        'margin-desktop': '24px',
       },
       borderRadius: {
         DEFAULT: '0.25rem',

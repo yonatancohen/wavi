@@ -9,7 +9,7 @@
       </p>
     </header>
 
-    <div class="mx-auto flex w-full max-w-[900px] flex-1 flex-col px-margin-mobile py-7 lg:px-margin-desktop">
+    <div class="page-content flex flex-col py-7">
       <TestChatPanel />
     </div>
   </div>

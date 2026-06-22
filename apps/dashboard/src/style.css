@@ -125,6 +125,18 @@
     }
   }
 
+  /* Scrollable body inside dashboard bento columns (~4 group cards, then scroll) */
+  .dashboard-bento-scroll {
+    @apply min-h-0 overflow-y-auto overscroll-y-contain pe-0.5;
+    max-height: 26.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-bento-scroll {
+      max-height: none;
+    }
+  }
+
   /* ── Sidebar nav items ───────────────────────── */
   .nav-item {
     @apply relative mx-2 flex items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-medium text-on-surface-variant no-underline transition-all duration-150;
@@ -217,6 +229,11 @@
     @apply border-b border-outline-variant px-margin-mobile py-4 lg:px-margin-desktop;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
     backdrop-filter: blur(8px);
+  }
+
+  /* ── Page content — full width, aligned with header gutters ── */
+  .page-content {
+    @apply w-full flex-1 px-margin-mobile lg:px-margin-desktop;
   }
 
   /* ── Main content area (mobile bottom nav clearance) ── */
@@ -328,7 +345,7 @@
   }
 
   .group-tabs {
-    @apply flex gap-1 overflow-x-auto p-1;
+    @apply flex gap-0 overflow-x-auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -338,25 +355,38 @@
   }
 
   .group-tabs-bar {
-    @apply mt-4 border-t border-outline-variant/50 pt-3;
+    @apply mt-4;
   }
 
   .group-tab {
-    @apply shrink-0 rounded-lg px-3.5 py-2 text-[12px] font-medium no-underline transition-colors;
+    @apply relative shrink-0 border-b-2 border-transparent px-4 py-2.5 text-[12px] font-medium no-underline transition-colors;
+    margin-bottom: -1px;
     -webkit-tap-highlight-color: transparent;
   }
 
   .group-tab-inactive {
-    @apply text-on-surface-variant hover:bg-on-surface/[0.04] hover:text-on-surface;
+    @apply text-on-surface-variant hover:text-on-surface;
+  }
+
+  .group-tab-inactive:hover {
+    border-bottom-color: color-mix(in srgb, rgb(var(--color-outline-variant)) 80%, transparent);
   }
 
   .group-tab-active {
-    @apply bg-surface-container text-on-surface shadow-sm ring-1 ring-outline-variant/60;
+    @apply border-primary text-on-surface;
   }
 
   .group-tabs-mobile {
-    @apply sticky top-0 z-10 border-b border-outline-variant bg-surface/95 px-margin-mobile py-2 backdrop-blur-md lg:hidden;
+    @apply sticky top-0 z-10 border-b border-outline-variant bg-surface/95 px-margin-mobile pb-0 pt-2 backdrop-blur-md lg:hidden;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 92%, transparent);
+  }
+
+  .group-tabs-mobile .group-tabs {
+    @apply -mx-1;
+  }
+
+  .group-tabs-mobile .group-tab {
+    @apply px-3 py-2;
   }
 
   .group-panel {
