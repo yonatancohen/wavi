@@ -106,10 +106,10 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   const agentIds = getAgentUserIds();
   if (agentIds.includes(waUserId(senderWaId))) return;
 
-  // Dedup by waMsgId
+  // Dedup by waMsgId — SET NX avoids a separate EXISTS round-trip.
   const dedupKey = `msg_dedup:${msg.waMsgId}`;
-  if (await redis.exists(dedupKey)) return;
-  await redis.setex(dedupKey, 3600, '1');
+  const deduped = await redis.set(dedupKey, '1', { ex: 3600, nx: true });
+  if (deduped === null) return;
 
   const { data: group } = await db.from('groups').select('id, name, status, character_config, language_mode').eq('wa_group_id', waGroupId).single();
 

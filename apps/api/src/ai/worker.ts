@@ -7,6 +7,9 @@ import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import type { ReplyJob } from '../lib/reply-queue.js';
 
 const MAX_DELIVERY_ATTEMPTS = 5;
+const REPLY_QUEUE_KEY = 'reply_jobs';
+const IDLE_MS_MIN = 2_000;
+const IDLE_MS_MAX = 30_000;
 
 function getAgentId(): string | null {
   return process.env.AGENT_ID ?? null;
@@ -17,14 +20,23 @@ function getAgentId(): string | null {
 export async function startReplyWorker() {
   console.log('[ReplyWorker] Starting...');
 
+  let idleMs = IDLE_MS_MIN;
+
   while (true) {
     try {
-      const raw = await redis.rpop('reply_jobs');
-
-      if (!raw) {
-        await sleep(1000);
+      // RPOP mutates the list and counts as a write on Upstash. When the queue
+      // is empty, poll with LLEN (read) + backoff instead of hammering RPOP 24/7.
+      const queueLen = await redis.llen(REPLY_QUEUE_KEY);
+      if (queueLen === 0) {
+        await sleep(idleMs);
+        idleMs = Math.min(Math.round(idleMs * 1.5), IDLE_MS_MAX);
         continue;
       }
+
+      idleMs = IDLE_MS_MIN;
+      const raw = await redis.rpop(REPLY_QUEUE_KEY);
+
+      if (!raw) continue;
 
       const job = typeof raw === 'string' ? (JSON.parse(raw) as ReplyJob) : (raw as ReplyJob);
       await processReplyJob(job);
@@ -87,7 +99,7 @@ async function processReplyJob(job: ReplyJob) {
       if (attempt < MAX_DELIVERY_ATTEMPTS) {
         deliveryFailed = true;
         await redis.lpush(
-          'reply_jobs',
+          REPLY_QUEUE_KEY,
           JSON.stringify({
             ...job,
             reply_text: replyText,

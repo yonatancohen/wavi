@@ -26,9 +26,7 @@ export async function appendToChunkBuffer(groupId: string, msg: { sender_wa_id: 
     timestamp: msg.timestamp.toISOString(),
   };
 
-  await redis.rpush(key, JSON.stringify(entry));
-
-  const bufferLen = await redis.llen(key);
+  const bufferLen = await redis.rpush(key, JSON.stringify(entry));
 
   if (bufferLen >= CHUNK_SIZE) {
     await flushChunkBuffer(groupId);
