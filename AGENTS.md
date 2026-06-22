@@ -16,7 +16,7 @@ Wavi is a configurable AI agent that lives inside WhatsApp group chats. It inges
 - **Data:** Supabase (Postgres + pgvector), Upstash Redis (queue + ephemeral state).
 - **AI:** Anthropic Claude (replies + character synthesis), OpenAI (embeddings only).
 - **WhatsApp:** `whatsapp-web.js` (default) or Baileys, selected at runtime via `WA_PROVIDER`. Twilio is an optional DM path.
-- **Deploy:** API → Railway (Dockerfile from repo root), Dashboard → Vercel. See `docs/DEPLOY.md`.
+- **Deploy:** API → Railway (Dockerfile from repo root), Dashboard → Vercel. See `docs/DEPLOY.md`. Railway prod sizing: **1 vCPU, 1 GB RAM**, **1 replica**, **1 GB volume** at `/data` (Baileys, ~2–5 groups).
 
 ## Repo layout
 

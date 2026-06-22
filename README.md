@@ -118,7 +118,7 @@ bun run sync-secrets      # push .env → Railway + Vercel
 bun run deploy:prod       # deploy API + dashboard
 ```
 
-- **API → Railway** (`apps/api`) — attach a volume at `/data` for WhatsApp session
+- **API → Railway** — **1 vCPU / 1 GB RAM**, one replica, **1 GB volume** at `/data` (see `docs/DEPLOY.md`)
 - **Dashboard → Vercel** (`apps/dashboard`)
 - Dev and prod share the same Supabase + Redis for now
 

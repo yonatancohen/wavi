@@ -47,13 +47,29 @@ cd ../..
 # Deploy runs from repo root (Dockerfile) — do NOT `railway up` from apps/api
 ```
 
-### 5. Railway volume (WhatsApp session)
+### 5. Railway service resources
+
+One **always-on** API service (`wavi-api`). Do not run multiple replicas — one WhatsApp session per agent.
+
+Production defaults (Baileys, ~2–5 groups):
+
+| Setting      | Value    | Notes                                             |
+| ------------ | -------- | ------------------------------------------------- |
+| **Memory**   | **1 GB** | Headroom for history uploads and reconnect spikes |
+| **vCPU**     | **1**    | Mostly I/O-bound (Redis, Supabase, Anthropic)     |
+| **Replicas** | **1**    | Horizontal scaling breaks WhatsApp auth           |
+
+Bump to **2 GB RAM** only if Railway logs show OOM kills or heavy concurrent ingestion. If you switch to `WA_PROVIDER=wwebjs` (Chromium), use **2 GB RAM + 1–2 vCPU** instead.
+
+Set these under Railway → your API service → **Settings** → **Resources**.
+
+### 6. Railway volume (WhatsApp session)
 
 WhatsApp login must survive redeploys:
 
 1. Railway → your API service → **Volumes**
-2. Add a volume mounted at **`/data`**
-3. Deploy scripts set `WA_SESSION_PATH=/data/.wwebjs_auth` automatically
+2. Add a **1 GB** volume mounted at **`/data`**
+3. Deploy scripts set `WA_BAILEYS_AUTH_PATH=/data/.baileys_auth` (default) and wwebjs paths under `/data` if you roll back provider
 
 ---
 
@@ -135,6 +151,7 @@ Then open the production dashboard → **WhatsApp** → scan QR.
 | CORS / QR stream blocked                  | Ensure `DASHBOARD_URL` on Railway matches your Vercel URL exactly              |
 | Groups page 500 `AGENT_ID not configured` | Run `./scripts/db-setup.sh`, then `bun run sync-secrets:api`                   |
 | WhatsApp disconnects after deploy         | Attach Railway volume at `/data`                                               |
+| Service OOM / restart loops               | Raise memory to 2 GB; keep 1 vCPU unless ingestion is constantly saturated     |
 | Dashboard calls localhost API             | Set `VITE_API_URL` in `apps/dashboard/.env` to Railway URL, re-sync + redeploy |
 | `railway login` / `vercel login` expired  | Re-authenticate and rerun deploy                                               |
 
