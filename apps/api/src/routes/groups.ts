@@ -1,7 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats } from '@wavi/shared';
+import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats, CostStats } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
+import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
+import { getCostStats } from '../lib/cost.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -41,6 +43,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   // Must be registered before /:id
+  fastify.get('/cost', async () => {
+    const stats: CostStats = await getCostStats(getAgentId());
+    return stats;
+  });
+
   fastify.get('/discover', async (_req, reply) => {
     try {
       const waGroups = await listGroupChats();
@@ -91,6 +98,8 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         wa_group_id: wa_group_id.trim(),
         name: name?.trim() || 'Unnamed group',
         status: 'pending_setup',
+        // Hebrew is the actively-tuned default; operators can switch in settings.
+        language_mode: 'he',
       })
       .select()
       .single();
@@ -112,6 +121,32 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     const { data } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single().throwOnError();
     return mapGroupRow(data);
+  });
+
+  // ── POST /:id/rebuild — regenerate intelligence from stored messages ──
+  // Reuses the ingestion SSE progress stream (GET /api/ingest/:id/progress)
+  // since rebuild writes to the same Redis progress key.
+  fastify.post<{ Params: { id: string } }>('/:id/rebuild', async (req, reply) => {
+    const { id } = req.params;
+
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { count } = await db.from('messages').select('id', { count: 'exact', head: true }).eq('group_id', id).eq('is_agent_reply', false);
+
+    if (!count || count === 0) {
+      return reply.code(400).send({ error: 'No stored messages to rebuild from. Upload chat history first.' });
+    }
+
+    // Reset progress before responding so a freshly-opened SSE stream
+    // doesn't immediately observe a stale 'done' from a previous run.
+    await setIngestionProgress(id, { stage: 'parsing', total_messages: count });
+
+    reply.send({ ok: true, message: 'Rebuild started', total_messages: count });
+
+    runRebuildFromStoredMessages(id).catch((err) => {
+      console.error('[Rebuild] Failed:', err);
+    });
   });
 
   // Messages (cursor pagination — latest first, load older via ?before=)
