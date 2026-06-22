@@ -240,7 +240,7 @@ function startQrStream() {
     if (!qrDataUrl.value && !connected.value && !processing.value) {
       streamError.value = t('connect.errors.timeout')
     }
-  }, 20_000)
+  }, 90_000)
 
   eventSource.onmessage = (e) => {
     const msg = JSON.parse(e.data)
