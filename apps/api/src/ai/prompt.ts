@@ -1,7 +1,9 @@
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
-import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext } from '@wavi/shared';
+import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
+import { messageReferencesName } from '../lib/identity.js';
+import { getProfileAliases } from '../lib/alias-store.js';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 
@@ -129,18 +131,17 @@ export async function fetchMentionedPeople(groupId: string, message: string, sen
 
   if (!profiles?.length) return [];
 
-  const lowerMsg = message.toLowerCase();
   const mentioned = profiles.filter((p) => {
     if (p.wa_user_id === senderWaId) return false;
-    const name = p.display_name?.trim();
-    if (!name || name.length < 2) return false;
-    return lowerMsg.includes(name.toLowerCase());
+    const aliases = getProfileAliases(p.profile_data as UserProfileData);
+    return messageReferencesName(message, p.display_name ?? '', aliases);
   });
 
   if (!mentioned.length) return [];
 
   const results: MentionedPerson[] = [];
   for (const profile of mentioned.slice(0, 3)) {
+    const aliases = getProfileAliases(profile.profile_data as UserProfileData);
     const { data: rels } = await db
       .from('relationship_map')
       .select('narrative')
@@ -151,6 +152,7 @@ export async function fetchMentionedPeople(groupId: string, message: string, sen
 
     results.push({
       display_name: profile.display_name,
+      aliases,
       behavioral_summary: profile.behavioral_summary ?? '',
       sensitivity_flags: profile.profile_data?.sensitivity_flags ?? [],
       relationships: (rels ?? []).map((r) => r.narrative),

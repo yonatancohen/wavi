@@ -6,6 +6,9 @@ import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
 import { isAgentTagged, getAgentUserIds } from './agent-identity.js';
 import { checkInputGuard } from '../ai/guard.js';
 import type { LanguageMode } from '@wavi/shared';
+import { addProfileAliases, findProfileByNameOrAlias, findProfileForReconciliation, getProfileAliases } from '../lib/alias-store.js';
+import { extractMentionLabels, mergeAliases, pairMentionLabelsWithIds } from '../lib/identity.js';
+import type { UserProfileData } from '@wavi/shared';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 
@@ -17,17 +20,23 @@ function waUserId(jid: string): string {
 async function reconcileUserIdentity(groupId: string, senderWaId: string, displayName: string) {
   if (!displayName || displayName === senderWaId) return;
 
-  const cacheKey = `reconciled:${groupId}:${senderWaId}`;
+  const waUserId = senderWaId.split('@')[0] ?? senderWaId;
+  const cacheKey = `reconciled:${groupId}:${waUserId}`;
   if (await redis.exists(cacheKey)) return;
 
-  const { data: alreadyKeyed } = await db.from('user_profiles').select('id').eq('group_id', groupId).eq('wa_user_id', senderWaId).maybeSingle();
+  const { data: alreadyKeyed } = await db.from('user_profiles').select('id, display_name, profile_data').eq('group_id', groupId).eq('wa_user_id', waUserId).maybeSingle();
 
   if (alreadyKeyed) {
+    // Update display name to live push name and record old export label as alias
+    if (alreadyKeyed.display_name !== displayName) {
+      await addProfileAliases(groupId, waUserId, alreadyKeyed.display_name);
+      await db.from('user_profiles').update({ display_name: displayName, last_updated: new Date().toISOString() }).eq('id', alreadyKeyed.id);
+    }
     await redis.setex(cacheKey, 86400, '1');
     return;
   }
 
-  const { data: profile } = await db.from('user_profiles').select('id, wa_user_id').eq('group_id', groupId).eq('display_name', displayName).maybeSingle();
+  const profile = await findProfileForReconciliation(groupId, displayName, waUserId);
 
   if (!profile || isWaJid(profile.wa_user_id)) {
     await redis.setex(cacheKey, 3600, '0');
@@ -35,11 +44,33 @@ async function reconcileUserIdentity(groupId: string, senderWaId: string, displa
   }
 
   const oldId = profile.wa_user_id;
-  await db.from('user_profiles').update({ wa_user_id: senderWaId }).eq('id', profile.id);
-  await reconcileRelationshipIds(groupId, oldId, senderWaId, displayName);
+  const oldDisplay = profile.display_name;
+  const existingAliases = getProfileAliases(profile.profile_data as UserProfileData);
+  const mergedAliases = mergeAliases(existingAliases, oldDisplay, oldId);
 
-  console.log(`[Reconcile] Updated wa_user_id "${oldId}" → ${senderWaId} in group ${groupId}`);
+  await db
+    .from('user_profiles')
+    .update({
+      wa_user_id: waUserId,
+      display_name: displayName,
+      profile_data: { ...(profile.profile_data as object), aliases: mergedAliases },
+      last_updated: new Date().toISOString(),
+    })
+    .eq('id', profile.id);
+  await reconcileRelationshipIds(groupId, oldId, waUserId, displayName);
+
+  console.log(`[Reconcile] Updated wa_user_id "${oldId}" → ${waUserId} (${displayName}) in group ${groupId}`);
   await redis.setex(cacheKey, 86400, '1');
+}
+
+/** Mine @mention contact labels from live messages → aliases on mentioned profiles. */
+async function mineMentionAliases(groupId: string, body: string, mentionedIds: string[]) {
+  if (!mentionedIds.length) return;
+  const labels = extractMentionLabels(body);
+  const pairs = pairMentionLabelsWithIds(labels, mentionedIds);
+  for (const { waId, label } of pairs) {
+    await addProfileAliases(groupId, waId, label);
+  }
 }
 
 function isWaJid(id: string): boolean {
@@ -145,6 +176,10 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     timestamp: new Date(msg.timestampMs),
   });
 
+  mineMentionAliases(group.id, body, msg.mentionedIds).catch((err) => {
+    console.error('[Alias] Mention mining failed:', err);
+  });
+
   const tagged = isAgentTagged(msg, body);
   if (!tagged) {
     if (resolvedNameEarly && resolvedNameEarly !== senderWaId) {
@@ -159,7 +194,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     console.error('[Reconcile] Failed:', err);
   });
 
-  // Memory commands (F-06)
+  // Memory + alias commands (F-06)
   const memoryHandled = await tryHandleMemoryCommand({
     groupId: group.id,
     waGroupId,
@@ -170,6 +205,15 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     waMsgId: msg.waMsgId,
   });
   if (memoryHandled) return;
+
+  const aliasHandled = await tryHandleAliasCommand({
+    groupId: group.id,
+    waGroupId,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+  });
+  if (aliasHandled) return;
 
   // Bot-loop protection: skip if recent turns are all agent
   if (await isAgentOnlyLoop(group.id)) {
@@ -259,6 +303,51 @@ function detectMemoryCommand(body: string): { cmd: MemoryCommand; payload: strin
   }
 
   return null;
+}
+
+/** @wavi alias "My Love" is Alon  |  @wavi כינוי "אמא" זה Sarah */
+function detectAliasCommand(body: string): { alias: string; person: string } | null {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+
+  const enMatch = stripped.match(/^alias[:\s]+["']?(.+?)["']?\s+(?:is|=)\s+(.+)$/i);
+  if (enMatch) return { alias: enMatch[1].trim(), person: enMatch[2].trim() };
+
+  const heMatch = stripped.match(/^(?:כינוי|alias)[:\s]+["']?(.+?)["']?\s+(?:זה|הוא|היא|is)\s+(.+)$/i);
+  if (heMatch) return { alias: heMatch[1].trim(), person: heMatch[2].trim() };
+
+  return null;
+}
+
+async function tryHandleAliasCommand(params: { groupId: string; waGroupId: string; body: string; languageMode: LanguageMode; waMsgId: string }): Promise<boolean> {
+  const parsed = detectAliasCommand(params.body);
+  if (!parsed) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  const profile = await findProfileByNameOrAlias(params.groupId, parsed.person);
+
+  if (!profile) {
+    const reply = he ? `לא מצאתי מישהו בשם "${parsed.person}" 😕` : `Couldn't find anyone named "${parsed.person}" 😕`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId);
+    return true;
+  }
+
+  await addProfileAliases(params.groupId, profile.wa_user_id, parsed.alias);
+  const reply = he ? `סבבה, "${parsed.alias}" = ${profile.display_name} 👍` : `Got it — "${parsed.alias}" is ${profile.display_name} 👍`;
+  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId);
+  return true;
+}
+
+async function sendAgentReply(groupId: string, waGroupId: string, reply: string, waMsgId: string) {
+  await db.from('messages').insert({
+    group_id: groupId,
+    sender_wa_id: 'agent',
+    sender_name: AGENT_NAME,
+    body: reply,
+    is_agent_reply: true,
+    timestamp: new Date().toISOString(),
+  });
+  const { sendReply } = await import('./client.js');
+  await sendReply(waGroupId, reply, waMsgId);
 }
 
 async function tryHandleMemoryCommand(params: {

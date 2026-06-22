@@ -45,7 +45,7 @@ ${ctx.group_context_summary || 'No group context available yet.'}
 BLOCK 6 — SENDER PROFILE
 ${
   ctx.sender_profile
-    ? `The person tagging you is ${ctx.sender_profile.display_name}. ${ctx.sender_profile.behavioral_summary}`
+    ? `The person tagging you is ${ctx.sender_profile.display_name}.${formatAliasesLine(ctx.sender_profile.profile_data?.aliases)} ${ctx.sender_profile.behavioral_summary}`
     : 'You do not have a profile for this person yet — treat them neutrally.'
 }
 
@@ -169,10 +169,16 @@ function buildMentionedPeopleBlock(ctx: PromptContext): string {
   if (!ctx.mentioned_people?.length) return '';
   const lines = ctx.mentioned_people.map((p) => {
     const rels = p.relationships.length ? ` Relationships: ${p.relationships.join(' ')}` : '';
-    return `- ${p.display_name}: ${p.behavioral_summary}${rels}`;
+    const aka = p.aliases?.length ? ` Also called: ${p.aliases.join(', ')}.` : '';
+    return `- ${p.display_name}:${aka} ${p.behavioral_summary}${rels}`;
   });
   return `BLOCK — PEOPLE REFERENCED IN THIS MESSAGE
 ${lines.join('\n')}`;
+}
+
+function formatAliasesLine(aliases: string[] | undefined): string {
+  if (!aliases?.length) return '';
+  return ` Also known as: ${aliases.join(', ')}.`;
 }
 
 function buildQuotedReplyBlock(ctx: PromptContext): string {

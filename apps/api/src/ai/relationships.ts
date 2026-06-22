@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
+import { extractMentionLabels, messageReferencesName } from '../lib/identity.js';
+import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -11,9 +13,16 @@ const DISAGREEMENT_KEYWORDS = ['wrong', 'no way', 'disagree', 'לא נכון', '
 const DEFENSE_POSITIVE = ['great', 'good', 'right', 'correct', 'agree', 'support', 'נכון', 'צודק', 'מעולה'];
 
 interface HistoryMessage {
+  sender_wa_id: string;
   sender_name: string;
   body: string;
   timestamp: Date;
+}
+
+interface MemberInfo {
+  waId: string;
+  displayName: string;
+  aliases: string[];
 }
 
 interface PairData {
@@ -33,11 +42,20 @@ function pairKey(a: string, b: string): string {
   return `${ua}|${ub}`;
 }
 
-function detectMentions(body: string, members: Map<string, string>): string[] {
+function detectMentions(body: string, members: Map<string, MemberInfo>): string[] {
   const mentioned: string[] = [];
-  for (const [id, name] of members) {
-    const pattern = new RegExp(`@${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (pattern.test(body)) mentioned.push(id);
+  const atLabels = extractMentionLabels(body);
+
+  for (const [id, info] of members) {
+    for (const label of atLabels) {
+      if (messageReferencesName(label, info.displayName, info.aliases)) {
+        mentioned.push(id);
+        break;
+      }
+    }
+    if (messageReferencesName(body, info.displayName, info.aliases)) {
+      if (!mentioned.includes(id)) mentioned.push(id);
+    }
   }
   return mentioned;
 }
@@ -47,17 +65,41 @@ function countKeywords(body: string, keywords: string[]): number {
   return keywords.reduce((n, kw) => n + (lower.includes(kw.toLowerCase()) ? 1 : 0), 0);
 }
 
-function detectDefense(body: string, targetName: string): boolean {
+function detectDefense(body: string, target: MemberInfo): boolean {
+  if (!messageReferencesName(body, target.displayName, target.aliases)) return false;
   const lower = body.toLowerCase();
-  if (!lower.includes(targetName.toLowerCase())) return false;
   return DEFENSE_POSITIVE.some((w) => lower.includes(w));
 }
 
-export async function buildRelationshipMap(groupId: string, messages: HistoryMessage[], languageMode: LanguageMode = 'auto'): Promise<void> {
-  const members = new Map<string, string>();
-  for (const msg of messages) {
-    if (!members.has(msg.sender_name)) {
-      members.set(msg.sender_name, msg.sender_name);
+function toHistoryMessages(messages: ResolvedExportMessage[]): HistoryMessage[] {
+  return messages
+    .filter((m) => !m.is_system_message)
+    .map((m) => ({
+      sender_wa_id: m.sender_wa_id,
+      sender_name: m.sender_name,
+      body: m.body,
+      timestamp: m.timestamp,
+    }));
+}
+
+export async function buildRelationshipMap(
+  groupId: string,
+  messages: ResolvedExportMessage[] | HistoryMessage[],
+  languageMode: LanguageMode = 'auto',
+  aliasMap?: Map<string, string[]>,
+): Promise<void> {
+  const history: HistoryMessage[] = messages.length > 0 && 'observed_labels' in messages[0] ? toHistoryMessages(messages as ResolvedExportMessage[]) : (messages as HistoryMessage[]);
+
+  if (history.length === 0) return;
+
+  const members = new Map<string, MemberInfo>();
+  for (const msg of history) {
+    if (!members.has(msg.sender_wa_id)) {
+      members.set(msg.sender_wa_id, {
+        waId: msg.sender_wa_id,
+        displayName: msg.sender_name,
+        aliases: aliasMap?.get(msg.sender_wa_id) ?? [],
+      });
     }
   }
 
@@ -71,8 +113,8 @@ export async function buildRelationshipMap(groupId: string, messages: HistoryMes
       pair = {
         userA: ua,
         userB: ub,
-        nameA: members.get(ua) ?? ua,
-        nameB: members.get(ub) ?? ub,
+        nameA: members.get(ua)?.displayName ?? ua,
+        nameB: members.get(ub)?.displayName ?? ub,
         signals: {
           reply_count_a_to_b: 0,
           reply_count_b_to_a: 0,
@@ -96,39 +138,36 @@ export async function buildRelationshipMap(groupId: string, messages: HistoryMes
     }
   };
 
-  // Temporal proximity + @mention attribution
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    const prev = i > 0 ? messages[i - 1] : null;
+  for (let i = 0; i < history.length; i++) {
+    const msg = history[i];
+    const prev = i > 0 ? history[i - 1] : null;
 
-    if (prev && prev.sender_name !== msg.sender_name) {
+    if (prev && prev.sender_wa_id !== msg.sender_wa_id) {
       const delta = msg.timestamp.getTime() - prev.timestamp.getTime();
       if (delta >= 0 && delta <= PROXIMITY_MS) {
-        incrementReply(msg.sender_name, prev.sender_name);
+        incrementReply(msg.sender_wa_id, prev.sender_wa_id);
       }
     }
 
     for (const targetId of detectMentions(msg.body, members)) {
-      if (targetId !== msg.sender_name) {
-        incrementReply(msg.sender_name, targetId);
+      if (targetId !== msg.sender_wa_id) {
+        incrementReply(msg.sender_wa_id, targetId);
       }
     }
   }
 
-  // Agreement / disagreement / defense across all pairs that interact
-  for (const msg of messages) {
-    for (const [otherId, otherName] of members) {
-      if (otherId === msg.sender_name) continue;
-      const pair = getPair(msg.sender_name, otherId);
-      const bodyLower = msg.body.toLowerCase();
+  for (const msg of history) {
+    for (const [otherId, otherInfo] of members) {
+      if (otherId === msg.sender_wa_id) continue;
+      const pair = getPair(msg.sender_wa_id, otherId);
 
-      if (countKeywords(msg.body, AGREEMENT_KEYWORDS) > 0 && bodyLower.includes(otherName.toLowerCase())) {
+      if (countKeywords(msg.body, AGREEMENT_KEYWORDS) > 0 && messageReferencesName(msg.body, otherInfo.displayName, otherInfo.aliases)) {
         pair.signals.agreement_count++;
       }
-      if (countKeywords(msg.body, DISAGREEMENT_KEYWORDS) > 0 && bodyLower.includes(otherName.toLowerCase())) {
+      if (countKeywords(msg.body, DISAGREEMENT_KEYWORDS) > 0 && messageReferencesName(msg.body, otherInfo.displayName, otherInfo.aliases)) {
         pair.signals.disagreement_count++;
       }
-      if (detectDefense(msg.body, otherName)) {
+      if (detectDefense(msg.body, otherInfo)) {
         pair.signals.defense_count++;
       }
     }
