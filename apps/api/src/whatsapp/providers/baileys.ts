@@ -194,12 +194,14 @@ export function createBaileysProvider(): WhatsAppProvider {
 
         const statusCode = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode
         const isLoggedOut = statusCode === DisconnectReason.loggedOut
+        // 440 = connectionReplaced: another session (browser/device) took over.
+        // Reconnecting with the same credentials would just get kicked again.
+        // Wipe auth and start fresh so we get a clean new QR.
+        const isReplaced = statusCode === 440
 
-        console.warn(`[Baileys] Disconnected (status ${statusCode ?? 'unknown'}) — loggedOut: ${isLoggedOut}`)
+        console.warn(`[Baileys] Disconnected (status ${statusCode ?? 'unknown'}) — loggedOut: ${isLoggedOut} | replaced: ${isReplaced}`)
 
-        if (isLoggedOut) {
-          // WA explicitly logged out this device — wipe credentials so the
-          // next connect() shows a fresh QR instead of looping on 401.
+        if (isLoggedOut || isReplaced) {
           await clearBaileysAuth()
         }
         scheduleReconnect()

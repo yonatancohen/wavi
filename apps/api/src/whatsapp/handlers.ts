@@ -142,7 +142,14 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     .eq('wa_group_id', waGroupId)
     .single()
 
-  if (!group || group.status === 'paused') return
+  if (!group) {
+    console.log(`[WA] Group not registered — wa_group_id: ${waGroupId}`)
+    return
+  }
+  if (group.status === 'paused') {
+    console.log(`[WA] Group is paused — ${group.name}`)
+    return
+  }
 
   // ── 2. Store message ──────────────────────────────────────
   const senderName = senderWaId
