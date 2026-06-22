@@ -52,23 +52,41 @@
       </div>
     </template>
 
-    <!-- Group detail -->
+    <!-- Group detail (bento layout approximation) -->
     <template v-else-if="variant === 'group-detail'">
-      <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <div v-for="i in 3" :key="i" class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-4" :style="{ animationDelay: `${i * 60}ms` }">
-          <Skeleton class="mb-2.5 h-2.5 w-20 rounded-sm" />
-          <Skeleton class="h-7 w-10 rounded-md" />
-        </div>
+      <div class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-4" style="animation-delay: 0ms">
+        <Skeleton class="mb-2 h-3 w-full rounded-sm" />
+        <Skeleton class="h-3 w-[72%] rounded-sm" />
       </div>
-      <div class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-6" style="animation-delay: 180ms">
-        <div class="mb-5 flex items-center gap-2">
-          <Skeleton class="h-6 w-6 rounded-md" />
-          <Skeleton class="h-5 w-16 rounded-md" />
+      <div class="grid gap-4 lg:grid-cols-[4fr_8fr] lg:items-stretch">
+        <div class="skeleton-card flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-4" style="animation-delay: 60ms">
+          <div class="mb-4 flex items-center gap-2">
+            <Skeleton class="h-4 w-4 rounded-md" />
+            <Skeleton class="h-3.5 w-20 rounded-sm" />
+          </div>
+          <Skeleton class="mb-3 h-2.5 w-full rounded-sm" />
+          <Skeleton class="mb-3 h-2.5 w-[85%] rounded-sm" />
+          <Skeleton class="h-9 w-full max-w-xs rounded-full" />
+          <div class="mt-auto border-t border-outline-variant pt-5">
+            <div class="mb-3 flex items-center gap-2">
+              <Skeleton class="h-4 w-4 rounded-md" />
+              <Skeleton class="h-3.5 w-24 rounded-sm" />
+            </div>
+            <Skeleton class="mb-3 h-2.5 w-full rounded-sm" />
+            <Skeleton class="h-9 w-28 rounded-full" />
+          </div>
         </div>
-        <Skeleton class="mb-2 h-3.5 w-full rounded-sm" />
-        <Skeleton class="mb-2 h-3.5 w-[94%] rounded-sm" />
-        <Skeleton class="mb-6 h-3.5 w-[68%] rounded-sm" />
-        <Skeleton class="h-10 w-[108px] rounded-full" />
+        <div class="skeleton-card flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-6" style="animation-delay: 120ms">
+          <div class="mb-5 flex items-center gap-2">
+            <Skeleton class="h-6 w-6 rounded-md" />
+            <Skeleton class="h-5 w-16 rounded-md" />
+          </div>
+          <Skeleton class="mb-2 h-3.5 w-full rounded-sm" />
+          <Skeleton class="mb-2 h-3.5 w-[94%] rounded-sm" />
+          <Skeleton class="mb-6 h-3.5 w-[68%] rounded-sm" />
+          <Skeleton class="min-h-[140px] flex-1 rounded-xl" />
+          <Skeleton class="mt-4 h-10 w-[108px] rounded-full" />
+        </div>
       </div>
     </template>
 
@@ -109,10 +127,11 @@ const rootClass = computed(() => {
     case 'group-cards':
       return 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4';
     case 'dashboard-groups':
-      return 'grid grid-cols-1 gap-4 md:grid-cols-2';
+      return 'grid grid-cols-1 gap-4';
     case 'activity-list':
-    case 'group-detail':
       return 'space-y-6';
+    case 'group-detail':
+      return 'space-y-4';
     case 'discover-list':
       return 'flex flex-col gap-3 px-6 pb-6 pt-4';
     default:

@@ -7,7 +7,7 @@
       <AgentStatusBadge />
     </header>
 
-    <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+    <div class="page-content py-7">
       <!-- Hero: greeting + KPI row -->
       <section class="mb-8 animate-slide-up">
         <div class="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -53,10 +53,10 @@
         </div>
       </section>
 
-      <!-- Bento grid -->
-      <div class="bento-grid">
+      <!-- Bento grid: Active Groups | Recent Activity | Session + Quick Actions -->
+      <div class="bento-grid items-stretch">
         <!-- Active Groups -->
-        <div class="flex flex-col gap-5 rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-8">
+        <div class="flex h-full min-h-0 flex-col gap-5 rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-4">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px] text-primary">group</span>
@@ -70,7 +70,7 @@
           </div>
 
           <div v-if="loading">
-            <LoadingSkeletons variant="dashboard-groups" :count="4" />
+            <LoadingSkeletons variant="dashboard-groups" :count="3" />
           </div>
 
           <div v-else-if="activeGroups.length === 0" class="rounded-xl border border-outline-variant bg-surface-container-high/60 p-8 text-center">
@@ -80,38 +80,77 @@
             <RouterLink to="/groups" class="btn btn-primary">{{ t('dashboard.activeGroups.addFromWhatsapp') }}</RouterLink>
           </div>
 
-          <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <RouterLink
-              v-for="group in activeGroups.slice(0, 4)"
-              :key="group.id"
-              :to="`/groups/${group.id}`"
-              class="group relative cursor-pointer overflow-hidden rounded-xl border border-on-surface/[0.07] bg-surface-container-high/60 p-4 transition-all hover:border-primary/30 hover:bg-surface-container-highest/80 no-underline"
-            >
-              <!-- Status accent bar -->
-              <div class="absolute start-0 top-0 h-full w-[3px]" :class="group.status === 'active' ? 'bg-primary' : group.status === 'paused' ? 'bg-error/70' : 'bg-secondary/70'" />
-              <div class="ps-1">
-                <div class="mb-3 flex items-center justify-between">
-                  <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" :class="statusBadgeClass(group.status)">
-                    {{ statusLabel(group.status, t) }}
-                  </span>
-                  <span class="font-mono text-[10px] text-on-surface-variant">
-                    {{ t('dashboard.activeGroups.msgCount', { count: group.message_count_today }) }}
-                  </span>
+          <div v-else class="dashboard-bento-scroll">
+            <div class="grid grid-cols-1 gap-3">
+              <RouterLink
+                v-for="group in activeGroups.slice(0, 6)"
+                :key="group.id"
+                :to="`/groups/${group.id}`"
+                class="group relative cursor-pointer overflow-hidden rounded-xl border border-on-surface/[0.07] bg-surface-container-high/60 p-4 transition-all hover:border-primary/30 hover:bg-surface-container-highest/80 no-underline"
+              >
+                <!-- Status accent bar -->
+                <div class="absolute start-0 top-0 h-full w-[3px]" :class="group.status === 'active' ? 'bg-primary' : group.status === 'paused' ? 'bg-error/70' : 'bg-secondary/70'" />
+                <div class="ps-1">
+                  <div class="mb-3 flex items-center justify-between">
+                    <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" :class="statusBadgeClass(group.status)">
+                      {{ statusLabel(group.status, t) }}
+                    </span>
+                    <span class="font-mono text-[10px] text-on-surface-variant">
+                      {{ t('dashboard.activeGroups.msgCount', { count: group.message_count_today }) }}
+                    </span>
+                  </div>
+                  <h4 class="mb-0.5 truncate font-sora text-[15px] font-semibold text-on-surface">
+                    {{ group.name }}
+                  </h4>
+                  <p class="text-[12px] text-on-surface-variant">
+                    {{ group.reply_count_today }}
+                    {{ group.reply_count_today === 1 ? t('dashboard.activeGroups.replies', 1) : t('dashboard.activeGroups.replies', 2) }}
+                  </p>
                 </div>
-                <h4 class="mb-0.5 font-sora text-[15px] font-semibold text-on-surface">
-                  {{ group.name }}
-                </h4>
-                <p class="text-[12px] text-on-surface-variant">
-                  {{ group.reply_count_today }}
-                  {{ group.reply_count_today === 1 ? t('dashboard.activeGroups.replies', 1) : t('dashboard.activeGroups.replies', 2) }}
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-4">
+          <ActiveFlowsIndicator v-if="activeFlowTotal > 0" class="mb-4" :total="activeFlowTotal" :flows="activeFlows" />
+
+          <div class="mb-4 flex items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="material-symbols-outlined shrink-0 text-[18px] text-primary">history</span>
+              <h3 class="truncate font-sora text-[15px] font-semibold text-on-surface">
+                {{ t('dashboard.recentActivity.title') }}
+              </h3>
+            </div>
+            <RouterLink to="/activity" class="flex shrink-0 items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary">
+              {{ t('dashboard.recentActivity.viewAll') }}
+              <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_forward</span>
+            </RouterLink>
+          </div>
+
+          <div class="dashboard-bento-scroll">
+            <div v-for="item in activityItems" :key="item.title" class="log-row">
+              <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="item.iconBg">
+                <span class="material-symbols-outlined text-[16px]" :class="item.iconColor">{{ item.icon }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-3">
+                  <h5 class="truncate text-[13px] font-semibold" :class="item.iconColor">
+                    {{ item.title }}
+                  </h5>
+                  <span class="log-timestamp shrink-0">{{ item.time }}</span>
+                </div>
+                <p class="mt-0.5 text-[13px] leading-relaxed text-on-surface-variant">
+                  {{ item.body }}
                 </p>
               </div>
-            </RouterLink>
+            </div>
           </div>
         </div>
 
         <!-- Session health + Quick Actions -->
-        <div class="flex flex-col gap-5 md:col-span-4">
+        <div class="flex h-full flex-col gap-5 md:col-span-4">
           <AgentHealthPanel />
 
           <div class="flex flex-col rounded-xl border border-outline-variant bg-surface-container p-5">
@@ -164,43 +203,6 @@
                   </p>
                 </div>
               </RouterLink>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-12">
-          <ActiveFlowsIndicator v-if="activeFlowTotal > 0" class="mb-4" :total="activeFlowTotal" :flows="activeFlows" />
-
-          <div class="mb-4 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-primary">history</span>
-              <h3 class="font-sora text-[15px] font-semibold text-on-surface">
-                {{ t('dashboard.recentActivity.title') }}
-              </h3>
-            </div>
-            <RouterLink to="/activity" class="flex items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary">
-              {{ t('dashboard.recentActivity.viewAll') }}
-              <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_forward</span>
-            </RouterLink>
-          </div>
-
-          <div>
-            <div v-for="item in activityItems" :key="item.title" class="log-row">
-              <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="item.iconBg">
-                <span class="material-symbols-outlined text-[16px]" :class="item.iconColor">{{ item.icon }}</span>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h5 class="text-[13px] font-semibold" :class="item.iconColor">
-                    {{ item.title }}
-                  </h5>
-                  <span class="log-timestamp shrink-0">{{ item.time }}</span>
-                </div>
-                <p class="mt-0.5 text-[13px] leading-relaxed text-on-surface-variant">
-                  {{ item.body }}
-                </p>
-              </div>
             </div>
           </div>
         </div>
