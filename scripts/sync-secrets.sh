@@ -111,17 +111,14 @@ sync_railway() {
 
   set_railway_literal "PORT=3000"
   set_railway_literal "NODE_ENV=production"
+  set_railway_literal "WA_PROVIDER=baileys"
+  # Baileys persists multi-file auth state here (survives restarts via volume)
+  set_railway_literal "WA_BAILEYS_AUTH_PATH=/data/.baileys_auth"
+  # Keep wwebjs paths so a rollback to WA_PROVIDER=wwebjs works without data loss
   set_railway_literal "WA_SESSION_PATH=/data/.wwebjs_auth"
   set_railway_literal "WA_CACHE_PATH=/data/.wwebjs_cache"
-  set_railway_literal "WA_PROVIDER=wwebjs"
-  set_railway_literal "WA_BAILEYS_AUTH_PATH=/data/.baileys_auth"
   set_railway_literal "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
   set_railway_literal "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium"
-  set_railway_literal "WA_PROTOCOL_TIMEOUT_MS=300000"
-  # Avoid false-positive restarts on slow Railway Chromium — default 2 is too aggressive
-  set_railway_literal "WA_CDP_FAILURE_THRESHOLD=4"
-  # Give restarts more breathing room so churn doesn't pile up
-  set_railway_literal "WA_RESTART_COOLDOWN_MS=300000"
 
   cd "$ROOT"
 

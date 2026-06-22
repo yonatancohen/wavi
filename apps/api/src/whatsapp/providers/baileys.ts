@@ -8,6 +8,26 @@ import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage } from '
 // We read the status code to decide whether to reconnect.
 import { Boom } from '@hapi/boom'
 
+// Bun compatibility: in Bun's ws shim, registering 'upgrade' or
+// 'unexpected-response' listeners on a ws.WebSocket silently breaks delivery
+// of ALL subsequent events (message, close, etc.) for that socket. Baileys
+// always registers both, so the WA noise-protocol frames never arrive and the
+// connection hangs forever. Patching the prototype to skip those two
+// registrations keeps Bun's event routing intact for the events that matter.
+// Must happen at module-evaluation time, BEFORE Baileys is dynamically
+// imported, so that Baileys's own WebSocket reference shares the fixed proto.
+import WS from 'ws'
+
+if (process.versions.bun) {
+  // @ts-expect-error — patching prototype for Bun compatibility
+  const _origOn = WS.WebSocket.prototype.on as (event: string, listener: (...a: unknown[]) => void) => typeof WS.WebSocket.prototype
+  // @ts-expect-error
+  WS.WebSocket.prototype.on = function (event: string, listener: (...a: unknown[]) => void) {
+    if (event === 'upgrade' || event === 'unexpected-response') return this
+    return _origOn.call(this, event, listener)
+  }
+}
+
 const BAILEYS_AUTH_PATH =
   process.env.WA_BAILEYS_AUTH_PATH ?? './.baileys_auth'
 

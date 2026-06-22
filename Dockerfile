@@ -1,4 +1,5 @@
-FROM oven/bun:1.2-debian AS base
+# 1.4+ required for Baileys: ws 'upgrade' event ordering fix (bun#31408)
+FROM oven/bun:1.4-debian AS base
 
 WORKDIR /app
 
@@ -17,6 +18,11 @@ RUN apt-get update && apt-get install -y \
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Persistent volume mount point — Railway mounts /data at runtime.
+# Creating it in the image ensures a clean fallback path even without
+# a volume (e.g. local Docker testing or first-boot before volume attaches).
+RUN mkdir -p /data
 
 # Install deps (monorepo workspaces)
 COPY package.json bun.lock ./
