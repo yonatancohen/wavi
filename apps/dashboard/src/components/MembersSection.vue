@@ -88,22 +88,25 @@
             {{ t('members.noAliasesYet') }}
           </p>
 
-          <div class="flex flex-wrap items-end gap-2">
-            <div class="min-w-0 flex-1">
+          <div>
+            <div class="flex items-center gap-2">
               <input
                 v-model="aliasDraft[member.id]"
                 type="text"
-                class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface"
+                class="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface"
                 :placeholder="t('members.addAliasPlaceholder')"
                 @keydown.enter="addAliases(member)"
               />
-              <p class="mt-1 text-[10px] text-on-surface-variant/60">
-                {{ t('members.addAliasBulkHint') }}
-              </p>
+              <button type="button" class="btn btn-secondary shrink-0 px-3 py-1.5 text-[11px]" :disabled="!aliasDraft[member.id]?.trim()" @click="addAliases(member)">
+                {{ t('members.addNames') }}
+              </button>
             </div>
-            <button type="button" class="btn btn-secondary shrink-0 px-3 py-1.5 text-[11px]" :disabled="savingId === member.id || !aliasDraft[member.id]?.trim()" @click="addAliases(member)">
-              {{ t('members.addNames') }}
-            </button>
+            <p class="mt-1 text-[10px] text-on-surface-variant/60">
+              {{ t('members.addAliasBulkHint') }}
+            </p>
+            <p v-if="aliasErrors[member.id]" class="mt-1 text-[10px] text-error">
+              {{ aliasErrors[member.id] }}
+            </p>
           </div>
         </div>
 
@@ -170,11 +173,45 @@ const error = ref<string | null>(null);
 const savingId = ref<string | null>(null);
 const editingNameId = ref<string | null>(null);
 const aliasDraft = reactive<Record<string, string>>({});
+const aliasErrors = reactive<Record<string, string>>({});
 const nameDraft = reactive<Record<string, string>>({});
 const mergeTarget = reactive<Record<string, string>>({});
 
 function memberAliases(member: UserProfile): string[] {
   return member.profile_data?.aliases ?? [];
+}
+
+function parseAliasInput(raw: string): string[] {
+  return raw
+    .split(/[,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function applyAliasesLocally(memberId: string, newAliases: string[]) {
+  members.value = members.value.map((m) => {
+    if (m.id !== memberId) return m;
+    const existing = memberAliases(m);
+    const merged = [...existing];
+    for (const alias of newAliases) {
+      const norm = alias.toLowerCase();
+      if (!merged.some((a) => a.toLowerCase() === norm)) merged.push(alias);
+    }
+    return {
+      ...m,
+      profile_data: { ...m.profile_data, aliases: merged },
+    };
+  });
+}
+
+function restoreAliases(memberId: string, aliases: string[]) {
+  members.value = members.value.map((m) => {
+    if (m.id !== memberId) return m;
+    return {
+      ...m,
+      profile_data: { ...m.profile_data, aliases },
+    };
+  });
 }
 
 function activityBadgeClass(level: UserProfile['profile_data']['activity_level']) {
@@ -230,16 +267,21 @@ async function saveDisplayName(member: UserProfile) {
 async function addAliases(member: UserProfile) {
   const raw = aliasDraft[member.id]?.trim();
   if (!raw) return;
-  savingId.value = member.id;
-  error.value = null;
+
+  const pending = parseAliasInput(raw);
+  if (!pending.length) return;
+
+  const previous = [...memberAliases(member)];
+  applyAliasesLocally(member.id, pending);
+  aliasDraft[member.id] = '';
+  delete aliasErrors[member.id];
+
   try {
     const updated = await patchMember(member.id, { add_aliases: [raw] });
     members.value = members.value.map((m) => (m.id === member.id ? updated : m));
-    aliasDraft[member.id] = '';
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('members.failedSave');
-  } finally {
-    savingId.value = null;
+    restoreAliases(member.id, previous);
+    aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
   }
 }
 
