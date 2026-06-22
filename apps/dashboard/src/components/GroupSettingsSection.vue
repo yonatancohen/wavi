@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+  <section class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-4">
     <div class="mb-3 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-tertiary">tune</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">
@@ -28,6 +28,10 @@
       <option value="auto">{{ t('groupSettings.languageAuto') }}</option>
     </select>
     <p v-if="saving" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
+
+    <div class="mt-auto border-t border-outline-variant pt-5">
+      <RebuildIntelligence embedded :group-id="group.id" @complete="emit('rebuildComplete')" />
+    </div>
   </section>
 </template>
 
@@ -35,12 +39,13 @@
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
+import RebuildIntelligence from './RebuildIntelligence.vue';
 import type { GroupWithStats, LanguageMode } from '@wavi/shared';
 
 const { t } = useI18n();
 
 const props = defineProps<{ group: GroupWithStats }>();
-const emit = defineEmits<{ updated: [group: GroupWithStats] }>();
+const emit = defineEmits<{ updated: [group: GroupWithStats]; rebuildComplete: [] }>();
 
 const store = useGroupsStore();
 const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');

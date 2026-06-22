@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+  <section class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-4">
     <div class="mb-3 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-primary">upload_file</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('ingest.title') }}</h2>
@@ -9,7 +9,7 @@
     </p>
 
     <div
-      class="relative rounded-xl border-2 border-dashed px-5 py-5 text-center transition-colors"
+      class="relative flex min-h-[140px] flex-1 flex-col justify-center rounded-xl border-2 border-dashed px-5 py-5 text-center transition-colors"
       :class="dragOver ? 'border-primary bg-primary/[0.06]' : 'border-outline-variant bg-surface-variant/30 hover:border-primary/40'"
       @dragover.prevent="dragOver = true"
       @dragleave.prevent="dragOver = false"

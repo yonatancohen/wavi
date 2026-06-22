@@ -20,89 +20,95 @@
       {{ saveError }}
     </div>
 
-    <div class="mb-4">
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('character.replyModel') }}
-      </label>
-      <select
-        v-model="localConfig.reply_model"
-        class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-      >
-        <option :value="DEFAULT_REPLY_MODEL">{{ t('character.modelHaiku') }}</option>
-        <option value="claude-sonnet-4-6">{{ t('character.modelSonnet') }}</option>
-      </select>
-      <p class="mt-1.5 text-[11px] text-on-surface-variant">{{ t('character.replyModelHint') }}</p>
-    </div>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="space-y-4">
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.replyModel') }}
+          </label>
+          <select
+            v-model="localConfig.reply_model"
+            class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+          >
+            <option :value="DEFAULT_REPLY_MODEL">{{ t('character.modelHaiku') }}</option>
+            <option value="claude-sonnet-4-6">{{ t('character.modelSonnet') }}</option>
+          </select>
+          <p class="mt-1.5 text-[11px] text-on-surface-variant">{{ t('character.replyModelHint') }}</p>
+        </div>
 
-    <div class="mb-4">
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('character.voice') }}
-      </label>
-      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
-        {{ t('character.voiceHint') }}
-      </p>
-      <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
-        {{ localConfig.voice }}
-      </p>
-    </div>
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.voice') }}
+          </label>
+          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('character.voiceHint') }}
+          </p>
+          <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
+            {{ localConfig.voice }}
+          </p>
+        </div>
 
-    <div class="mb-4">
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('character.opinions') }}
-      </label>
-      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
-        {{ t('character.opinionsHint') }}
-      </p>
-      <div class="space-y-2">
-        <div v-for="(_, idx) in localConfig.opinions" :key="idx" class="flex items-start gap-2">
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.signature') }}
+          </label>
+          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('character.signatureHint') }}
+          </p>
           <textarea
-            v-model="localConfig.opinions[idx]"
+            v-model="localConfig.signature_behavior"
             rows="2"
-            :placeholder="t('character.opinionPlaceholder')"
-            class="min-w-0 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+            :placeholder="t('character.signaturePlaceholder')"
+            class="w-full resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
           />
-          <button type="button" class="icon-btn mt-1.5 shrink-0 !min-h-0 p-1.5 text-on-surface-variant/60 hover:text-error" :title="t('character.removeOpinion')" @click="removeOpinion(idx)">
-            <span class="material-symbols-outlined text-[18px]">close</span>
-          </button>
         </div>
       </div>
-      <button v-if="localConfig.opinions.length < MAX_OPINIONS" type="button" class="btn btn-secondary mt-2 inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[11px]" @click="addOpinion">
-        <span class="material-symbols-outlined text-[16px]">add</span>
-        {{ t('character.addOpinion') }}
-      </button>
-    </div>
 
-    <div class="mb-4">
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('character.signature') }}
-      </label>
-      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
-        {{ t('character.signatureHint') }}
-      </p>
-      <textarea
-        v-model="localConfig.signature_behavior"
-        rows="2"
-        :placeholder="t('character.signaturePlaceholder')"
-        class="w-full resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-      />
-    </div>
-
-    <div>
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('character.sliders') }}
-      </label>
-      <p class="mb-3 text-[11px] leading-relaxed text-on-surface-variant/80">
-        {{ t('character.slidersHint') }}
-      </p>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div v-for="slider in sliders" :key="slider.key">
-          <div class="mb-1 flex items-center justify-between text-[12px]">
-            <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
-            <span class="font-mono tabular-nums text-on-surface-variant">
-              {{ localConfig.sliders[slider.key] }}
-            </span>
+      <div class="space-y-4">
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.opinions') }}
+          </label>
+          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('character.opinionsHint') }}
+          </p>
+          <div class="space-y-2">
+            <div v-for="(_, idx) in localConfig.opinions" :key="idx" class="flex items-start gap-2">
+              <textarea
+                v-model="localConfig.opinions[idx]"
+                rows="2"
+                :placeholder="t('character.opinionPlaceholder')"
+                class="min-w-0 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+              />
+              <button type="button" class="icon-btn mt-1.5 shrink-0 !min-h-0 p-1.5 text-on-surface-variant/60 hover:text-error" :title="t('character.removeOpinion')" @click="removeOpinion(idx)">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
           </div>
-          <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
+          <button v-if="localConfig.opinions.length < MAX_OPINIONS" type="button" class="btn btn-secondary mt-2 inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[11px]" @click="addOpinion">
+            <span class="material-symbols-outlined text-[16px]">add</span>
+            {{ t('character.addOpinion') }}
+          </button>
+        </div>
+
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.sliders') }}
+          </label>
+          <p class="mb-3 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('character.slidersHint') }}
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div v-for="slider in sliders" :key="slider.key">
+              <div class="mb-1 flex items-center justify-between text-[12px]">
+                <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
+                <span class="font-mono tabular-nums text-on-surface-variant">
+                  {{ localConfig.sliders[slider.key] }}
+                </span>
+              </div>
+              <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

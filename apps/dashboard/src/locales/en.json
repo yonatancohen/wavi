@@ -212,7 +212,8 @@
   "rebuild": {
     "title": "Rebuild intelligence",
     "body": "Regenerate member profiles, relationships, summaries, and character from stored messages — no new upload needed.",
-    "button": "Rebuild / re-synthesize",
+    "button": "Rebuild / re-sync",
+    "confirm": "Rebuild all member profiles, relationships, and character from stored messages? This may take a while.",
     "running": "Rebuilding…",
     "starting": "Starting rebuild…",
     "failed": "Rebuild failed"

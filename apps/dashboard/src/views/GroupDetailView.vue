@@ -2,7 +2,7 @@
   <div class="flex flex-col bg-background">
     <!-- Mobile tab bar (desktop header is hidden below lg) -->
     <nav v-if="group && !loading && !error" class="group-tabs-mobile" role="tablist" :aria-label="group.name">
-      <div class="group-tabs rounded-[10px] bg-surface-container-high/50">
+      <div class="group-tabs">
         <RouterLink
           v-for="tab in tabs"
           :key="tab.id"
@@ -71,7 +71,7 @@
       </div>
 
       <div v-if="group && !loading && !error" class="group-tabs-bar">
-        <nav class="group-tabs rounded-[10px] bg-surface-container-high/50" role="tablist" :aria-label="group.name">
+        <nav class="group-tabs" role="tablist" :aria-label="group.name">
           <RouterLink
             v-for="tab in tabs"
             :key="tab.id"
@@ -88,7 +88,7 @@
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-[960px] flex-1 px-margin-mobile py-5 lg:px-margin-desktop lg:py-6">
+    <div class="page-content py-5 lg:py-6">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div v-else-if="error" class="rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
@@ -96,20 +96,25 @@
       </div>
 
       <template v-else-if="group">
-        <div v-show="activeTab === 'setup'" class="space-y-4">
-          <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-            <p class="text-[13px] leading-relaxed text-on-surface-variant">
-              {{
-                t('groupDetail.setup.body', {
-                  live: t('groupDetail.setup.live'),
-                  mention: t('groupDetail.setup.mention'),
-                })
-              }}
-            </p>
-          </section>
-          <GroupSettingsSection :group="group" @updated="onGroupUpdated" />
-          <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
-          <RebuildIntelligence :group-id="group.id" @complete="onRebuildComplete" />
+        <div v-show="activeTab === 'setup'" class="bento-grid items-stretch">
+          <div class="col-span-12">
+            <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+              <p class="text-[13px] leading-relaxed text-on-surface-variant">
+                {{
+                  t('groupDetail.setup.body', {
+                    live: t('groupDetail.setup.live'),
+                    mention: t('groupDetail.setup.mention'),
+                  })
+                }}
+              </p>
+            </section>
+          </div>
+          <div class="col-span-12 h-full lg:col-span-4">
+            <GroupSettingsSection :group="group" @updated="onGroupUpdated" @rebuild-complete="onRebuildComplete" />
+          </div>
+          <div class="col-span-12 h-full lg:col-span-8">
+            <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
+          </div>
         </div>
 
         <div v-show="activeTab === 'character'" class="space-y-4">
@@ -151,7 +156,6 @@ import { statusBadgeClass, statusLabel } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import IngestUpload from '../components/IngestUpload.vue';
 import GroupSettingsSection from '../components/GroupSettingsSection.vue';
-import RebuildIntelligence from '../components/RebuildIntelligence.vue';
 import MembersSection from '../components/MembersSection.vue';
 import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';

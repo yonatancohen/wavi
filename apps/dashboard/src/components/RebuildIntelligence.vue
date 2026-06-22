@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+  <component :is="embedded ? 'div' : 'section'" :class="embedded ? undefined : 'rounded-xl border border-outline-variant bg-surface-container p-4'">
     <div class="mb-3 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-secondary">autorenew</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">
@@ -10,7 +10,7 @@
       {{ t('rebuild.body') }}
     </p>
 
-    <button type="button" class="btn btn-secondary flex items-center gap-2" :disabled="rebuilding || streaming" @click="startRebuild">
+    <button type="button" class="btn btn-secondary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="rebuilding || streaming" @click="onRebuildClick">
       <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': rebuilding || streaming }">autorenew</span>
       {{ rebuilding || streaming ? t('rebuild.running') : t('rebuild.button') }}
     </button>
@@ -51,7 +51,7 @@
         }}
       </p>
     </div>
-  </section>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -62,7 +62,13 @@ import { useIngestionProgress, INGESTION_STAGES } from '../composables/useIngest
 
 const { t } = useI18n();
 
-const props = defineProps<{ groupId: string }>();
+const props = withDefaults(
+  defineProps<{
+    groupId: string;
+    embedded?: boolean;
+  }>(),
+  { embedded: false },
+);
 const emit = defineEmits<{ complete: [] }>();
 
 const store = useGroupsStore();
@@ -70,6 +76,11 @@ const rebuilding = ref(false);
 const rebuildError = ref<string | null>(null);
 
 const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
+
+function onRebuildClick() {
+  if (!window.confirm(t('rebuild.confirm'))) return;
+  void startRebuild();
+}
 
 async function startRebuild() {
   rebuilding.value = true;
