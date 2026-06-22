@@ -1,5 +1,4 @@
-# 1.4+ required for Baileys: ws 'upgrade' event ordering fix (bun#31408)
-FROM oven/bun:1.4-debian AS base
+FROM oven/bun:1-debian AS base
 
 WORKDIR /app
 
