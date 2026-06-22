@@ -98,9 +98,12 @@ export async function profileUser(
     messages: [
       {
         role: 'user',
-        content: `${lang} (the "behavioral_summary" field in particular).
+        content: `${lang}
 
-Analyze this person's WhatsApp messages and return JSON only:
+Analyze this person's WhatsApp messages and return JSON only.
+All human-readable text (behavioral_summary, dominant_topics, sensitivity_flags) MUST follow the language rule above.
+Keep enum values (humor_type, activity_level, emoji_usage, avg_message_length) in English.
+
 {
   "humor_type": "sarcastic|absurdist|self-deprecating|dad-jokes|dry|none",
   "humor_score": <0-100>,

@@ -271,10 +271,15 @@ export interface ParsedWAMessage {
 
 export interface UpdateMemberRequest {
   display_name?: string;
+  behavioral_summary?: string;
   add_alias?: string;
   /** Add several aliases at once (comma-separated strings in each entry are split). */
   add_aliases?: string[];
   remove_alias?: string;
+}
+
+export interface UpdateRelationshipRequest {
+  narrative?: string;
 }
 
 export interface MergeMembersRequest {

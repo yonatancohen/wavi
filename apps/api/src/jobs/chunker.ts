@@ -194,5 +194,8 @@ async function maybeReProfileUser(groupId: string, waUserId: string, displayName
 
   if (!recentMessages || recentMessages.length < 5) return;
 
-  await profileUser(groupId, waUserId, displayName, recentMessages.reverse());
+  const { data: group } = await db.from('groups').select('language_mode').eq('id', groupId).single();
+  const languageMode = (group?.language_mode ?? 'he') as import('@wavi/shared').LanguageMode;
+
+  await profileUser(groupId, waUserId, displayName, recentMessages.reverse(), languageMode);
 }

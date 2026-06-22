@@ -237,7 +237,8 @@ async function generateNarrativesBatch(
         role: 'user',
         content: `${synthesisLanguageInstruction(languageMode)}
 
-For each pair below, write ONE sentence of prose describing their group dynamic (max 30 words each). Return JSON array of strings in the same order as the pairs.
+For each pair below, write ONE sentence of prose describing their group dynamic (max 30 words each).
+Every sentence MUST follow the language rule above.
 
 ${pairDescriptions}
 

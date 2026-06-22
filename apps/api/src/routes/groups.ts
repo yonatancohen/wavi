@@ -8,6 +8,7 @@ import type {
   TestReplyRequest,
   TestReplyResponse,
   UpdateMemberRequest,
+  UpdateRelationshipRequest,
   MergeMembersRequest,
   UserProfileData,
 } from '@wavi/shared';
@@ -286,6 +287,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       updates.profile_data = profileData;
     }
 
+    if (body.behavioral_summary !== undefined) {
+      updates.behavioral_summary = body.behavioral_summary.trim();
+    }
+
     const { data, error } = await db.from('user_profiles').update(updates).eq('id', req.params.profileId).select().single();
     if (error) return reply.code(500).send({ error: error.message });
     return data;
@@ -369,6 +374,41 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     const { data } = await db.from('relationship_map').select('*').eq('group_id', req.params.id).order('interaction_score', { ascending: false }).throwOnError();
     return data;
+  });
+
+  fastify.patch<{ Params: { id: string; relationshipId: string }; Body: UpdateRelationshipRequest }>('/:id/relationships/:relationshipId', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: relationship } = await db.from('relationship_map').select('*').eq('id', req.params.relationshipId).eq('group_id', req.params.id).maybeSingle();
+    if (!relationship) return reply.code(404).send({ error: 'Relationship not found' });
+
+    if (req.body?.narrative === undefined) return reply.code(400).send({ error: 'narrative is required' });
+
+    const { data, error } = await db
+      .from('relationship_map')
+      .update({
+        narrative: req.body.narrative.trim(),
+        last_updated: new Date().toISOString(),
+      })
+      .eq('id', req.params.relationshipId)
+      .select()
+      .single();
+
+    if (error) return reply.code(500).send({ error: error.message });
+    return data;
+  });
+
+  fastify.delete<{ Params: { id: string; relationshipId: string } }>('/:id/relationships/:relationshipId', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: relationship } = await db.from('relationship_map').select('id').eq('id', req.params.relationshipId).eq('group_id', req.params.id).maybeSingle();
+    if (!relationship) return reply.code(404).send({ error: 'Relationship not found' });
+
+    const { error } = await db.from('relationship_map').delete().eq('id', req.params.relationshipId).eq('group_id', req.params.id);
+    if (error) return reply.code(500).send({ error: error.message });
+    return { ok: true };
   });
 
   // Group context
