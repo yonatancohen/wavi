@@ -121,6 +121,17 @@
       "intelligenceBody": "פיד הפעילות יתמלא ברגע שקבוצות יהיו פעילות."
     }
   },
+  "cost": {
+    "title": "עלויות תשובות החודש",
+    "inputTokens": "טוקנים נכנסים",
+    "outputTokens": "טוקנים יוצאים",
+    "replies": "תשובות",
+    "estimatedSpend": "הוצאה משוערת",
+    "budgetCap": "תקרת תקציב: ${amount}",
+    "budgetExceeded": "חריגה מהתקציב",
+    "autoPaused": "קבוצות הושהו אוטומטית",
+    "failedLoad": "טעינת נתוני עלות נכשלה"
+  },
   "groups": {
     "title": "קבוצות",
     "subtitle": "רשום קבוצות וואטסאפ שבהן Wavi יאזין ויגיב",
@@ -182,6 +193,24 @@
     "failedLoad": "טעינת הקבוצה נכשלה",
     "failedStatus": "עדכון הסטטוס נכשל",
     "failedReload": "טעינת נתוני הקבוצה נכשלה"
+  },
+  "groupSettings": {
+    "title": "הגדרות קבוצה",
+    "language": "שפת תשובות",
+    "languageHint": "קובע באיזו שפה Wavi משיב ומסנתז מחדש. מומלץ עברית לקבוצות עבריות.",
+    "languageHe": "עברית",
+    "languageEn": "אנגלית",
+    "languageAuto": "אוטומטי (לפי ההודעה)",
+    "saving": "שומר…",
+    "failedSave": "שמירת ההגדרות נכשלה"
+  },
+  "rebuild": {
+    "title": "בנייה מחדש של המודיעין",
+    "body": "יצירה מחדש של פרופילים, קשרים, סיכומים ואישיות מהודעות שמורות — בלי העלאה חדשה.",
+    "button": "בנה מחדש / סנתז",
+    "running": "בונה מחדש…",
+    "starting": "מתחיל בנייה מחדש…",
+    "failed": "הבנייה מחדש נכשלה"
   },
   "connect": {
     "title": "חבר וואטסאפ",
@@ -247,6 +276,10 @@
     "signature": "התנהגות מאפיינת",
     "sliders": "מחווני אישיות",
     "failedSave": "שמירת האישיות נכשלה",
+    "replyModel": "מודל תשובות",
+    "replyModelHint": "Haiku מהיר וזול יותר; Sonnet עשוי לשפר עברית.",
+    "modelHaiku": "Haiku (מהיר)",
+    "modelSonnet": "Sonnet (איכות)",
     "slider": {
       "formality": "פורמליות",
       "humor": "הומור",

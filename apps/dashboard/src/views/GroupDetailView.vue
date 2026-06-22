@@ -107,10 +107,12 @@
               }}
             </p>
           </section>
+          <GroupSettingsSection :group="group" @updated="onGroupUpdated" />
           <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
+          <RebuildIntelligence :group-id="group.id" @complete="onRebuildComplete" />
         </div>
 
-        <div v-show="activeTab === 'character'">
+        <div v-show="activeTab === 'character'" class="space-y-4">
           <CharacterEditor :group="group" @updated="onCharacterUpdated" />
           <section v-if="!group.character_config" class="rounded-xl border border-dashed border-outline-variant bg-surface-variant/20 px-6 py-10 text-center">
             <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">psychology</span>
@@ -144,6 +146,8 @@ import { useGroupsStore } from '../stores/groups';
 import { statusBadgeClass, statusLabel } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import IngestUpload from '../components/IngestUpload.vue';
+import GroupSettingsSection from '../components/GroupSettingsSection.vue';
+import RebuildIntelligence from '../components/RebuildIntelligence.vue';
 import MembersSection from '../components/MembersSection.vue';
 import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
@@ -205,6 +209,22 @@ async function onIngestionComplete() {
 
 function onCharacterUpdated(updated: GroupWithStats) {
   group.value = updated;
+}
+
+function onGroupUpdated(updated: GroupWithStats) {
+  group.value = updated;
+}
+
+async function onRebuildComplete() {
+  if (!group.value) return;
+  try {
+    group.value = await store.fetchGroup(group.value.id);
+    hasIngestedData.value = group.value.character_config !== null;
+    activeTab.value = 'character';
+    await Promise.all([membersRef.value?.reload(), dynamicsRef.value?.reload()]);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('groupDetail.failedReload');
+  }
 }
 
 async function goLive() {

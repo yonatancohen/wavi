@@ -5,7 +5,7 @@ import { apiFetch } from '../lib/api';
 import { resolveAgentHealthTier } from '../lib/agent-health';
 
 const POLL_MS = 10_000;
-const POLL_CONNECTING_MS = 2_000;
+const POLL_CONNECTING_MS = 6_000;
 
 export const useAgentStore = defineStore('agent', () => {
   const status = ref<AgentStatusResponse | null>(null);

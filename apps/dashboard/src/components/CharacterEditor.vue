@@ -22,6 +22,20 @@
 
     <div class="mb-4">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+        {{ t('character.replyModel') }}
+      </label>
+      <select
+        v-model="localConfig.reply_model"
+        class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+      >
+        <option :value="DEFAULT_REPLY_MODEL">{{ t('character.modelHaiku') }}</option>
+        <option value="claude-sonnet-4-6">{{ t('character.modelSonnet') }}</option>
+      </select>
+      <p class="mt-1.5 text-[11px] text-on-surface-variant">{{ t('character.replyModelHint') }}</p>
+    </div>
+
+    <div class="mb-4">
+      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.voice') }}
       </label>
       <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
@@ -79,6 +93,7 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import type { GroupWithStats, CharacterConfig, PersonalitySliders } from '@wavi/shared';
+import { DEFAULT_REPLY_MODEL } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -98,7 +113,9 @@ const sliders: { key: keyof PersonalitySliders; label: string }[] = [
 ];
 
 function cloneConfig(config: CharacterConfig): CharacterConfig {
-  return JSON.parse(JSON.stringify(config));
+  const cloned = JSON.parse(JSON.stringify(config)) as CharacterConfig;
+  if (!cloned.reply_model) cloned.reply_model = DEFAULT_REPLY_MODEL;
+  return cloned;
 }
 
 const localConfig = ref<CharacterConfig | null>(props.group.character_config ? cloneConfig(props.group.character_config) : null);

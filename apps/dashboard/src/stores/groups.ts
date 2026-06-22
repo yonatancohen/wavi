@@ -84,13 +84,23 @@ export const useGroupsStore = defineStore('groups', () => {
   }
 
   async function setStatus(groupId: string, status: 'active' | 'paused' | 'pending_setup') {
+    return patchGroup(groupId, { status });
+  }
+
+  async function patchGroup(groupId: string, patch: Record<string, unknown>) {
     const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(patch),
     });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updated;
     return updated;
+  }
+
+  async function rebuildGroup(groupId: string) {
+    return apiFetch<{ ok: boolean; message: string; total_messages: number }>(`/groups/${groupId}/rebuild`, {
+      method: 'POST',
+    });
   }
 
   return {
@@ -108,5 +118,7 @@ export const useGroupsStore = defineStore('groups', () => {
     registerGroup,
     updateCharacter,
     setStatus,
+    patchGroup,
+    rebuildGroup,
   };
 });

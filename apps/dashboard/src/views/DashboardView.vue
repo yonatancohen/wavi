@@ -28,6 +28,8 @@
           </RouterLink>
         </div>
 
+        <CostBanner class="mb-5" />
+
         <!-- KPI cells -->
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div class="stat-cell">
@@ -220,6 +222,7 @@ import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from '../components/AgentStatusBadge.vue';
 import AgentHealthPanel from '../components/AgentHealthPanel.vue';
+import CostBanner from '../components/CostBanner.vue';
 
 const { t } = useI18n();
 const store = useGroupsStore();

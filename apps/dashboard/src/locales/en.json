@@ -121,6 +121,17 @@
       "intelligenceBody": "Activity feed will fill up once groups are active. For now, Wavi is sharpening its wit."
     }
   },
+  "cost": {
+    "title": "Reply costs this month",
+    "inputTokens": "Input tokens",
+    "outputTokens": "Output tokens",
+    "replies": "Replies",
+    "estimatedSpend": "Est. spend",
+    "budgetCap": "Budget cap: ${amount}",
+    "budgetExceeded": "Budget exceeded",
+    "autoPaused": "Groups auto-paused",
+    "failedLoad": "Failed to load cost stats"
+  },
   "groups": {
     "title": "Groups",
     "subtitle": "Register WhatsApp groups where Wavi should listen and reply",
@@ -182,6 +193,24 @@
     "failedLoad": "Failed to load group",
     "failedStatus": "Failed to update status",
     "failedReload": "Failed to reload group data"
+  },
+  "groupSettings": {
+    "title": "Group settings",
+    "language": "Reply language",
+    "languageHint": "Controls which language Wavi uses for replies and re-synthesis. Hebrew is recommended for Hebrew groups.",
+    "languageHe": "Hebrew",
+    "languageEn": "English",
+    "languageAuto": "Auto (match message)",
+    "saving": "Saving…",
+    "failedSave": "Failed to save settings"
+  },
+  "rebuild": {
+    "title": "Rebuild intelligence",
+    "body": "Regenerate member profiles, relationships, summaries, and character from stored messages — no new upload needed.",
+    "button": "Rebuild / re-synthesize",
+    "running": "Rebuilding…",
+    "starting": "Starting rebuild…",
+    "failed": "Rebuild failed"
   },
   "connect": {
     "title": "Connect WhatsApp",
@@ -247,6 +276,10 @@
     "signature": "Signature behavior",
     "sliders": "Personality sliders",
     "failedSave": "Failed to save character",
+    "replyModel": "Reply model",
+    "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",
+    "modelHaiku": "Haiku (fast)",
+    "modelSonnet": "Sonnet (quality)",
     "slider": {
       "formality": "Formality",
       "humor": "Humor",
