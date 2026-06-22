@@ -157,7 +157,7 @@ export function createBaileysProvider(): WhatsAppProvider {
           const phoneUser = userId.split('@')[0]?.split(':')[0] ?? null
           _phoneNumber = phoneUser
           bindAgentIdentity({ phoneUser, wid: userId })
-          console.log(`[Baileys] Connected — phone: ${phoneUser}`)
+          console.log(`[Baileys] Connected — phone: ${phoneUser} | wid: ${userId}`)
         }
 
         // 1. Tell the dashboard QR was scanned and we are finalising
@@ -241,6 +241,8 @@ export function createBaileysProvider(): WhatsAppProvider {
           // pushName is sent inline with the message by Baileys — no extra call needed
           resolvePushName: async () => msg.pushName ?? (msg.key.participant ?? ''),
         }
+
+        console.log(`[Baileys] Inbound group msg — group: ${inbound.waGroupId} | sender: ${inbound.senderWaId} | mentions: [${mentionedIds.join(',')}] | body: ${body.slice(0, 60)}`)
 
         try {
           await handleIncomingMessage(inbound)

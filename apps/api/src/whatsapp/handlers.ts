@@ -169,7 +169,9 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   })
 
   // ── 4. Check if agent is tagged ───────────────────────────
-  if (!isAgentTagged(msg, body)) {
+  const tagged = isAgentTagged(msg, body)
+  console.log(`[WA] isAgentTagged=${tagged} | mentions=[${msg.mentionedIds?.join(',') ?? ''}]`)
+  if (!tagged) {
     // Reconcile display-name profile keys non-blocking (only needs pushname)
     msg.resolvePushName().then((pushname) => {
       if (pushname && pushname !== senderWaId) {
