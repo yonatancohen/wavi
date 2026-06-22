@@ -1,4 +1,5 @@
 import qrcode from 'qrcode'
+import { rm } from 'node:fs/promises'
 import { db } from '../../db/client.js'
 import { handleIncomingMessage } from '../handlers.js'
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js'
@@ -192,13 +193,16 @@ export function createBaileysProvider(): WhatsAppProvider {
           .eq('id', process.env.AGENT_ID!)
 
         const statusCode = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut
 
-        console.warn(`[Baileys] Disconnected (status ${statusCode ?? 'unknown'}) — reconnect: ${shouldReconnect}`)
+        console.warn(`[Baileys] Disconnected (status ${statusCode ?? 'unknown'}) — loggedOut: ${isLoggedOut}`)
 
-        if (shouldReconnect) {
-          scheduleReconnect()
+        if (isLoggedOut) {
+          // WA explicitly logged out this device — wipe credentials so the
+          // next connect() shows a fresh QR instead of looping on 401.
+          await clearBaileysAuth()
         }
+        scheduleReconnect()
       }
     })
 
@@ -247,9 +251,22 @@ export function createBaileysProvider(): WhatsAppProvider {
     })
   }
 
+  async function clearBaileysAuth() {
+    try {
+      await rm(BAILEYS_AUTH_PATH, { recursive: true, force: true })
+      console.log('[Baileys] Cleared auth state — next connect will show a fresh QR')
+    } catch (err) {
+      console.error('[Baileys] Failed to clear auth state:', err)
+    }
+  }
+
   function scheduleReconnect() {
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('[Baileys] Max reconnect attempts reached — giving up')
+      console.warn('[Baileys] Max reconnect attempts reached — clearing auth and restarting fresh')
+      reconnectAttempts = 0
+      clearBaileysAuth().then(() => connect()).catch((err) => {
+        console.error('[Baileys] Fresh restart failed:', err)
+      })
       return
     }
 
