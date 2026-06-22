@@ -5,12 +5,14 @@ import { apiFetch } from '../lib/api'
 import { resolveAgentHealthTier } from '../lib/agent-health'
 
 const POLL_MS = 10_000
+const POLL_CONNECTING_MS = 2_000
 
 export const useAgentStore = defineStore('agent', () => {
   const status = ref<AgentStatusResponse | null>(null)
   const polling = ref(false)
   let timer: ReturnType<typeof setInterval> | null = null
   let subscribers = 0
+  let currentPollMs = POLL_MS
 
   const connected = computed(() => status.value?.connected ?? false)
   const connecting = computed(() => status.value?.connecting ?? false)
@@ -24,6 +26,16 @@ export const useAgentStore = defineStore('agent', () => {
     } catch {
       status.value = null
     }
+    // Use faster polling while connecting so the dashboard reflects the
+    // connected state within ~2s of the WA socket opening.
+    if (polling.value) {
+      const targetMs = status.value?.connecting ? POLL_CONNECTING_MS : POLL_MS
+      if (targetMs !== currentPollMs) {
+        currentPollMs = targetMs
+        if (timer) clearInterval(timer)
+        timer = setInterval(() => void refresh(), targetMs)
+      }
+    }
   }
 
   function applyStatus(next: AgentStatusResponse) {
@@ -34,6 +46,7 @@ export const useAgentStore = defineStore('agent', () => {
     subscribers += 1
     if (polling.value) return
     polling.value = true
+    currentPollMs = POLL_MS
     void refresh()
     timer = setInterval(() => void refresh(), POLL_MS)
   }
@@ -46,6 +59,7 @@ export const useAgentStore = defineStore('agent', () => {
       timer = null
     }
     polling.value = false
+    currentPollMs = POLL_MS
   }
 
   return {

@@ -93,6 +93,13 @@ export function createBaileysProvider(): WhatsAppProvider {
 
   // ── Connect ───────────────────────────────────────────────
   async function connect() {
+    // Mark as connecting immediately so the status API never returns a false
+    // "disconnected" state during the async setup phase (auth load + version
+    // fetch). Without this, the dashboard shows "offline" for the first few
+    // seconds after server startup.
+    _connecting = true
+    _connected = false
+
     const {
       makeWASocket,
       useMultiFileAuthState,
@@ -106,9 +113,6 @@ export function createBaileysProvider(): WhatsAppProvider {
 
     const { state, saveCreds } = await useMultiFileAuthState(BAILEYS_AUTH_PATH)
     const { version } = await fetchLatestBaileysVersion()
-
-    _connecting = true
-    _connected = false
 
     sock = makeWASocket({
       version,
