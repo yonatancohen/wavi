@@ -21,31 +21,40 @@
         {{ loadError }}
       </div>
 
-      <div class="mb-4 grid gap-3 rounded-xl border border-outline-variant bg-surface-container p-4 sm:grid-cols-2">
-        <label class="flex flex-col gap-1.5">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">{{ t('testChat.group') }}</span>
-          <select v-model="selectedGroupId" class="input" :disabled="loadingGroups" @change="onGroupChange">
-            <option value="">{{ t('testChat.selectGroup') }}</option>
-            <option v-for="group in groups" :key="group.id" :value="group.id">
-              {{ group.name }}
-            </option>
-          </select>
+      <div class="mb-4 grid gap-4 rounded-xl border border-outline-variant bg-surface-container p-4 sm:grid-cols-2">
+        <label class="flex flex-col gap-2">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.group') }}</span>
+          <div class="relative">
+            <select v-model="selectedGroupId" :class="selectClass" :disabled="loadingGroups" @change="onGroupChange">
+              <option value="">{{ t('testChat.selectGroup') }}</option>
+              <option v-for="group in groups" :key="group.id" :value="group.id">
+                {{ group.name }}
+              </option>
+            </select>
+            <span class="material-symbols-outlined pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">expand_more</span>
+          </div>
         </label>
 
-        <label class="flex flex-col gap-1.5">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">{{ t('testChat.sender') }}</span>
-          <select v-model="senderMode" class="input" :disabled="!selectedGroupId || loadingMembers" @change="onSenderModeChange">
-            <option value="generic">{{ t('testChat.genericSender') }}</option>
-            <option value="member" :disabled="members.length === 0">{{ t('testChat.memberSender') }}</option>
-          </select>
+        <label class="flex flex-col gap-2">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.sender') }}</span>
+          <div class="relative">
+            <select v-model="senderMode" :class="selectClass" :disabled="!selectedGroupId || loadingMembers" @change="onSenderModeChange">
+              <option value="generic">{{ t('testChat.genericSender') }}</option>
+              <option value="member" :disabled="members.length === 0">{{ t('testChat.memberSender') }}</option>
+            </select>
+            <span class="material-symbols-outlined pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">expand_more</span>
+          </div>
         </label>
 
-        <label v-if="senderMode === 'member'" class="flex flex-col gap-1.5 sm:col-span-2">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">{{ t('testChat.member') }}</span>
-          <select v-model="selectedMemberId" class="input" :disabled="loadingMembers">
-            <option value="">{{ t('testChat.selectMember') }}</option>
-            <option v-for="member in members" :key="member.wa_user_id" :value="member.wa_user_id">{{ member.display_name }} ({{ member.msg_count }} msgs)</option>
-          </select>
+        <label v-if="senderMode === 'member'" class="flex flex-col gap-2 sm:col-span-2">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.member') }}</span>
+          <div class="relative">
+            <select v-model="selectedMemberId" :class="selectClass" :disabled="loadingMembers">
+              <option value="">{{ t('testChat.selectMember') }}</option>
+              <option v-for="member in members" :key="member.wa_user_id" :value="member.wa_user_id">{{ member.display_name }} ({{ member.msg_count }} msgs)</option>
+            </select>
+            <span class="material-symbols-outlined pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">expand_more</span>
+          </div>
         </label>
       </div>
 
@@ -101,12 +110,22 @@
           </div>
         </div>
 
-        <form class="border-t border-outline-variant p-4" @submit.prevent="sendMessage">
+        <form class="border-t border-outline-variant bg-surface-container-low p-4" @submit.prevent="sendMessage">
           <div v-if="sendError" class="mb-3 text-[12px] text-error">{{ sendError }}</div>
-          <div class="flex gap-2">
-            <textarea v-model="draft" rows="2" class="input min-h-[44px] flex-1 resize-none" :placeholder="t('testChat.placeholder')" :disabled="!canSend" @keydown.enter.exact.prevent="sendMessage" />
-            <button type="submit" class="btn btn-primary shrink-0 self-end" :disabled="!canSend || !draft.trim()">
-              {{ t('testChat.send') }}
+          <div class="flex items-end gap-2 rounded-xl border border-outline-variant bg-surface-variant/20 p-2 transition-colors focus-within:border-primary/50">
+            <textarea
+              ref="draftEl"
+              v-model="draft"
+              rows="1"
+              class="min-h-[44px] flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-[13px] leading-relaxed text-on-surface outline-none placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-50"
+              :placeholder="t('testChat.placeholder')"
+              :disabled="!canSend"
+              @input="resizeDraft"
+              @keydown.enter.exact.prevent="sendMessage"
+            />
+            <button type="submit" class="btn btn-primary inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4" :disabled="!canSend || !draft.trim()">
+              <span class="material-symbols-outlined text-[18px]">send</span>
+              <span class="hidden sm:inline">{{ t('testChat.send') }}</span>
             </button>
           </div>
         </form>
@@ -137,6 +156,10 @@ interface TestChatTurn {
 const GENERIC_SENDER_NAME = 'Tester';
 const GENERIC_SENDER_WA_ID = 'test-admin';
 
+const fieldClass =
+  'w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50';
+const selectClass = `${fieldClass} appearance-none pe-10`;
+
 const { t } = useI18n();
 const groupsStore = useGroupsStore();
 const { groups } = storeToRefs(groupsStore);
@@ -153,6 +176,9 @@ const sending = ref(false);
 const loadError = ref<string | null>(null);
 const sendError = ref<string | null>(null);
 const scrollEl = ref<HTMLElement | null>(null);
+const draftEl = ref<HTMLTextAreaElement | null>(null);
+
+const MAX_DRAFT_ROWS = 6;
 
 const canSend = computed(() => Boolean(selectedGroupId.value) && !sending.value && (senderMode.value === 'generic' || Boolean(selectedMemberId.value)));
 
@@ -175,6 +201,21 @@ function scrollToBottom() {
   nextTick(() => {
     if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
   });
+}
+
+function resizeDraft() {
+  const el = draftEl.value;
+  if (!el) return;
+
+  el.style.height = 'auto';
+  const style = getComputedStyle(el);
+  const lineHeight = parseFloat(style.lineHeight) || 21;
+  const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  const maxHeight = lineHeight * MAX_DRAFT_ROWS + padding;
+  const nextHeight = Math.min(el.scrollHeight, maxHeight);
+
+  el.style.height = `${nextHeight}px`;
+  el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }
 
 function buildHistory(): TestReplyHistoryTurn[] {
@@ -232,6 +273,7 @@ async function sendMessage() {
   };
   turns.value.push(userTurn);
   draft.value = '';
+  nextTick(resizeDraft);
   scrollToBottom();
 
   try {
@@ -264,6 +306,7 @@ async function sendMessage() {
 }
 
 watch(turns, () => scrollToBottom(), { deep: true });
+watch(draft, () => nextTick(resizeDraft));
 
 onMounted(async () => {
   try {
@@ -272,6 +315,7 @@ onMounted(async () => {
     loadError.value = e instanceof Error ? e.message : t('testChat.failedLoadGroups');
   } finally {
     loadingGroups.value = false;
+    nextTick(resizeDraft);
   }
 });
 </script>
