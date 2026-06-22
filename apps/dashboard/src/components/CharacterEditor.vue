@@ -38,6 +38,9 @@
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.voice') }}
       </label>
+      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+        {{ t('character.voiceHint') }}
+      </p>
       <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
         {{ localConfig.voice }}
       </p>
@@ -47,25 +50,40 @@
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.opinions') }}
       </label>
+      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+        {{ t('character.opinionsHint') }}
+      </p>
       <div class="space-y-2">
-        <textarea
-          v-for="(_, idx) in localConfig.opinions"
-          :key="idx"
-          v-model="localConfig.opinions[idx]"
-          rows="2"
-          class="w-full resize-y rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-        />
+        <div v-for="(_, idx) in localConfig.opinions" :key="idx" class="flex items-start gap-2">
+          <textarea
+            v-model="localConfig.opinions[idx]"
+            rows="2"
+            :placeholder="t('character.opinionPlaceholder')"
+            class="min-w-0 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+          />
+          <button type="button" class="icon-btn mt-1.5 shrink-0 !min-h-0 p-1.5 text-on-surface-variant/60 hover:text-error" :title="t('character.removeOpinion')" @click="removeOpinion(idx)">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
       </div>
+      <button v-if="localConfig.opinions.length < MAX_OPINIONS" type="button" class="btn btn-secondary mt-2 inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[11px]" @click="addOpinion">
+        <span class="material-symbols-outlined text-[16px]">add</span>
+        {{ t('character.addOpinion') }}
+      </button>
     </div>
 
     <div class="mb-4">
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.signature') }}
       </label>
+      <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+        {{ t('character.signatureHint') }}
+      </p>
       <textarea
         v-model="localConfig.signature_behavior"
         rows="2"
-        class="w-full resize-y rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+        :placeholder="t('character.signaturePlaceholder')"
+        class="w-full resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
       />
     </div>
 
@@ -73,6 +91,9 @@
       <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('character.sliders') }}
       </label>
+      <p class="mb-3 text-[11px] leading-relaxed text-on-surface-variant/80">
+        {{ t('character.slidersHint') }}
+      </p>
       <div class="grid gap-3 sm:grid-cols-2">
         <div v-for="slider in sliders" :key="slider.key">
           <div class="mb-1 flex items-center justify-between text-[12px]">
@@ -103,6 +124,7 @@ const emit = defineEmits<{ updated: [group: GroupWithStats] }>();
 const store = useGroupsStore();
 const saving = ref(false);
 const saveError = ref<string | null>(null);
+const MAX_OPINIONS = 3;
 
 const sliders: { key: keyof PersonalitySliders; label: string }[] = [
   { key: 'formality', label: 'formality' },
@@ -132,12 +154,26 @@ const isDirty = computed(() => {
   return JSON.stringify(localConfig.value) !== JSON.stringify(props.group.character_config);
 });
 
+function addOpinion() {
+  if (!localConfig.value || localConfig.value.opinions.length >= MAX_OPINIONS) return;
+  localConfig.value.opinions.push('');
+}
+
+function removeOpinion(index: number) {
+  if (!localConfig.value) return;
+  localConfig.value.opinions.splice(index, 1);
+}
+
 async function save() {
   if (!localConfig.value || !isDirty.value) return;
   saving.value = true;
   saveError.value = null;
+  const payload: CharacterConfig = {
+    ...localConfig.value,
+    opinions: localConfig.value.opinions.map((o) => o.trim()).filter(Boolean),
+  };
   try {
-    const updated = await store.updateCharacter(props.group.id, localConfig.value);
+    const updated = await store.updateCharacter(props.group.id, payload);
     localConfig.value = updated.character_config ? cloneConfig(updated.character_config) : null;
     emit('updated', updated);
   } catch (e) {
