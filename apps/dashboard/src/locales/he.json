@@ -302,13 +302,31 @@
     "invalidFile": "אנא העלה קובץ ייצוא וואטסאפ בפורמט .txt",
     "failedUpload": "ההעלאה נכשלה",
     "messages": "{processed} / {total} הודעות",
-    "chunks": "{count} חלקים"
+    "chunks": "{count} חלקים",
+    "upload": "התחל עיבוד",
+    "supplementalHint": "אופציונלי: העלה גם ייצוא מהטלפון של חבר/ה אחר/ת בקבוצה — הודעות משותפות ייישרו שמות (למשל \"Alon Arroyo\" = \"אלון\").",
+    "supplementalBrowse": "בחר ייצוא שני…"
   },
   "members": {
     "title": "פרופילי חברים",
     "empty": "פרופילי חברים יופיעו לאחר העלאת היסטוריית הצ'אט",
     "failedLoad": "טעינת החברים נכשלה",
-    "messages": "{count} הודעות"
+    "failedSave": "שמירת החבר נכשלה",
+    "messages": "{count} הודעות",
+    "displayName": "שם תצוגה",
+    "editName": "ערוך",
+    "save": "שמור",
+    "cancel": "ביטול",
+    "recognizedNames": "שמות ש-Wavi מזהה",
+    "recognizedNamesHint": "כשמישהו מתייג את Wavi ומזכיר אחד מהשמות האלה — Wavi יודע על מי מדובר.",
+    "noAliasesYet": "עדיין אין שמות נוספים — הוסף כינויים, כתיב בעברית, שמות מאנשי קשר וכו'.",
+    "addNames": "הוסף שמות",
+    "addAliasPlaceholder": "למשל alon, אלון, My Love",
+    "addAliasBulkHint": "הפרד כמה שמות בפסיקים",
+    "removeAlias": "הסר",
+    "advancedMerge": "מזג פרופיל כפול…",
+    "mergeWith": "מזג ל…",
+    "merge": "מזג"
   },
   "dynamics": {
     "title": "דינמיקת קבוצה",

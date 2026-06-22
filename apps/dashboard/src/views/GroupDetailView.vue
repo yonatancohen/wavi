@@ -3,18 +3,18 @@
     <!-- Mobile tab bar (desktop header is hidden below lg) -->
     <nav v-if="group && !loading && !error" class="group-tabs-mobile" role="tablist" :aria-label="group.name">
       <div class="group-tabs rounded-[10px] bg-surface-container-high/50">
-        <button
+        <RouterLink
           v-for="tab in tabs"
           :key="tab.id"
-          type="button"
+          :to="tabRoute(tab.id)"
+          replace
           role="tab"
           class="group-tab"
           :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
-          :aria-selected="activeTab === tab.id"
-          @click="activeTab = tab.id"
+          :aria-selected="activeTab === tab.id ? 'true' : 'false'"
         >
           {{ tab.label }}
-        </button>
+        </RouterLink>
       </div>
     </nav>
 
@@ -72,18 +72,18 @@
 
       <div v-if="group && !loading && !error" class="group-tabs-bar">
         <nav class="group-tabs rounded-[10px] bg-surface-container-high/50" role="tablist" :aria-label="group.name">
-          <button
+          <RouterLink
             v-for="tab in tabs"
             :key="tab.id"
-            type="button"
+            :to="tabRoute(tab.id)"
+            replace
             role="tab"
             class="group-tab"
             :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
-            :aria-selected="activeTab === tab.id"
-            @click="activeTab = tab.id"
+            :aria-selected="activeTab === tab.id ? 'true' : 'false'"
           >
             {{ tab.label }}
-          </button>
+          </RouterLink>
         </nav>
       </div>
     </header>
@@ -144,7 +144,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import { statusBadgeClass, statusLabel } from '../lib/ui';
@@ -161,8 +161,16 @@ import type { GroupWithStats } from '@wavi/shared';
 
 type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat';
 
+const GROUP_TABS: GroupTab[] = ['setup', 'character', 'people', 'dynamics', 'messages', 'testChat'];
+
+function tabFromHash(hash: string): GroupTab {
+  const id = hash.replace(/^#/, '') as GroupTab;
+  return GROUP_TABS.includes(id) ? id : 'setup';
+}
+
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 const store = useGroupsStore();
 
 const group = ref<GroupWithStats | null>(null);
@@ -170,7 +178,13 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const hasIngestedData = ref(false);
-const activeTab = ref<GroupTab>('setup');
+
+/** Derived from URL hash — survives refresh and is shareable. */
+const activeTab = computed(() => tabFromHash(route.hash));
+
+function tabRoute(tab: GroupTab) {
+  return { name: 'group' as const, params: { id: route.params.id as string }, hash: `#${tab}` };
+}
 
 const membersRef = ref<InstanceType<typeof MembersSection> | null>(null);
 const dynamicsRef = ref<InstanceType<typeof DynamicsSection> | null>(null);
@@ -206,7 +220,7 @@ async function onIngestionComplete() {
   try {
     group.value = await store.fetchGroup(group.value.id);
     hasIngestedData.value = true;
-    activeTab.value = 'character';
+    await router.replace(tabRoute('character'));
     await Promise.all([membersRef.value?.reload(), dynamicsRef.value?.reload()]);
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('groupDetail.failedReload');
@@ -226,7 +240,7 @@ async function onRebuildComplete() {
   try {
     group.value = await store.fetchGroup(group.value.id);
     hasIngestedData.value = group.value.character_config !== null;
-    activeTab.value = 'character';
+    await router.replace(tabRoute('character'));
     await Promise.all([membersRef.value?.reload(), dynamicsRef.value?.reload()]);
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('groupDetail.failedReload');

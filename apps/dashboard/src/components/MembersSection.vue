@@ -20,18 +20,91 @@
 
     <div v-else class="grid gap-3">
       <article v-for="member in members" :key="member.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-4">
-        <div class="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h3 class="font-sora text-[14px] font-semibold text-on-surface">
-              {{ member.display_name }}
-            </h3>
-            <p class="mt-0.5 font-mono text-[10px] text-on-surface-variant/60">
+        <!-- Display name -->
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/70">
+              {{ t('members.displayName') }}
+            </label>
+            <div v-if="editingNameId === member.id" class="flex flex-wrap items-center gap-2">
+              <input
+                v-model="nameDraft[member.id]"
+                type="text"
+                class="min-w-[12rem] flex-1 rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[14px] font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                @keydown.enter="saveDisplayName(member)"
+                @keydown.escape="cancelEditName(member.id)"
+              />
+              <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveDisplayName(member)">
+                {{ t('members.save') }}
+              </button>
+              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditName(member.id)">
+                {{ t('members.cancel') }}
+              </button>
+            </div>
+            <div v-else class="flex flex-wrap items-center gap-2">
+              <h3 class="font-sora text-[15px] font-semibold text-on-surface">
+                {{ member.display_name }}
+              </h3>
+              <button
+                type="button"
+                class="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-primary"
+                @click="startEditName(member)"
+              >
+                <span class="material-symbols-outlined text-[14px]">edit</span>
+                {{ t('members.editName') }}
+              </button>
+            </div>
+            <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
+              {{ member.wa_user_id }}
+              ·
               {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
             </p>
           </div>
-          <span class="badge px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
+          <span class="badge shrink-0 px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
             {{ member.profile_data.activity_level }}
           </span>
+        </div>
+
+        <!-- Names Wavi recognizes -->
+        <div class="mb-4 rounded-lg border border-outline-variant/60 bg-surface/40 p-3">
+          <p class="mb-0.5 text-[11px] font-semibold text-on-surface">
+            {{ t('members.recognizedNames') }}
+          </p>
+          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('members.recognizedNamesHint') }}
+          </p>
+
+          <div v-if="memberAliases(member).length" class="mb-2 flex flex-wrap gap-1.5">
+            <span
+              v-for="alias in memberAliases(member)"
+              :key="alias"
+              class="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-0.5 text-[11px] text-secondary"
+            >
+              {{ alias }}
+              <button type="button" class="opacity-50 transition-opacity hover:opacity-100" :title="t('members.removeAlias')" @click="removeAlias(member, alias)">×</button>
+            </span>
+          </div>
+          <p v-else class="mb-2 text-[11px] italic text-on-surface-variant/50">
+            {{ t('members.noAliasesYet') }}
+          </p>
+
+          <div class="flex flex-wrap items-end gap-2">
+            <div class="min-w-0 flex-1">
+              <input
+                v-model="aliasDraft[member.id]"
+                type="text"
+                class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface"
+                :placeholder="t('members.addAliasPlaceholder')"
+                @keydown.enter="addAliases(member)"
+              />
+              <p class="mt-1 text-[10px] text-on-surface-variant/60">
+                {{ t('members.addAliasBulkHint') }}
+              </p>
+            </div>
+            <button type="button" class="btn btn-secondary shrink-0 px-3 py-1.5 text-[11px]" :disabled="savingId === member.id || !aliasDraft[member.id]?.trim()" @click="addAliases(member)">
+              {{ t('members.addNames') }}
+            </button>
+          </div>
         </div>
 
         <p class="mb-3 text-[13px] leading-relaxed text-on-surface-variant">
@@ -52,18 +125,36 @@
           </span>
         </div>
 
-        <div v-if="member.profile_data.sensitivity_flags.length > 0" class="flex flex-wrap gap-1.5 border-t border-outline-variant/50 pt-3">
+        <div v-if="member.profile_data.sensitivity_flags.length > 0" class="mb-3 flex flex-wrap gap-1.5">
           <span v-for="flag in member.profile_data.sensitivity_flags" :key="flag" class="rounded-md bg-error/[0.06] px-2 py-0.5 text-[10px] text-on-surface-variant/60">
             {{ flag }}
           </span>
         </div>
+
+        <!-- Merge duplicates (advanced) -->
+        <details class="border-t border-outline-variant/50 pt-3">
+          <summary class="cursor-pointer text-[11px] font-medium text-on-surface-variant/70 hover:text-on-surface-variant">
+            {{ t('members.advancedMerge') }}
+          </summary>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <select v-model="mergeTarget[member.id]" class="rounded-lg border border-outline-variant bg-surface px-2 py-1.5 text-[11px] text-on-surface-variant">
+              <option value="">{{ t('members.mergeWith') }}</option>
+              <option v-for="other in members.filter((m) => m.id !== member.id)" :key="other.id" :value="other.id">
+                {{ other.display_name }}
+              </option>
+            </select>
+            <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" :disabled="!mergeTarget[member.id] || savingId === member.id" @click="mergeMember(member)">
+              {{ t('members.merge') }}
+            </button>
+          </div>
+        </details>
       </article>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
@@ -76,6 +167,15 @@ const props = defineProps<{ groupId: string }>();
 const members = ref<UserProfile[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const savingId = ref<string | null>(null);
+const editingNameId = ref<string | null>(null);
+const aliasDraft = reactive<Record<string, string>>({});
+const nameDraft = reactive<Record<string, string>>({});
+const mergeTarget = reactive<Record<string, string>>({});
+
+function memberAliases(member: UserProfile): string[] {
+  return member.profile_data?.aliases ?? [];
+}
 
 function activityBadgeClass(level: UserProfile['profile_data']['activity_level']) {
   const map = {
@@ -89,6 +189,90 @@ function activityBadgeClass(level: UserProfile['profile_data']['activity_level']
 
 function formatHumorType(type: string) {
   return type.replace(/-/g, ' ');
+}
+
+function startEditName(member: UserProfile) {
+  editingNameId.value = member.id;
+  nameDraft[member.id] = member.display_name;
+}
+
+function cancelEditName(memberId: string) {
+  editingNameId.value = null;
+  delete nameDraft[memberId];
+}
+
+async function patchMember(memberId: string, body: Record<string, unknown>): Promise<UserProfile> {
+  return apiFetch<UserProfile>(`/groups/${props.groupId}/members/${memberId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+async function saveDisplayName(member: UserProfile) {
+  const name = nameDraft[member.id]?.trim();
+  if (!name || name === member.display_name) {
+    cancelEditName(member.id);
+    return;
+  }
+  savingId.value = member.id;
+  error.value = null;
+  try {
+    const updated = await patchMember(member.id, { display_name: name });
+    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
+    cancelEditName(member.id);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedSave');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+async function addAliases(member: UserProfile) {
+  const raw = aliasDraft[member.id]?.trim();
+  if (!raw) return;
+  savingId.value = member.id;
+  error.value = null;
+  try {
+    const updated = await patchMember(member.id, { add_aliases: [raw] });
+    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
+    aliasDraft[member.id] = '';
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedSave');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+async function removeAlias(member: UserProfile, alias: string) {
+  savingId.value = member.id;
+  error.value = null;
+  try {
+    const updated = await patchMember(member.id, { remove_alias: alias });
+    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedSave');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+async function mergeMember(member: UserProfile) {
+  const targetId = mergeTarget[member.id];
+  if (!targetId) return;
+  savingId.value = member.id;
+  error.value = null;
+  try {
+    await apiFetch<UserProfile>(`/groups/${props.groupId}/members/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ keep_profile_id: targetId, merge_profile_id: member.id }),
+    });
+    mergeTarget[member.id] = '';
+    await load();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedSave');
+  } finally {
+    savingId.value = null;
+  }
 }
 
 async function load() {

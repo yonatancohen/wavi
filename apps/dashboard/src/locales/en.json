@@ -302,13 +302,31 @@
     "invalidFile": "Please upload a WhatsApp .txt export",
     "failedUpload": "Upload failed",
     "messages": "{processed} / {total} messages",
-    "chunks": "{count} chunks"
+    "chunks": "{count} chunks",
+    "upload": "Start ingestion",
+    "supplementalHint": "Optional: also upload an export from another group member's phone — overlapping messages will align names (e.g. \"Alon Arroyo\" = \"אלון\").",
+    "supplementalBrowse": "Choose second export…"
   },
   "members": {
     "title": "Member profiles",
     "empty": "Member profiles will appear after uploading chat history",
     "failedLoad": "Failed to load members",
-    "messages": "{count} messages"
+    "failedSave": "Failed to save member",
+    "messages": "{count} messages",
+    "displayName": "Display name",
+    "editName": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "recognizedNames": "Names Wavi recognizes",
+    "recognizedNamesHint": "When someone tags Wavi and mentions any of these names, it knows they mean this person.",
+    "noAliasesYet": "No extra names yet — add nicknames, Hebrew spellings, contact labels, etc.",
+    "addNames": "Add names",
+    "addAliasPlaceholder": "e.g. alon, אלון, My Love",
+    "addAliasBulkHint": "Separate multiple names with commas",
+    "removeAlias": "Remove",
+    "advancedMerge": "Merge duplicate profile…",
+    "mergeWith": "Merge into…",
+    "merge": "Merge"
   },
   "dynamics": {
     "title": "Group dynamics",

@@ -24,6 +24,27 @@
         </button>
       </p>
       <p class="font-mono text-[10px] text-on-surface-variant/60">{{ t('ingest.txtOnly') }}</p>
+      <p v-if="primaryFile" class="mt-2 font-mono text-[11px] text-primary">{{ primaryFile.name }}</p>
+    </div>
+
+    <div class="mt-4 rounded-xl border border-outline-variant/60 bg-surface-variant/20 p-3">
+      <label class="flex cursor-pointer items-start gap-2">
+        <input v-model="includeSupplemental" type="checkbox" class="mt-0.5" :disabled="uploading || streaming" />
+        <span class="text-[12px] leading-relaxed text-on-surface-variant">{{ t('ingest.supplementalHint') }}</span>
+      </label>
+      <div v-if="includeSupplemental" class="mt-3">
+        <input ref="supplementalInput" type="file" accept=".txt" class="sr-only" :disabled="uploading || streaming" @change="onSupplementalSelect" />
+        <button type="button" class="btn btn-secondary px-3 py-1.5 text-[11px]" :disabled="uploading || streaming" @click="supplementalInput?.click()">
+          {{ t('ingest.supplementalBrowse') }}
+        </button>
+        <p v-if="supplementalFile" class="mt-1 font-mono text-[10px] text-on-surface-variant">{{ supplementalFile.name }}</p>
+      </div>
+    </div>
+
+    <div class="mt-3 flex justify-end">
+      <button type="button" class="btn btn-primary px-4 py-2 text-[12px]" :disabled="!primaryFile || uploading || streaming" @click="startUpload">
+        {{ uploading ? t('ingest.starting') : t('ingest.upload') }}
+      </button>
     </div>
 
     <div v-if="uploadError || streamError" class="mt-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
@@ -78,23 +99,27 @@ const props = defineProps<{ groupId: string }>();
 const emit = defineEmits<{ complete: [] }>();
 
 const fileInput = ref<HTMLInputElement | null>(null);
+const supplementalInput = ref<HTMLInputElement | null>(null);
 const dragOver = ref(false);
 const uploading = ref(false);
 const uploadError = ref<string | null>(null);
+const primaryFile = ref<File | null>(null);
+const supplementalFile = ref<File | null>(null);
+const includeSupplemental = ref(false);
 
 const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
 
-async function uploadFile(file: File) {
-  if (!file.name.toLowerCase().endsWith('.txt')) {
-    uploadError.value = t('ingest.invalidFile');
-    return;
-  }
+async function uploadFiles() {
+  if (!primaryFile.value) return;
 
   uploading.value = true;
   uploadError.value = null;
 
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', primaryFile.value);
+  if (includeSupplemental.value && supplementalFile.value) {
+    formData.append('supplemental', supplementalFile.value);
+  }
 
   try {
     const res = await fetch(`${API_BASE}/ingest/${props.groupId}`, {
@@ -113,16 +138,36 @@ async function uploadFile(file: File) {
   }
 }
 
+function pickPrimary(file: File) {
+  if (!file.name.toLowerCase().endsWith('.txt')) {
+    uploadError.value = t('ingest.invalidFile');
+    return;
+  }
+  primaryFile.value = file;
+  uploadError.value = null;
+}
+
 function onFileSelect(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
-  if (file) uploadFile(file);
+  if (file) pickPrimary(file);
+  input.value = '';
+}
+
+function onSupplementalSelect(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (file) supplementalFile.value = file;
   input.value = '';
 }
 
 function onDrop(e: DragEvent) {
   dragOver.value = false;
   const file = e.dataTransfer?.files?.[0];
-  if (file) uploadFile(file);
+  if (file) pickPrimary(file);
+}
+
+function startUpload() {
+  uploadFiles();
 }
 </script>
