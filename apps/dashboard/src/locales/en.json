@@ -268,8 +268,23 @@
       "cta": "Go to Groups"
     },
     "count": "{count} reply | {count} replies",
+    "filterGroup": "Group",
+    "allGroups": "All groups",
+    "flaggedOnly": "Flagged only",
+    "flaggedOnlyTooltipTitle": "Flagged misses",
+    "flaggedOnlyTooltipBody": "Replies marked as off-base — by you in the dashboard or when Wavi detects a bad response. Use this filter to review them and tune the agent.",
+    "clearFilters": "Clear filters",
+    "emptyFiltered": "No replies match these filters.",
     "triggeredBy": "Triggered by",
     "flagged": "Flagged",
+    "flagAsMiss": "Flag as miss",
+    "flagAsMissTooltipTitle": "Mark as a miss",
+    "flagAsMissTooltipBody": "Tell Wavi this reply was off-base. Flagged replies appear under Flagged only so you can review and tune the agent.",
+    "revertFlag": "Revert flag",
+    "revertFlagTooltipTitle": "Revert flag",
+    "revertFlagTooltipBody": "Remove the miss mark if this reply was actually fine. It will no longer count as flagged.",
+    "flagging": "Saving…",
+    "failedFlag": "Failed to update flag",
     "failedLoad": "Failed to load activity"
   },
   "character": {

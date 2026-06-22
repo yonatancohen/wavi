@@ -268,8 +268,23 @@
       "cta": "עבור לקבוצות"
     },
     "count": "תשובה אחת | {count} תשובות",
+    "filterGroup": "קבוצה",
+    "allGroups": "כל הקבוצות",
+    "flaggedOnly": "מסומנים בלבד",
+    "flaggedOnlyTooltipTitle": "תשובות שהוחמצו",
+    "flaggedOnlyTooltipBody": "תשובות שסומנו כלא במקום — על ידך בלוח הבקרה או כש-Wavi מזהה תגובה בעייתית. השתמש במסנן כדי לבדוק ולכוון את הסוכן.",
+    "clearFilters": "נקה מסננים",
+    "emptyFiltered": "אין תשובות שמתאימות למסננים.",
     "triggeredBy": "הופעל על ידי",
     "flagged": "מסומן",
+    "flagAsMiss": "סמן כהחמצה",
+    "flagAsMissTooltipTitle": "סימון כהחמצה",
+    "flagAsMissTooltipBody": "מספר ל-Wavi שהתשובה לא הייתה במקום. תשובות מסומנות מופיעות תחת ״מסומנים בלבד״ לבדיקה וכיוון.",
+    "revertFlag": "בטל סימון",
+    "revertFlagTooltipTitle": "ביטול סימון",
+    "revertFlagTooltipBody": "הסר את סימון ההחמצה אם התשובה הייתה בסדר. היא לא תיספר עוד כמסומנת.",
+    "flagging": "שומר…",
+    "failedFlag": "עדכון הסימון נכשל",
     "failedLoad": "טעינת הפעילות נכשלה"
   },
   "character": {

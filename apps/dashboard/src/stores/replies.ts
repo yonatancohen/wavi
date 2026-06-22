@@ -10,11 +10,14 @@ export const useRepliesStore = defineStore('replies', () => {
   const replies = ref<Reply[]>([]);
   const loading = ref(false);
 
-  async function fetchReplies(groupId?: string) {
+  async function fetchReplies(filters?: { groupId?: string; flagged?: boolean }) {
     loading.value = true;
     try {
-      const path = groupId ? `/replies?group_id=${groupId}` : '/replies';
-      replies.value = await apiFetch<Reply[]>(path);
+      const params = new URLSearchParams();
+      if (filters?.groupId) params.set('group_id', filters.groupId);
+      if (filters?.flagged) params.set('flagged', 'true');
+      const qs = params.toString();
+      replies.value = await apiFetch<Reply[]>(qs ? `/replies?${qs}` : '/replies');
     } finally {
       loading.value = false;
     }

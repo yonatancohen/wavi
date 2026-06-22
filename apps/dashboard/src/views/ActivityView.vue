@@ -9,8 +9,41 @@
       </p>
     </header>
 
-    <div class="mx-auto w-full max-w-[900px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
+    <div class="page-content py-7">
       <ActiveFlowsIndicator v-if="activeFlowTotal > 0" class="mb-5" :total="activeFlowTotal" :flows="activeFlows" />
+
+      <div v-if="!loading && !error" class="mb-4 flex flex-wrap items-end gap-4 rounded-xl border border-outline-variant bg-surface-container p-4">
+        <div class="min-w-[12rem] flex-1 sm:max-w-xs">
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('activity.filterGroup') }}
+          </label>
+          <select
+            v-model="selectedGroupId"
+            class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+          >
+            <option value="">{{ t('activity.allGroups') }}</option>
+            <option v-for="group in groups" :key="group.id" :value="group.id">
+              {{ group.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1.5 pb-2.5">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input v-model="flaggedOnly" type="checkbox" class="rounded border-outline-variant" />
+            <span class="text-[13px] text-on-surface-variant">{{ t('activity.flaggedOnly') }}</span>
+          </label>
+          <HelpTooltip :title="t('activity.flaggedOnlyTooltipTitle')" :body="t('activity.flaggedOnlyTooltipBody')">
+            <button type="button" class="icon-btn !min-h-0 p-0.5 text-on-surface-variant/60" :aria-label="t('activity.flaggedOnlyTooltipTitle')">
+              <span class="material-symbols-outlined text-[16px]">help</span>
+            </button>
+          </HelpTooltip>
+        </div>
+
+        <button v-if="hasActiveFilters" type="button" class="btn btn-secondary !min-h-0 px-3 py-2 text-[12px]" @click="clearFilters">
+          {{ t('activity.clearFilters') }}
+        </button>
+      </div>
 
       <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
@@ -18,7 +51,7 @@
         {{ error }}
       </div>
 
-      <div v-else-if="items.length === 0" class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
+      <div v-else-if="items.length === 0 && !hasActiveFilters" class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
         <div class="relative mx-auto mb-6 inline-block">
           <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
           <div class="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-surface-container shadow-wavi-ring">
@@ -32,6 +65,15 @@
           {{ t('activity.empty.body') }}
         </p>
         <RouterLink to="/groups" class="btn btn-primary">{{ t('activity.empty.cta') }}</RouterLink>
+      </div>
+
+      <div v-else-if="items.length === 0 && hasActiveFilters" class="rounded-xl border border-outline-variant bg-surface-container px-6 py-10 text-center">
+        <p class="mb-4 text-[13px] text-on-surface-variant">
+          {{ t('activity.emptyFiltered') }}
+        </p>
+        <button type="button" class="btn btn-secondary !min-h-0 px-4 py-2 text-[12px]" @click="clearFilters">
+          {{ t('activity.clearFilters') }}
+        </button>
       </div>
 
       <div v-else class="rounded-xl border border-outline-variant bg-surface-container">
@@ -68,9 +110,26 @@
 
               <p class="text-[13px] leading-relaxed text-on-surface">{{ item.body }}</p>
 
-              <div class="mt-2 flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
-                <span>{{ item.latency }}ms</span>
-                <span>{{ item.tokens }} tok</span>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div class="flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
+                  <span>{{ item.latency }}ms</span>
+                  <span>{{ item.tokens }} tok</span>
+                </div>
+                <HelpTooltip
+                  :title="item.flagged ? t('activity.revertFlagTooltipTitle') : t('activity.flagAsMissTooltipTitle')"
+                  :body="item.flagged ? t('activity.revertFlagTooltipBody') : t('activity.flagAsMissTooltipBody')"
+                >
+                  <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                    :class="item.flagged ? 'border-outline-variant text-on-surface-variant hover:bg-on-surface/[0.04]' : 'border-error/30 text-error hover:bg-error/[0.08]'"
+                    :disabled="flaggingId === item.id"
+                    @click="toggleFlag(item)"
+                  >
+                    <span class="material-symbols-outlined text-[14px]">{{ item.flagged ? 'undo' : 'flag' }}</span>
+                    {{ flaggingId === item.id ? t('activity.flagging') : item.flagged ? t('activity.revertFlag') : t('activity.flagAsMiss') }}
+                  </button>
+                </HelpTooltip>
               </div>
             </div>
           </div>
@@ -81,15 +140,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useRepliesStore } from '../stores/replies';
+import { useGroupsStore } from '../stores/groups';
 import { useFlowsStore } from '../stores/flows';
 import { formatRelativeTime } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
+import HelpTooltip from '../components/HelpTooltip.vue';
 import type { Reply } from '@wavi/shared';
 
 const { t, locale } = useI18n();
@@ -100,11 +161,18 @@ type ReplyRow = Reply & {
 };
 
 const store = useRepliesStore();
+const groupsStore = useGroupsStore();
 const flowsStore = useFlowsStore();
+const { groups } = storeToRefs(groupsStore);
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
 const error = ref<string | null>(null);
+const selectedGroupId = ref('');
+const flaggedOnly = ref(false);
+const flaggingId = ref<string | null>(null);
 
 const loading = computed(() => store.loading);
+
+const hasActiveFilters = computed(() => selectedGroupId.value !== '' || flaggedOnly.value);
 
 const items = computed(() =>
   store.replies.map((reply) => {
@@ -127,11 +195,44 @@ const items = computed(() =>
   }),
 );
 
-onMounted(async () => {
+async function toggleFlag(item: { id: string; flagged: boolean }) {
+  flaggingId.value = item.id;
+  error.value = null;
   try {
-    await store.fetchReplies();
+    await store.flagMiss(item.id, !item.flagged);
+    if (flaggedOnly.value && item.flagged) {
+      await loadActivity();
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('activity.failedFlag');
+  } finally {
+    flaggingId.value = null;
+  }
+}
+
+async function loadActivity() {
+  error.value = null;
+  try {
+    await store.fetchReplies({
+      groupId: selectedGroupId.value || undefined,
+      flagged: flaggedOnly.value || undefined,
+    });
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('activity.failedLoad');
   }
+}
+
+function clearFilters() {
+  selectedGroupId.value = '';
+  flaggedOnly.value = false;
+}
+
+watch([selectedGroupId, flaggedOnly], loadActivity);
+
+onMounted(async () => {
+  if (groups.value.length === 0) {
+    await groupsStore.fetchGroups();
+  }
+  await loadActivity();
 });
 </script>
