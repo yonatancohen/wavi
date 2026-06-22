@@ -21,48 +21,43 @@
     <div v-else class="grid gap-3">
       <article v-for="member in members" :key="member.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-4">
         <!-- Display name -->
-        <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
-          <div class="min-w-0 flex-1">
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/70">
-              {{ t('members.displayName') }}
-            </label>
-            <div v-if="editingNameId === member.id" class="flex flex-wrap items-center gap-2">
-              <input
-                v-model="nameDraft[member.id]"
-                type="text"
-                class="min-w-[12rem] flex-1 rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[14px] font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                @keydown.enter="saveDisplayName(member)"
-                @keydown.escape="cancelEditName(member.id)"
-              />
-              <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveDisplayName(member)">
-                {{ t('members.save') }}
-              </button>
-              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditName(member.id)">
-                {{ t('members.cancel') }}
-              </button>
-            </div>
-            <div v-else class="flex flex-wrap items-center gap-2">
+        <div class="mb-4">
+          <div v-if="editingNameId === member.id" class="flex flex-wrap items-center gap-2">
+            <input
+              v-model="nameDraft[member.id]"
+              type="text"
+              class="min-w-[12rem] flex-1 rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[14px] font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+              @keydown.enter="saveDisplayName(member)"
+              @keydown.escape="cancelEditName(member.id)"
+            />
+            <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveDisplayName(member)">
+              {{ t('members.save') }}
+            </button>
+            <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditName(member.id)">
+              {{ t('members.cancel') }}
+            </button>
+          </div>
+          <div v-else class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
               <h3 class="font-sora text-[15px] font-semibold text-on-surface">
                 {{ member.display_name }}
               </h3>
-              <button
-                type="button"
-                class="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-primary"
-                @click="startEditName(member)"
-              >
-                <span class="material-symbols-outlined text-[14px]">edit</span>
-                {{ t('members.editName') }}
-              </button>
+              <HelpTooltip :title="activityLevelTooltipTitle(member.profile_data.activity_level)" :body="activityLevelTooltipBody(member.profile_data.activity_level)">
+                <span class="badge shrink-0 px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
+                  {{ activityLevelLabel(member.profile_data.activity_level) }}
+                </span>
+              </HelpTooltip>
             </div>
-            <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
-              {{ member.wa_user_id }}
-              ·
-              {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
-            </p>
+            <button type="button" class="btn btn-primary inline-flex shrink-0 items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" @click="startEditName(member)">
+              <span class="material-symbols-outlined text-[16px]">edit</span>
+              {{ t('members.editName') }}
+            </button>
           </div>
-          <span class="badge shrink-0 px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
-            {{ member.profile_data.activity_level }}
-          </span>
+          <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
+            {{ member.wa_user_id }}
+            ·
+            {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
+          </p>
         </div>
 
         <!-- Names Wavi recognizes -->
@@ -110,9 +105,36 @@
           </div>
         </div>
 
-        <p class="mb-3 text-[13px] leading-relaxed text-on-surface-variant">
-          {{ member.behavioral_summary }}
-        </p>
+        <div class="mb-3">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/70">
+              {{ t('members.profileAnalysis') }}
+            </span>
+            <button v-if="editingSummaryId !== member.id" type="button" class="btn btn-primary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" @click="startEditSummary(member)">
+              <span class="material-symbols-outlined text-[16px]">edit</span>
+              {{ t('members.editSummary') }}
+            </button>
+          </div>
+          <div v-if="editingSummaryId === member.id" class="flex flex-col gap-2">
+            <textarea
+              v-model="summaryDraft[member.id]"
+              rows="3"
+              class="w-full resize-y rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[13px] leading-relaxed text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+              @keydown.escape="cancelEditSummary(member.id)"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveSummary(member)">
+                {{ t('members.save') }}
+              </button>
+              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditSummary(member.id)">
+                {{ t('members.cancel') }}
+              </button>
+            </div>
+          </div>
+          <p v-else class="text-[13px] leading-relaxed text-on-surface-variant">
+            {{ member.behavioral_summary || t('members.noSummaryYet') }}
+          </p>
+        </div>
 
         <div class="mb-3 flex flex-wrap gap-2">
           <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
@@ -161,6 +183,7 @@ import { ref, watch, onMounted, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
+import HelpTooltip from './HelpTooltip.vue';
 import type { UserProfile } from '@wavi/shared';
 
 const { t } = useI18n();
@@ -172,9 +195,11 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const savingId = ref<string | null>(null);
 const editingNameId = ref<string | null>(null);
+const editingSummaryId = ref<string | null>(null);
 const aliasDraft = reactive<Record<string, string>>({});
 const aliasErrors = reactive<Record<string, string>>({});
 const nameDraft = reactive<Record<string, string>>({});
+const summaryDraft = reactive<Record<string, string>>({});
 const mergeTarget = reactive<Record<string, string>>({});
 
 function memberAliases(member: UserProfile): string[] {
@@ -224,6 +249,20 @@ function activityBadgeClass(level: UserProfile['profile_data']['activity_level']
   return map[level];
 }
 
+type ActivityLevel = UserProfile['profile_data']['activity_level'];
+
+function activityLevelLabel(level: ActivityLevel) {
+  return t(`members.activityLevel.${level}`);
+}
+
+function activityLevelTooltipTitle(level: ActivityLevel) {
+  return `${t('members.activityLevelTitle')} · ${activityLevelLabel(level)}`;
+}
+
+function activityLevelTooltipBody(level: ActivityLevel) {
+  return `${t('members.activityLevelTooltip')} ${t(`members.activityLevelDesc.${level}`)}`;
+}
+
 function formatHumorType(type: string) {
   return type.replace(/-/g, ' ');
 }
@@ -236,6 +275,16 @@ function startEditName(member: UserProfile) {
 function cancelEditName(memberId: string) {
   editingNameId.value = null;
   delete nameDraft[memberId];
+}
+
+function startEditSummary(member: UserProfile) {
+  editingSummaryId.value = member.id;
+  summaryDraft[member.id] = member.behavioral_summary ?? '';
+}
+
+function cancelEditSummary(memberId: string) {
+  editingSummaryId.value = null;
+  delete summaryDraft[memberId];
 }
 
 async function patchMember(memberId: string, body: Record<string, unknown>): Promise<UserProfile> {
@@ -257,6 +306,25 @@ async function saveDisplayName(member: UserProfile) {
     const updated = await patchMember(member.id, { display_name: name });
     members.value = members.value.map((m) => (m.id === member.id ? updated : m));
     cancelEditName(member.id);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedSave');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+async function saveSummary(member: UserProfile) {
+  const summary = summaryDraft[member.id]?.trim() ?? '';
+  if (summary === (member.behavioral_summary ?? '')) {
+    cancelEditSummary(member.id);
+    return;
+  }
+  savingId.value = member.id;
+  error.value = null;
+  try {
+    const updated = await patchMember(member.id, { behavioral_summary: summary });
+    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
+    cancelEditSummary(member.id);
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('members.failedSave');
   } finally {
