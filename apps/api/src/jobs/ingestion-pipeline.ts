@@ -5,6 +5,9 @@ import { embedBatch, embed } from '../lib/embeddings.js';
 import { generateEpisodeSummary, generateGroupContext, synthesizeCharacter } from '../ai/summarizer.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
 import { buildRelationshipMap } from '../ai/relationships.js';
+import { alignExportIdentities } from '../lib/export-alignment.js';
+import { resolveExportMessages, collectObservedAliasesByPerson, type ResolvedExportMessage } from '../lib/resolve-export-messages.js';
+import { mergeAliases } from '../lib/identity.js';
 import type { IngestionProgress, LanguageMode, ParsedWAMessage } from '@wavi/shared';
 
 export async function setIngestionProgress(groupId: string, progress: Partial<IngestionProgress>) {
@@ -36,7 +39,31 @@ async function purgeDerivedIntelligence(groupId: string, includeChunks: boolean)
   await Promise.all(deletes);
 }
 
-async function embedMessageChunks(groupId: string, realMessages: ParsedWAMessage[], setProgress: (p: Partial<IngestionProgress>) => Promise<void>) {
+function prepareResolvedMessages(
+  primaryRaw: string,
+  supplementalRaw?: string,
+): {
+  resolved: ResolvedExportMessage[];
+  realCount: number;
+  alignmentMatches: number;
+} {
+  const primaryParsed = parseWAExport(primaryRaw);
+  let alignment = undefined;
+  let alignmentMatches = 0;
+
+  if (supplementalRaw?.trim()) {
+    const secondaryParsed = parseWAExport(supplementalRaw);
+    alignment = alignExportIdentities(primaryParsed, secondaryParsed);
+    alignmentMatches = alignment.matched_message_count;
+    console.log(`[Ingest] Export alignment: ${alignmentMatches} matched messages, ${alignment.links.length} identity links`);
+  }
+
+  const resolved = resolveExportMessages(primaryParsed, alignment);
+  const realCount = resolved.filter((m) => !m.is_system_message).length;
+  return { resolved, realCount, alignmentMatches };
+}
+
+async function embedMessageChunks(groupId: string, realMessages: ResolvedExportMessage[], setProgress: (p: Partial<IngestionProgress>) => Promise<void>) {
   const chunks = chunkMessages(realMessages, 50, 25);
   const BATCH_SIZE = 10;
   let chunksEmbedded = 0;
@@ -72,15 +99,16 @@ async function embedMessageChunks(groupId: string, realMessages: ParsedWAMessage
   return chunksEmbedded;
 }
 
-async function runIntelligenceStages(groupId: string, realMessages: ParsedWAMessage[], languageMode: LanguageMode, chunksEmbedded: number) {
+async function runIntelligenceStages(groupId: string, realMessages: ResolvedExportMessage[], languageMode: LanguageMode, chunksEmbedded: number) {
   const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
+  const observedAliases = collectObservedAliasesByPerson(realMessages);
 
   await setProgress({
     stage: 'profiling',
     processed_messages: realMessages.length,
     chunks_embedded: chunksEmbedded,
   });
-  await buildUserProfilesFromHistory(groupId, realMessages, languageMode);
+  await buildUserProfilesFromHistory(groupId, realMessages, languageMode, observedAliases);
 
   const episodeSummaries: string[] = [];
   for (let i = 0; i < realMessages.length; i += 100) {
@@ -100,7 +128,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ParsedWAMess
   }
 
   await setProgress({ stage: 'relationships' });
-  await buildRelationshipMap(groupId, realMessages, languageMode);
+  await buildRelationshipMap(groupId, realMessages, languageMode, observedAliases);
 
   await setProgress({ stage: 'context' });
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
@@ -148,15 +176,15 @@ async function runIntelligenceStages(groupId: string, realMessages: ParsedWAMess
   await setProgress({ stage: 'done' });
 }
 
-export async function runIngestionFromExport(groupId: string, raw: string) {
+export async function runIngestionFromExport(groupId: string, raw: string, supplementalRaw?: string) {
   try {
     await purgeDerivedIntelligence(groupId, true);
     await setIngestionProgress(groupId, { stage: 'parsing' });
 
-    const messages = parseWAExport(raw);
-    const realMessages = messages.filter((m) => !m.is_system_message);
+    const { resolved, realCount } = prepareResolvedMessages(raw, supplementalRaw);
+    const realMessages = resolved.filter((m) => !m.is_system_message);
 
-    await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realMessages.length });
+    await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realCount });
     const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
     const chunksEmbedded = await embedMessageChunks(groupId, realMessages, setProgress);
 
@@ -171,22 +199,74 @@ export async function runIngestionFromExport(groupId: string, raw: string) {
   }
 }
 
+/** Align a supplemental export with existing stored messages and merge aliases (no full re-ingest). */
+export async function runSupplementalExportAlignment(groupId: string, supplementalRaw: string) {
+  try {
+    await setIngestionProgress(groupId, { stage: 'parsing' });
+
+    const { data: rows } = await db.from('messages').select('sender_name, sender_wa_id, body, timestamp').eq('group_id', groupId).eq('is_agent_reply', false).order('timestamp', { ascending: true });
+
+    const primaryMessages: ParsedWAMessage[] = (rows ?? []).map((m) => ({
+      sender_name: m.sender_name,
+      sender_wa_id: m.sender_wa_id ?? undefined,
+      body: m.body,
+      timestamp: new Date(m.timestamp),
+      is_system_message: false,
+      is_media_omitted: false,
+    }));
+
+    const secondaryParsed = parseWAExport(supplementalRaw);
+    const alignment = alignExportIdentities(primaryMessages, secondaryParsed);
+
+    if (alignment.links.length === 0) {
+      await setIngestionProgress(groupId, { stage: 'error', error: 'No overlapping messages found — exports may be from different groups or time ranges' });
+      return;
+    }
+
+    for (const link of alignment.links) {
+      const { data: profile } = await db.from('user_profiles').select('id, profile_data, display_name').eq('group_id', groupId).eq('wa_user_id', link.canonical_wa_user_id).maybeSingle();
+
+      if (profile) {
+        const existing = (profile.profile_data as { aliases?: string[] })?.aliases ?? [];
+        const merged = mergeAliases(existing, link.secondary_label, link.primary_label);
+        await db
+          .from('user_profiles')
+          .update({
+            profile_data: { ...(profile.profile_data as object), aliases: merged },
+            last_updated: new Date().toISOString(),
+          })
+          .eq('id', profile.id);
+      }
+    }
+
+    console.log(`[Ingest] Supplemental alignment: ${alignment.matched_message_count} matches, ${alignment.links.length} links`);
+    await setIngestionProgress(groupId, { stage: 'done', total_messages: alignment.matched_message_count });
+  } catch (err: unknown) {
+    console.error('[Supplemental] Error:', err);
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    await setIngestionProgress(groupId, { stage: 'error', error: message });
+  }
+}
+
 export async function runRebuildFromStoredMessages(groupId: string) {
   try {
-    const { data: rows } = await db.from('messages').select('sender_name, body, timestamp').eq('group_id', groupId).eq('is_agent_reply', false).order('timestamp', { ascending: true });
+    const { data: rows } = await db.from('messages').select('sender_name, sender_wa_id, body, timestamp').eq('group_id', groupId).eq('is_agent_reply', false).order('timestamp', { ascending: true });
 
     if (!rows || rows.length === 0) {
       await setIngestionProgress(groupId, { stage: 'error', error: 'No stored messages to rebuild from' });
       return;
     }
 
-    const realMessages: ParsedWAMessage[] = rows.map((m) => ({
+    const parsed: ParsedWAMessage[] = rows.map((m) => ({
       sender_name: m.sender_name,
+      sender_wa_id: m.sender_wa_id ?? undefined,
       body: m.body,
       timestamp: new Date(m.timestamp),
       is_system_message: false,
       is_media_omitted: false,
     }));
+
+    const realMessages = resolveExportMessages(parsed).filter((m) => !m.is_system_message);
 
     await purgeDerivedIntelligence(groupId, true);
     await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realMessages.length });
