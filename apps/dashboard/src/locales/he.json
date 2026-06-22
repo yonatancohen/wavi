@@ -131,6 +131,8 @@
     "budgetCap": "תקרת תקציב: ${amount}",
     "budgetExceeded": "חריגה מהתקציב",
     "autoPaused": "קבוצות הושהו אוטומטית",
+    "testChatTitle": "צ'אט בדיקה (מנהל)",
+    "testChatSummary": "{replies} תצוגות מקדימות · {tokens} טוקנים · ${amount} משוער",
     "failedLoad": "טעינת נתוני עלות נכשלה"
   },
   "groups": {
@@ -172,7 +174,8 @@
       "character": "אישיות",
       "people": "אנשים",
       "dynamics": "דינמיקה",
-      "messages": "הודעות"
+      "messages": "הודעות",
+      "testChat": "צ'אט בדיקה"
     },
     "setup": {
       "title": "הגדרה",

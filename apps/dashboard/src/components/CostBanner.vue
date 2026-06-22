@@ -42,6 +42,19 @@
         </span>
       </div>
 
+      <div v-if="stats.test_chat.replies > 0" class="mt-4 rounded-lg border border-outline-variant/60 bg-surface-variant/20 px-3 py-2.5">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.testChatTitle') }}</p>
+        <p class="mt-1 text-[12px] text-on-surface-variant">
+          {{
+            t('cost.testChatSummary', {
+              replies: stats.test_chat.replies.toLocaleString(),
+              tokens: (stats.test_chat.input_tokens + stats.test_chat.output_tokens).toLocaleString(),
+              amount: stats.test_chat.spent_usd_estimate.toFixed(2),
+            })
+          }}
+        </p>
+      </div>
+
       <p v-if="loadError" class="mt-3 text-[12px] text-error">{{ loadError }}</p>
     </template>
   </section>

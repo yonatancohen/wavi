@@ -3,7 +3,7 @@ import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats, Cost
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
-import { getCostStats } from '../lib/cost.js';
+import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { generateReplyText } from '../ai/generate.js';
 
 function getAgentId(): string {
@@ -188,6 +188,8 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       prompt_tokens: inputTokens,
       completion_tokens: outputTokens,
     };
+
+    await recordTestChatUsage(inputTokens, outputTokens);
 
     return result;
   });

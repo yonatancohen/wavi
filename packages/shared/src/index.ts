@@ -347,6 +347,14 @@ export interface CostStats {
   spent_usd_estimate: number;
   budget_exceeded: boolean;
   auto_paused: boolean;
+  test_chat: TestChatCostStats;
+}
+
+export interface TestChatCostStats {
+  input_tokens: number;
+  output_tokens: number;
+  replies: number;
+  spent_usd_estimate: number;
 }
 
 // ── Test Chat (admin preview) ────────────────────────────────

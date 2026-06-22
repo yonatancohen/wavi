@@ -133,6 +133,10 @@
         <div v-show="activeTab === 'messages'" class="group-panel">
           <MessagesSection ref="messagesRef" :group-id="group.id" />
         </div>
+
+        <div v-show="activeTab === 'testChat'" class="group-panel">
+          <TestChatPanel :group-id="group.id" embedded />
+        </div>
       </template>
     </div>
   </div>
@@ -152,9 +156,10 @@ import MembersSection from '../components/MembersSection.vue';
 import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
+import TestChatPanel from '../components/TestChatPanel.vue';
 import type { GroupWithStats } from '@wavi/shared';
 
-type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages';
+type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -179,6 +184,7 @@ const tabs = computed(() => {
     { id: 'people' as const, label: t('groupDetail.tabs.people') },
     { id: 'dynamics' as const, label: t('groupDetail.tabs.dynamics') },
     { id: 'messages' as const, label: t('groupDetail.tabs.messages') },
+    { id: 'testChat' as const, label: t('groupDetail.tabs.testChat') },
   ];
 });
 

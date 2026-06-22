@@ -1,14 +1,26 @@
-import type { CostStats } from '@wavi/shared';
+import type { CostStats, TestChatCostStats } from '@wavi/shared';
 import { db } from '../db/client.js';
+import { redis } from './redis.js';
 
 const HAIKU_INPUT_PER_M = 0.8;
 const HAIKU_OUTPUT_PER_M = 4;
 const SONNET_INPUT_PER_M = 3;
 const SONNET_OUTPUT_PER_M = 15;
 
+const TEST_CHAT_COST_TTL_SEC = 60 * 60 * 24 * 45;
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 function monthStart(): string {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
+function testChatCostKey(month = currentMonthKey()): string {
+  return `test_chat_cost:${month}`;
 }
 
 function estimateCostUsd(inputTokens: number, outputTokens: number): number {
@@ -18,15 +30,47 @@ function estimateCostUsd(inputTokens: number, outputTokens: number): number {
   return inputCost + outputCost;
 }
 
+function emptyTestChatCost(): TestChatCostStats {
+  return {
+    input_tokens: 0,
+    output_tokens: 0,
+    replies: 0,
+    spent_usd_estimate: 0,
+  };
+}
+
+async function getTestChatCostStats(): Promise<TestChatCostStats> {
+  const raw = await redis.hgetall<Record<string, string>>(testChatCostKey());
+  if (!raw || Object.keys(raw).length === 0) return emptyTestChatCost();
+
+  const inputTokens = Number(raw.input_tokens ?? 0);
+  const outputTokens = Number(raw.output_tokens ?? 0);
+  const replies = Number(raw.replies ?? 0);
+
+  return {
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    replies,
+    spent_usd_estimate: Math.round(estimateCostUsd(inputTokens, outputTokens) * 100) / 100,
+  };
+}
+
+export async function recordTestChatUsage(inputTokens: number, outputTokens: number): Promise<void> {
+  const key = testChatCostKey();
+  await Promise.all([redis.hincrby(key, 'input_tokens', inputTokens), redis.hincrby(key, 'output_tokens', outputTokens), redis.hincrby(key, 'replies', 1), redis.expire(key, TEST_CHAT_COST_TTL_SEC)]);
+}
+
 export async function getCostStats(agentId: string): Promise<CostStats> {
   const since = monthStart();
+  const month = since.slice(0, 7);
   const budgetUsd = process.env.MONTHLY_REPLY_BUDGET_USD ? Number(process.env.MONTHLY_REPLY_BUDGET_USD) : null;
+  const testChat = await getTestChatCostStats();
 
   const { data: groups } = await db.from('groups').select('id').eq('agent_id', agentId);
   const groupIds = (groups ?? []).map((g) => g.id);
   if (groupIds.length === 0) {
     return {
-      month: since.slice(0, 7),
+      month,
       total_input_tokens: 0,
       total_output_tokens: 0,
       total_replies: 0,
@@ -35,6 +79,7 @@ export async function getCostStats(agentId: string): Promise<CostStats> {
       spent_usd_estimate: 0,
       budget_exceeded: false,
       auto_paused: false,
+      test_chat: testChat,
     };
   }
 
@@ -48,7 +93,7 @@ export async function getCostStats(agentId: string): Promise<CostStats> {
   const budgetExceeded = budgetUsd != null && spent >= budgetUsd;
 
   return {
-    month: since.slice(0, 7),
+    month,
     total_input_tokens: totalInput,
     total_output_tokens: totalOutput,
     total_replies: rows.length,
@@ -57,6 +102,7 @@ export async function getCostStats(agentId: string): Promise<CostStats> {
     spent_usd_estimate: Math.round(spent * 100) / 100,
     budget_exceeded: budgetExceeded,
     auto_paused: process.env.AUTO_PAUSE_ON_BUDGET === 'true' && budgetExceeded,
+    test_chat: testChat,
   };
 }
 

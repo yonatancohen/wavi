@@ -131,6 +131,8 @@
     "budgetCap": "Budget cap: ${amount}",
     "budgetExceeded": "Budget exceeded",
     "autoPaused": "Groups auto-paused",
+    "testChatTitle": "Test chat (admin)",
+    "testChatSummary": "{replies} previews · {tokens} tokens · ${amount} est.",
     "failedLoad": "Failed to load cost stats"
   },
   "groups": {
@@ -172,7 +174,8 @@
       "character": "Character",
       "people": "People",
       "dynamics": "Dynamics",
-      "messages": "Messages"
+      "messages": "Messages",
+      "testChat": "Test Chat"
     },
     "setup": {
       "title": "Setup",
