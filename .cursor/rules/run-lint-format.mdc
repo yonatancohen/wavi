@@ -1,0 +1,29 @@
+---
+description: Run lint and Prettier after content changes
+alwaysApply: true
+---
+
+# Lint & Format After Changes
+
+After making any content change to files in this repo, run lint and Prettier before considering the task done.
+
+- Format touched files (or the whole repo) with Prettier:
+
+```bash
+bun run format
+```
+
+- Lint and autofix:
+
+```bash
+bun run lint:fix
+```
+
+- Then verify it's clean (CI-friendly, no writes):
+
+```bash
+bun run format:check
+bun run lint
+```
+
+Fix any linter/type errors you introduce. Prettier owns formatting; ESLint owns correctness only. Prefix intentionally-unused vars/args with `_`.
