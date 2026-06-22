@@ -155,6 +155,7 @@ export interface UserProfileData {
   sensitivity_flags: string[]; // topics/tones to avoid
   emoji_usage: 'heavy' | 'moderate' | 'rare' | 'none';
   avg_message_length: 'long' | 'medium' | 'short' | 'terse';
+  aliases?: string[];
 }
 
 export interface UserProfile {
@@ -261,9 +262,24 @@ export const RATE_LIMIT_WINDOW = 3600; // seconds
 export interface ParsedWAMessage {
   timestamp: Date;
   sender_name: string;
+  /** Canonical id when known (phone number from export, live wa id, or aligned label). */
+  sender_wa_id?: string;
   body: string;
   is_system_message: boolean;
   is_media_omitted: boolean;
+}
+
+export interface UpdateMemberRequest {
+  display_name?: string;
+  add_alias?: string;
+  /** Add several aliases at once (comma-separated strings in each entry are split). */
+  add_aliases?: string[];
+  remove_alias?: string;
+}
+
+export interface MergeMembersRequest {
+  keep_profile_id: string;
+  merge_profile_id: string;
 }
 
 export interface IngestionProgress {
@@ -313,6 +329,7 @@ export interface QuotedMessageContext {
 
 export interface MentionedPerson {
   display_name: string;
+  aliases?: string[];
   behavioral_summary: string;
   sensitivity_flags: string[];
   relationships: string[];

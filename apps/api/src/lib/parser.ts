@@ -1,4 +1,5 @@
 import type { ParsedWAMessage } from '@wavi/shared';
+import { cleanMessageBody, resolveSenderIdentity, stripUnicodeDirectionMarks } from './identity.js';
 
 // ── Format patterns ───────────────────────────────────────────
 //
@@ -86,8 +87,7 @@ function parseDate(datePart: string, timePart: string): Date | null {
 }
 
 function parseLine(line: string): ParsedWAMessage | null {
-  // Strip Unicode direction marks (common in Hebrew exports)
-  const clean = line.replace(/[\u200e\u200f\u202a-\u202e]/g, '').trim();
+  const clean = stripUnicodeDirectionMarks(line).trim();
   if (!clean) return null;
 
   const match = clean.match(IOS_PATTERN) ?? clean.match(ANDROID_PATTERN);
@@ -98,11 +98,14 @@ function parseLine(line: string): ParsedWAMessage | null {
   const timestamp = parseDate(datePart, timePart);
   if (!timestamp) return null;
 
-  const bodyClean = body.trim();
+  const senderLabel = stripUnicodeDirectionMarks(senderName).trim();
+  const bodyClean = cleanMessageBody(body.trim());
+  const identity = resolveSenderIdentity(senderLabel);
 
   return {
     timestamp,
-    sender_name: senderName.trim(),
+    sender_name: identity.display_name,
+    sender_wa_id: identity.id_source === 'phone' ? identity.wa_user_id : undefined,
     body: bodyClean,
     is_system_message: isSystemMessage(bodyClean),
     is_media_omitted: isMediaOmitted(bodyClean),
@@ -118,7 +121,7 @@ export function parseWAExport(raw: string): ParsedWAMessage[] {
 
   for (const line of lines) {
     // Check if this line starts a new message
-    const stripped = line.replace(/[\u200e\u200f\u202a-\u202e]/g, '').trim();
+    const stripped = stripUnicodeDirectionMarks(line).trim();
     const isNewMessage = IOS_PATTERN.test(stripped) || ANDROID_PATTERN.test(stripped);
 
     if (isNewMessage) {
