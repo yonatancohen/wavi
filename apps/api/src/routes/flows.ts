@@ -1,10 +1,10 @@
-import type { FastifyPluginAsync } from 'fastify'
-import type { ActiveReplyFlows } from '@wavi/shared'
-import { getActiveReplyFlows } from '../lib/reply-flows.js'
+import type { FastifyPluginAsync } from 'fastify';
+import type { ActiveReplyFlows } from '@wavi/shared';
+import { getActiveReplyFlows } from '../lib/reply-flows.js';
 
 export const flowsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/active', async () => {
-    const { total, flows } = await getActiveReplyFlows(3)
+    const { total, flows } = await getActiveReplyFlows(3);
 
     const response: ActiveReplyFlows = {
       total,
@@ -17,8 +17,8 @@ export const flowsRoute: FastifyPluginAsync = async (fastify) => {
         status: flow.status,
         queued_at: new Date(flow.queued_at).toISOString(),
       })),
-    }
+    };
 
-    return response
-  })
-}
+    return response;
+  });
+};

@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [vue()],
@@ -19,12 +19,12 @@ export default defineConfig({
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes) => {
             if (proxyRes.headers['content-type']?.includes('text/event-stream')) {
-              proxyRes.headers['cache-control'] = 'no-cache'
-              proxyRes.headers['connection'] = 'keep-alive'
+              proxyRes.headers['cache-control'] = 'no-cache';
+              proxyRes.headers['connection'] = 'keep-alive';
             }
-          })
+          });
         },
       },
     },
   },
-})
+});

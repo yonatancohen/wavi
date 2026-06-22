@@ -1,0 +1,22 @@
+# Build artifacts & deps
+**/dist/**
+**/node_modules/**
+bun.lock
+bun.lockb
+
+# Cursor tooling / skills (authored verbatim)
+**/.cursor/**
+
+# Generated / data
+fixtures/
+supabase-schema.sql
+
+# Env & secrets
+.env
+.env.*
+
+# WhatsApp sessions
+.wwebjs_auth/
+.wwebjs_cache/
+.baileys_auth/
+wa_session/

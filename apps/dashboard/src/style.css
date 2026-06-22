@@ -96,7 +96,11 @@
   }
 
   .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    font-variation-settings:
+      'FILL' 0,
+      'wght' 300,
+      'GRAD' 0,
+      'opsz' 24;
   }
 }
 
@@ -376,14 +380,7 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      var(--skeleton-shimmer-low) 25%,
-      var(--skeleton-shimmer-mid) 50%,
-      var(--skeleton-shimmer-low) 75%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg, transparent 0%, var(--skeleton-shimmer-low) 25%, var(--skeleton-shimmer-mid) 50%, var(--skeleton-shimmer-low) 75%, transparent 100%);
     animation: skeleton-sweep 1.8s ease-in-out infinite;
     animation-delay: var(--skeleton-delay, 0ms);
   }

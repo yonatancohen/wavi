@@ -25,11 +25,13 @@ wavi/
 ## Setup
 
 ### 1. Install dependencies
+
 ```bash
 bun install
 ```
 
 ### 2. Database
+
 - Open Supabase SQL Editor
 - Run `supabase-schema.sql` in full
 - Enable pgvector extension (Settings → Database → Extensions)
@@ -37,6 +39,7 @@ bun install
 ### 3. Environment variables
 
 **API** (`apps/api/.env`):
+
 ```
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -50,6 +53,7 @@ AGENT_ID=<your agent row UUID from Supabase>
 ```
 
 **Dashboard** (`apps/dashboard/.env`):
+
 ```
 VITE_API_URL=http://localhost:3000/api
 VITE_SUPABASE_URL=
@@ -57,6 +61,7 @@ VITE_SUPABASE_ANON_KEY=
 ```
 
 ### 4. Create agent row in Supabase
+
 ```sql
 INSERT INTO owners (email) VALUES ('you@example.com') RETURNING id;
 INSERT INTO agents (owner_id, agent_name) VALUES ('<owner_id>', 'wavi') RETURNING id;
@@ -64,6 +69,7 @@ INSERT INTO agents (owner_id, agent_name) VALUES ('<owner_id>', 'wavi') RETURNIN
 ```
 
 ### 5. Run dev servers
+
 ```bash
 bun run dev
 # API:       http://localhost:3000
@@ -71,11 +77,13 @@ bun run dev
 ```
 
 ### 6. Connect WhatsApp
+
 - Open dashboard → WhatsApp tab
 - Scan QR code with your phone
 - Add the agent number to a WhatsApp group
 
 ### 7. Upload group history
+
 - Export WhatsApp chat: Settings → Chat → Export Chat (without media)
 - Dashboard → Groups → select group → Upload History
 - Wait for character synthesis (~60 seconds for 5k messages)
@@ -83,16 +91,16 @@ bun run dev
 
 ## Build Sequence (Phase by Phase)
 
-| Phase | Goal |
-|-------|------|
-| 0 | Foundation — schema, scaffold, auth |
-| 1 | WhatsApp core — connect, store messages, detect tags |
-| 2 | Ingestion + RAG — upload history, embed, pgvector |
-| 3 | Character synthesis — generate + review flow |
-| 4 | AI replies — full 8-block RAG prompt |
-| 5 | Intelligence jobs — profiling, relationships, context |
-| 6 | Recovery — negative reactions, apology |
-| 7 | Dashboard + polish — full UI, memory manager |
+| Phase | Goal                                                  |
+| ----- | ----------------------------------------------------- |
+| 0     | Foundation — schema, scaffold, auth                   |
+| 1     | WhatsApp core — connect, store messages, detect tags  |
+| 2     | Ingestion + RAG — upload history, embed, pgvector     |
+| 3     | Character synthesis — generate + review flow          |
+| 4     | AI replies — full 8-block RAG prompt                  |
+| 5     | Intelligence jobs — profiling, relationships, context |
+| 6     | Recovery — negative reactions, apology                |
+| 7     | Dashboard + polish — full UI, memory manager          |
 
 ## Deployment
 
@@ -113,4 +121,5 @@ bun run deploy:prod       # deploy API + dashboard
 - Dev and prod share the same Supabase + Redis for now
 
 ## Cost (personal scale)
+
 ~$2–5/month. See spec for full breakdown.

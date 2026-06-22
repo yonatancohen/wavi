@@ -1,5 +1,5 @@
-import type { FastifyPluginAsync } from 'fastify'
-import { allowedDashboardOrigins } from '../lib/cors.js'
+import type { FastifyPluginAsync } from 'fastify';
+import { allowedDashboardOrigins } from '../lib/cors.js';
 
 export const healthRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async () => ({
@@ -7,5 +7,5 @@ export const healthRoute: FastifyPluginAsync = async (fastify) => {
     ts: new Date().toISOString(),
     dashboard_url: process.env.DASHBOARD_URL?.trim() ?? null,
     cors_origins: allowedDashboardOrigins(),
-  }))
-}
+  }));
+};

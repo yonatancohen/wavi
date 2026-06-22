@@ -1,10 +1,7 @@
 <template>
   <div class="flex h-screen overflow-hidden bg-background">
     <!-- Desktop sidebar -->
-    <nav
-      class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex"
-      :aria-label="t('nav.main')"
-    >
+    <nav class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex" :aria-label="t('nav.main')">
       <AppBrand />
       <div v-if="activeFlowTotal > 0" class="px-3 pb-3">
         <ActiveFlowsIndicator :total="activeFlowTotal" :flows="activeFlows" />
@@ -17,43 +14,26 @@
       <!-- Mobile top bar (single header on mobile — page headers are desktop-only) -->
       <header class="mobile-top-bar lg:hidden">
         <div class="flex min-w-0 items-center gap-2">
-          <RouterLink
-            v-if="showMobileBack"
-            to="/groups"
-            class="icon-btn min-h-10 min-w-10 shrink-0"
-            :aria-label="t('groupDetail.back')"
-          >
+          <RouterLink v-if="showMobileBack" to="/groups" class="icon-btn min-h-10 min-w-10 shrink-0" :aria-label="t('groupDetail.back')">
             <span class="material-symbols-outlined text-[20px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
           </RouterLink>
-          <img
-            v-else
-            src="/wavi-mascot.jpg"
-            alt=""
-            class="h-8 w-8 shrink-0 rounded-lg object-contain ring-1 ring-outline-variant/30"
-          />
+          <img v-else src="/wavi-mascot.jpg" alt="" class="h-8 w-8 shrink-0 rounded-lg object-contain ring-1 ring-outline-variant/30" />
           <div class="min-w-0">
-            <p class="truncate font-sora text-[14px] font-bold tracking-tight text-on-surface">{{ mobilePageTitle }}</p>
-            <p v-if="mobilePageSubtitle" class="truncate text-[10px] text-on-surface-variant">{{ mobilePageSubtitle }}</p>
+            <p class="truncate font-sora text-[14px] font-bold tracking-tight text-on-surface">
+              {{ mobilePageTitle }}
+            </p>
+            <p v-if="mobilePageSubtitle" class="truncate text-[10px] text-on-surface-variant">
+              {{ mobilePageSubtitle }}
+            </p>
           </div>
         </div>
 
         <div class="flex shrink-0 items-center gap-1.5">
-          <ActiveFlowsIndicator
-            v-if="activeFlowTotal > 0"
-            :total="activeFlowTotal"
-            :flows="activeFlows"
-            compact
-          />
+          <ActiveFlowsIndicator v-if="activeFlowTotal > 0" :total="activeFlowTotal" :flows="activeFlows" compact />
 
           <AgentStatusBadge compact />
 
-          <button
-            type="button"
-            class="icon-btn"
-            :aria-expanded="settingsOpen"
-            :aria-label="t('nav.settings')"
-            @click="settingsOpen = true"
-          >
+          <button type="button" class="icon-btn" :aria-expanded="settingsOpen" :aria-label="t('nav.settings')" @click="settingsOpen = true">
             <span class="material-symbols-outlined text-[20px]">tune</span>
           </button>
         </div>
@@ -84,25 +64,13 @@
 
     <!-- Mobile settings sheet -->
     <Teleport to="body">
-      <div
-        v-if="settingsOpen"
-        class="mobile-sheet-backdrop"
-        @click="settingsOpen = false"
-      />
-      <div
-        v-if="settingsOpen"
-        class="mobile-sheet"
-        role="dialog"
-        :aria-label="t('nav.settings')"
-      >
+      <div v-if="settingsOpen" class="mobile-sheet-backdrop" @click="settingsOpen = false" />
+      <div v-if="settingsOpen" class="mobile-sheet" role="dialog" :aria-label="t('nav.settings')">
         <div class="flex items-center justify-between border-b border-outline-variant px-5 py-4">
-          <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('nav.settings') }}</h2>
-          <button
-            type="button"
-            class="icon-btn"
-            :aria-label="t('nav.close')"
-            @click="settingsOpen = false"
-          >
+          <h2 class="font-sora text-[15px] font-semibold text-on-surface">
+            {{ t('nav.settings') }}
+          </h2>
+          <button type="button" class="icon-btn" :aria-label="t('nav.close')" @click="settingsOpen = false">
             <span class="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
@@ -134,88 +102,89 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { storeToRefs } from 'pinia'
-import { useTheme } from './composables/useTheme'
-import { useLocale } from './composables/useLocale'
-import { useGroupsStore } from './stores/groups'
-import { useFlowsStore } from './stores/flows'
-import { useAgentStore } from './stores/agent'
-import AppBrand from './components/AppBrand.vue'
-import AppNavLinks from './components/AppNavLinks.vue'
-import AppNavFooter from './components/AppNavFooter.vue'
-import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue'
-import AgentStatusBadge from './components/AgentStatusBadge.vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { storeToRefs } from 'pinia';
+import { useTheme } from './composables/useTheme';
+import { useLocale } from './composables/useLocale';
+import { useGroupsStore } from './stores/groups';
+import { useFlowsStore } from './stores/flows';
+import { useAgentStore } from './stores/agent';
+import AppBrand from './components/AppBrand.vue';
+import AppNavLinks from './components/AppNavLinks.vue';
+import AppNavFooter from './components/AppNavFooter.vue';
+import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue';
+import AgentStatusBadge from './components/AgentStatusBadge.vue';
 
-const { t } = useI18n()
-const route = useRoute()
-const groupsStore = useGroupsStore()
-const flowsStore = useFlowsStore()
-const agentStore = useAgentStore()
-const { groups } = storeToRefs(groupsStore)
-const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
-const { connected: agentConnected } = storeToRefs(agentStore)
-const { mode, cycleMode } = useTheme()
-const { locale, toggleLocale } = useLocale()
+const { t } = useI18n();
+const route = useRoute();
+const groupsStore = useGroupsStore();
+const flowsStore = useFlowsStore();
+const agentStore = useAgentStore();
+const { groups } = storeToRefs(groupsStore);
+const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
+const { connected: agentConnected } = storeToRefs(agentStore);
+const { mode, cycleMode } = useTheme();
+const { locale, toggleLocale } = useLocale();
 
-const settingsOpen = ref(false)
+const settingsOpen = ref(false);
 
 const mobileNavItems = [
   { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
   { to: '/groups', icon: 'group', label: 'nav.groups', showDot: false },
   { to: '/activity', icon: 'history', label: 'nav.activity', showDot: false },
   { to: '/connect', icon: 'link', label: 'nav.whatsapp', showDot: false },
-] as const
+] as const;
 
 function isNavActive(to: string) {
-  if (to === '/') return route.path === '/'
-  return route.path === to || route.path.startsWith(`${to}/`)
+  if (to === '/') return route.path === '/';
+  return route.path === to || route.path.startsWith(`${to}/`);
 }
 
-const showMobileBack = computed(() =>
-  route.path.startsWith('/groups/') && route.path !== '/groups',
-)
+const showMobileBack = computed(() => route.path.startsWith('/groups/') && route.path !== '/groups');
 
 const mobilePageTitle = computed(() => {
-  const path = route.path
-  if (path === '/') return t('dashboard.title')
-  if (path === '/groups') return t('groups.title')
-  if (path === '/activity') return t('activity.title')
-  if (path === '/connect') return t('connect.title')
+  const path = route.path;
+  if (path === '/') return t('dashboard.title');
+  if (path === '/groups') return t('groups.title');
+  if (path === '/activity') return t('activity.title');
+  if (path === '/connect') return t('connect.title');
   if (showMobileBack.value) {
-    const id = route.params.id as string
-    const group = groups.value.find((g) => g.id === id)
-    return group?.name ?? t('groupDetail.group')
+    const id = route.params.id as string;
+    const group = groups.value.find((g) => g.id === id);
+    return group?.name ?? t('groupDetail.group');
   }
-  return 'Wavi'
-})
+  return 'Wavi';
+});
 
 const mobilePageSubtitle = computed(() => {
-  const path = route.path
-  if (path === '/') return t('brand.tagline')
-  if (path === '/groups') return t('groups.subtitle')
-  if (path === '/activity') return t('activity.subtitle')
-  if (path === '/connect') return t('connect.subtitle')
-  return null
-})
+  const path = route.path;
+  if (path === '/') return t('brand.tagline');
+  if (path === '/groups') return t('groups.subtitle');
+  if (path === '/activity') return t('activity.subtitle');
+  if (path === '/connect') return t('connect.subtitle');
+  return null;
+});
 
-watch(() => route.path, () => {
-  settingsOpen.value = false
-})
+watch(
+  () => route.path,
+  () => {
+    settingsOpen.value = false;
+  },
+);
 
 watch(settingsOpen, (open) => {
-  document.body.style.overflow = open ? 'hidden' : ''
-})
+  document.body.style.overflow = open ? 'hidden' : '';
+});
 
 onMounted(() => {
-  flowsStore.startPolling()
-  agentStore.startPolling()
-})
+  flowsStore.startPolling();
+  agentStore.startPolling();
+});
 
 onUnmounted(() => {
-  flowsStore.stopPolling()
-  agentStore.stopPolling()
-})
+  flowsStore.stopPolling();
+  agentStore.stopPolling();
+});
 </script>

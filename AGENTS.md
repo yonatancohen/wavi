@@ -60,6 +60,10 @@ bun run dev:dashboard    # dashboard only
 bun run typecheck        # tsc/vue-tsc across all workspaces
 bun run test             # API test suite (bun test)
 bun run build            # build all workspaces
+bun run lint             # ESLint across all workspaces (TS + Vue)
+bun run lint:fix         # ESLint with autofix
+bun run format           # Prettier write across the repo
+bun run format:check     # Prettier check (CI-friendly, no writes)
 ```
 
 Targeted checks while iterating:
@@ -87,8 +91,9 @@ bun run health           # health check
 - **Routes:** one file per resource in `apps/api/src/routes`, exported as a Fastify plugin and registered with a prefix in `index.ts`.
 - **Async work is queued through Redis.** Replies are enqueued and processed by the worker loop in `ai/worker.ts`; ephemeral state (pending reactions, etc.) uses keyed Redis entries with TTLs. Use `SCAN`, never `KEYS`.
 - **Tests:** `bun:test` (`describe`/`it`/`expect`), colocated in `__tests__/` folders next to the code. Add tests for parser/prompt/recovery-style pure logic.
-- **Comments** in this codebase explain *why* (non-obvious races, constraints, trade-offs), not *what*. Follow that — don't add narrating comments.
+- **Comments** in this codebase explain _why_ (non-obvious races, constraints, trade-offs), not _what_. Follow that — don't add narrating comments.
 - **Dashboard:** Vue 3 `<script setup>`, Pinia for state, Tailwind for styling, all API calls via `apiFetch` in `src/lib/api.ts`. User-facing strings go through i18n (`src/locales`).
+- **Formatting & linting.** Prettier owns formatting (config in `.prettierrc.json`): semicolons, single quotes, 2-space indent, trailing commas, 100-col width. ESLint (flat config in `eslint.config.js`) owns correctness only — formatting rules are disabled via `@vue/eslint-config-prettier`. Run `bun run lint` and `bun run format:check` before finishing; prefix intentionally-unused vars/args with `_`.
 
 ## Environment & secrets
 

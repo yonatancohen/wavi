@@ -1,13 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-const url  = process.env.SUPABASE_URL!
-const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const url = process.env.SUPABASE_URL!;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!url || !key) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
 }
 
 // Service role client — used server-side only, never exposed to browser
 export const db = createClient(url, key, {
   auth: { persistSession: false },
-})
+});

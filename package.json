@@ -2,6 +2,7 @@
   "name": "wavi",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "WhatsApp AI Group Agent — monorepo",
   "workspaces": [
     "apps/*",
@@ -34,12 +35,26 @@
     "test:parser": "bun scripts/test-parser.mjs",
     "test": "bun run --filter '@wavi/api' test",
     "build": "bun run --filter '*' build",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "bun": ">=1.4.0"
   },
   "dependencies": {
     "twilio": "^6.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vue/eslint-config-prettier": "10.2.0",
+    "@vue/eslint-config-typescript": "14.9.0",
+    "eslint": "10.5.0",
+    "eslint-plugin-vue": "10.9.2",
+    "globals": "17.7.0",
+    "prettier": "3.8.4",
+    "typescript-eslint": "8.61.1"
   }
 }

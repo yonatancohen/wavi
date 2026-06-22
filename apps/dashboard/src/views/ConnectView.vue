@@ -1,7 +1,9 @@
 <template>
   <div class="flex min-h-full flex-col bg-background">
     <header class="page-header hidden lg:block">
-      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('connect.title') }}</h1>
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">
+        {{ t('connect.title') }}
+      </h1>
       <p class="mt-0.5 text-[12px] text-on-surface-variant">
         {{ t('connect.subtitle') }}
       </p>
@@ -11,13 +13,11 @@
       <div v-if="connected" class="mx-auto max-w-md rounded-xl border border-primary/20 bg-surface-container p-10 text-center shadow-wavi-ring">
         <div class="relative mx-auto mb-6 inline-block">
           <div class="absolute inset-0 animate-neon-pulse rounded-2xl bg-primary opacity-20 blur-xl" />
-          <img
-            src="/wavi-mascot.jpg"
-            alt="Wavi mascot"
-            class="relative h-16 w-16 rounded-2xl object-contain ring-1 ring-primary/30"
-          />
+          <img src="/wavi-mascot.jpg" alt="Wavi mascot" class="relative h-16 w-16 rounded-2xl object-contain ring-1 ring-primary/30" />
         </div>
-        <div class="mb-2 font-sora text-[18px] font-semibold text-on-surface">{{ t('connect.connected.title') }}</div>
+        <div class="mb-2 font-sora text-[18px] font-semibold text-on-surface">
+          {{ t('connect.connected.title') }}
+        </div>
         <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
           {{ phoneNumber ? t('connect.connected.bodyPhone', { phone: phoneNumber }) : t('connect.connected.body') }}
           {{ t('groups.subtitle') }}
@@ -32,50 +32,45 @@
         <div class="mb-8 flex items-center gap-5">
           <div class="relative shrink-0">
             <div class="absolute inset-0 animate-neon-pulse rounded-2xl bg-primary opacity-20 blur-xl" />
-            <img
-              src="/wavi-mascot.jpg"
-              alt="Wavi mascot"
-              class="relative h-16 w-16 rounded-2xl object-contain ring-2 ring-primary/30"
-            />
+            <img src="/wavi-mascot.jpg" alt="Wavi mascot" class="relative h-16 w-16 rounded-2xl object-contain ring-2 ring-primary/30" />
           </div>
           <div>
-            <h2 class="font-sora text-[20px] font-bold tracking-tight text-on-surface">{{ t('connect.linking.title') }}</h2>
+            <h2 class="font-sora text-[20px] font-bold tracking-tight text-on-surface">
+              {{ t('connect.linking.title') }}
+            </h2>
             <p class="mt-1 text-[13px] italic text-on-surface-variant">
               {{ t('connect.linking.tagline') }}
             </p>
           </div>
         </div>
 
-          <div
-            v-if="streamError"
-            class="mb-6 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error"
-          >
+        <div v-if="streamError" class="mb-6 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
           {{ streamError }}
           <button class="ms-3 underline" @click="retry">{{ t('connect.retry') }}</button>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-2">
           <section class="flex min-h-[380px] flex-col rounded-xl border border-outline-variant bg-surface-container p-6">
-            <h3 class="mb-6 font-sora text-[15px] font-semibold text-primary">{{ t('connect.steps.title') }}</h3>
+            <h3 class="mb-6 font-sora text-[15px] font-semibold text-primary">
+              {{ t('connect.steps.title') }}
+            </h3>
             <ol class="flex flex-1 flex-col justify-center gap-5">
               <li class="flex items-start gap-4">
                 <span class="step-num">1</span>
-                <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
-                  Open <span class="font-semibold text-primary">WhatsApp</span> on your phone
-                </p>
+                <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">Open <span class="font-semibold text-primary">WhatsApp</span> on your phone</p>
               </li>
               <li class="flex items-start gap-4">
                 <span class="step-num">2</span>
                 <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
-                  Tap <span class="font-semibold text-on-surface">Menu</span> or
-                  <span class="font-semibold text-on-surface">Settings</span>, then
+                  Tap <span class="font-semibold text-on-surface">Menu</span> or <span class="font-semibold text-on-surface">Settings</span>, then
                   <span class="font-semibold text-primary">Linked Devices</span>
                 </p>
               </li>
               <li class="flex items-start gap-4">
                 <span class="step-num">3</span>
                 <p class="pt-1 text-[13px] leading-relaxed text-on-surface-variant">
-                  Point your phone at the code to <span class="font-semibold text-on-surface">capture it</span>
+                  Point your phone at the code to
+                  <span class="font-semibold text-on-surface">capture it</span>
                 </p>
               </li>
             </ol>
@@ -85,36 +80,17 @@
             <!-- QR always has white bg for scanning contrast in both themes -->
             <div class="rounded-2xl bg-white p-5 shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
               <div class="relative h-56 w-56 overflow-hidden rounded-xl sm:h-64 sm:w-64">
-                <LoadingState
-                  v-if="processing"
-                  variant="compact"
-                  :message="t('connect.status.linking')"
-                />
+                <LoadingState v-if="processing" variant="compact" :message="t('connect.status.linking')" />
                 <template v-else>
-                  <img
-                    v-if="qrDataUrl"
-                    :src="qrDataUrl"
-                    class="h-full w-full object-contain"
-                    alt="WhatsApp QR Code"
-                  />
-                  <LoadingState
-                    v-else
-                    variant="compact"
-                    :message="t('connect.status.generating')"
-                  />
-                  <div
-                    v-if="qrDataUrl"
-                    class="scan-line pointer-events-none absolute start-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]"
-                  />
+                  <img v-if="qrDataUrl" :src="qrDataUrl" class="h-full w-full object-contain" alt="WhatsApp QR Code" />
+                  <LoadingState v-else variant="compact" :message="t('connect.status.generating')" />
+                  <div v-if="qrDataUrl" class="scan-line pointer-events-none absolute start-0 h-[2px] w-full bg-primary opacity-90 shadow-[0_0_12px_#4ff07f]" />
                 </template>
               </div>
             </div>
 
             <div class="mt-4 flex items-center gap-2 text-on-surface-variant">
-              <span
-                class="h-2 w-2 rounded-full"
-                :class="statusDotClass"
-              />
+              <span class="h-2 w-2 rounded-full" :class="statusDotClass" />
               <p class="font-mono text-[11px]">
                 {{ statusMessage }}
               </p>
@@ -127,18 +103,19 @@
         </p>
 
         <div class="mt-8 rounded-xl border border-outline-variant/60 bg-surface-container p-5">
-          <p class="mb-1 font-sora text-[13px] font-semibold text-on-surface">{{ t('connect.troubleshoot.title') }}</p>
-          <p class="mb-4 text-[12px] leading-relaxed text-on-surface-variant">{{ t('connect.troubleshoot.body') }}</p>
+          <p class="mb-1 font-sora text-[13px] font-semibold text-on-surface">
+            {{ t('connect.troubleshoot.title') }}
+          </p>
+          <p class="mb-4 text-[12px] leading-relaxed text-on-surface-variant">
+            {{ t('connect.troubleshoot.body') }}
+          </p>
           <button
             type="button"
             class="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-high px-4 py-2 text-[13px] font-medium text-on-surface transition-all hover:border-primary/40 hover:text-primary active:scale-95 disabled:opacity-50"
             :disabled="restarting"
             @click="restartBrowser"
           >
-            <span
-              class="material-symbols-outlined text-[16px]"
-              :class="restarting ? 'animate-spin' : ''"
-            >refresh</span>
+            <span class="material-symbols-outlined text-[16px]" :class="restarting ? 'animate-spin' : ''">refresh</span>
             {{ restarting ? t('connect.troubleshoot.restarting') : t('connect.troubleshoot.restart') }}
           </button>
         </div>
@@ -148,172 +125,172 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { apiFetch, API_BASE } from '../lib/api'
-import type { AgentStatusResponse } from '@wavi/shared'
-import { useAgentStore } from '../stores/agent'
-import LoadingState from '../components/LoadingState.vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { apiFetch, API_BASE } from '../lib/api';
+import type { AgentStatusResponse } from '@wavi/shared';
+import { useAgentStore } from '../stores/agent';
+import LoadingState from '../components/LoadingState.vue';
 
-const { t } = useI18n()
-const agentStore = useAgentStore()
+const { t } = useI18n();
+const agentStore = useAgentStore();
 
-const qrDataUrl = ref<string | null>(null)
-const processing = ref(false)
-const connected = ref(false)
-const phoneNumber = ref<string | null>(null)
-const streamError = ref<string | null>(null)
-const restarting = ref(false)
+const qrDataUrl = ref<string | null>(null);
+const processing = ref(false);
+const connected = ref(false);
+const phoneNumber = ref<string | null>(null);
+const streamError = ref<string | null>(null);
+const restarting = ref(false);
 
 const statusMessage = computed(() => {
-  if (processing.value) return t('connect.status.scanned')
-  if (qrDataUrl.value) return t('connect.status.scan')
-  return t('connect.status.waiting')
-})
+  if (processing.value) return t('connect.status.scanned');
+  if (qrDataUrl.value) return t('connect.status.scan');
+  return t('connect.status.waiting');
+});
 
 const statusDotClass = computed(() => {
-  if (processing.value) return 'animate-pulse bg-secondary'
-  if (qrDataUrl.value) return 'animate-neon-pulse bg-primary'
-  return 'animate-pulse bg-secondary'
-})
-let eventSource: EventSource | null = null
-let qrTimeout: ReturnType<typeof setTimeout> | null = null
-let statusPoll: ReturnType<typeof setInterval> | null = null
+  if (processing.value) return 'animate-pulse bg-secondary';
+  if (qrDataUrl.value) return 'animate-neon-pulse bg-primary';
+  return 'animate-pulse bg-secondary';
+});
+let eventSource: EventSource | null = null;
+let qrTimeout: ReturnType<typeof setTimeout> | null = null;
+let statusPoll: ReturnType<typeof setInterval> | null = null;
 
 function stopStatusPoll() {
   if (statusPoll) {
-    clearInterval(statusPoll)
-    statusPoll = null
+    clearInterval(statusPoll);
+    statusPoll = null;
   }
 }
 
 function startStatusPoll() {
-  stopStatusPoll()
-  processing.value = true
-  streamError.value = null
+  stopStatusPoll();
+  processing.value = true;
+  streamError.value = null;
   statusPoll = setInterval(async () => {
     try {
-      const status = await apiFetch<AgentStatusResponse>('/agent/status')
+      const status = await apiFetch<AgentStatusResponse>('/agent/status');
       if (status.connected) {
-        setConnected(status)
+        setConnected(status);
       } else if (!status.connecting) {
-        processing.value = false
-        stopStatusPoll()
-        if (!connected.value && !qrDataUrl.value) startQrStream()
+        processing.value = false;
+        stopStatusPoll();
+        if (!connected.value && !qrDataUrl.value) startQrStream();
       }
     } catch {
       // keep polling
     }
-  }, 2000)
+  }, 2000);
 }
 
 function closeStream() {
-  eventSource?.close()
-  eventSource = null
+  eventSource?.close();
+  eventSource = null;
   if (qrTimeout) {
-    clearTimeout(qrTimeout)
-    qrTimeout = null
+    clearTimeout(qrTimeout);
+    qrTimeout = null;
   }
 }
 
 function setConnected(status: Pick<AgentStatusResponse, 'connected' | 'phone_number'>) {
-  connected.value = true
-  processing.value = false
-  phoneNumber.value = status.phone_number
-  qrDataUrl.value = null
-  streamError.value = null
-  stopStatusPoll()
-  closeStream()
-  void agentStore.refresh()
+  connected.value = true;
+  processing.value = false;
+  phoneNumber.value = status.phone_number;
+  qrDataUrl.value = null;
+  streamError.value = null;
+  stopStatusPoll();
+  closeStream();
+  void agentStore.refresh();
 }
 
 function startQrStream() {
-  closeStream()
-  streamError.value = null
-  processing.value = false
-  qrDataUrl.value = null
+  closeStream();
+  streamError.value = null;
+  processing.value = false;
+  qrDataUrl.value = null;
 
-  eventSource = new EventSource(`${API_BASE}/agent/qr`)
+  eventSource = new EventSource(`${API_BASE}/agent/qr`);
 
   qrTimeout = setTimeout(() => {
     if (!qrDataUrl.value && !connected.value && !processing.value) {
-      streamError.value = t('connect.errors.timeout')
+      streamError.value = t('connect.errors.timeout');
     }
-  }, 90_000)
+  }, 90_000);
 
   eventSource.onmessage = (e) => {
-    const msg = JSON.parse(e.data)
+    const msg = JSON.parse(e.data);
     if (msg.type === 'qr') {
-      qrDataUrl.value = msg.data
-      streamError.value = null
+      qrDataUrl.value = msg.data;
+      streamError.value = null;
     } else if (msg.type === 'authenticated') {
-      processing.value = true
-      streamError.value = null
-      startStatusPoll()
+      processing.value = true;
+      streamError.value = null;
+      startStatusPoll();
     } else if (msg.type === 'ready') {
-      setConnected({ connected: true, phone_number: msg.phone_number ?? null })
+      setConnected({ connected: true, phone_number: msg.phone_number ?? null });
     }
-  }
+  };
 
   eventSource.onerror = () => {
     apiFetch<AgentStatusResponse>('/agent/status')
       .then((s) => {
-        if (s.connected) setConnected(s)
+        if (s.connected) setConnected(s);
       })
       .catch(() => {
-        streamError.value = t('connect.errors.apiDown')
-      })
-  }
+        streamError.value = t('connect.errors.apiDown');
+      });
+  };
 }
 
 async function loadStatus() {
   try {
-    const status = await apiFetch<AgentStatusResponse>('/agent/status')
+    const status = await apiFetch<AgentStatusResponse>('/agent/status');
     if (status.connected) {
-      setConnected(status)
-      return
+      setConnected(status);
+      return;
     }
     if (status.connecting) {
-      startStatusPoll()
-      return
+      startStatusPoll();
+      return;
     }
-    startQrStream()
+    startQrStream();
   } catch {
-    streamError.value = t('connect.errors.apiDown')
+    streamError.value = t('connect.errors.apiDown');
   }
 }
 
 function retry() {
-  loadStatus()
+  loadStatus();
 }
 
 async function restartBrowser() {
-  if (restarting.value) return
-  restarting.value = true
-  streamError.value = null
-  closeStream()
-  stopStatusPoll()
-  qrDataUrl.value = null
-  processing.value = false
+  if (restarting.value) return;
+  restarting.value = true;
+  streamError.value = null;
+  closeStream();
+  stopStatusPoll();
+  qrDataUrl.value = null;
+  processing.value = false;
   try {
-    await apiFetch('/agent/restart', { method: 'POST' })
+    await apiFetch('/agent/restart', { method: 'POST' });
     // Give the server ~3s to kill the old browser, then start polling for QR
-    await new Promise((r) => setTimeout(r, 3000))
-    startQrStream()
+    await new Promise((r) => setTimeout(r, 3000));
+    startQrStream();
   } catch {
-    streamError.value = t('connect.errors.restartFailed')
+    streamError.value = t('connect.errors.restartFailed');
   } finally {
-    restarting.value = false
+    restarting.value = false;
   }
 }
 
-onMounted(loadStatus)
+onMounted(loadStatus);
 
 onUnmounted(() => {
-  closeStream()
-  stopStatusPoll()
-})
+  closeStream();
+  stopStatusPoll();
+});
 </script>
 
 <style scoped>

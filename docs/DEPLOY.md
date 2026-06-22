@@ -2,10 +2,10 @@
 
 Wavi runs in two places:
 
-| Service | Platform | Secrets store |
-|---------|----------|---------------|
-| API | [Railway](https://railway.app) | Railway variables |
-| Dashboard | [Vercel](https://vercel.com) | Vercel env vars |
+| Service   | Platform                       | Secrets store     |
+| --------- | ------------------------------ | ----------------- |
+| API       | [Railway](https://railway.app) | Railway variables |
+| Dashboard | [Vercel](https://vercel.com)   | Vercel env vars   |
 
 **Dev and prod share the same Supabase database and Upstash Redis** for now. Local `.env` files are the source of truth; deploy scripts push those values to Railway/Vercel.
 
@@ -61,28 +61,28 @@ WhatsApp login must survive redeploys:
 
 ### API (`apps/api/.env` → Railway)
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `SUPABASE_URL` | yes | Same project for dev + prod |
-| `SUPABASE_SERVICE_ROLE_KEY` | yes | Server-only, never in dashboard |
-| `ANTHROPIC_API_KEY` | yes | Replies + synthesis |
-| `OPENAI_API_KEY` | yes | Embeddings only |
-| `UPSTASH_REDIS_REST_URL` | yes | Same Redis for dev + prod |
-| `UPSTASH_REDIS_REST_TOKEN` | yes | |
-| `AGENT_ID` | yes | UUID from `agents` table |
-| `WA_AGENT_NAME` | yes | Default `wavi` |
-| `DASHBOARD_URL` | prod | Set automatically after Vercel prod deploy |
-| `TWILIO_*` | optional | Only for Twilio DM path |
-| `PORT` | auto | `3000` (set by sync script) |
-| `NODE_ENV` | auto | `production` |
+| Variable                    | Required | Notes                                      |
+| --------------------------- | -------- | ------------------------------------------ |
+| `SUPABASE_URL`              | yes      | Same project for dev + prod                |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes      | Server-only, never in dashboard            |
+| `ANTHROPIC_API_KEY`         | yes      | Replies + synthesis                        |
+| `OPENAI_API_KEY`            | yes      | Embeddings only                            |
+| `UPSTASH_REDIS_REST_URL`    | yes      | Same Redis for dev + prod                  |
+| `UPSTASH_REDIS_REST_TOKEN`  | yes      |                                            |
+| `AGENT_ID`                  | yes      | UUID from `agents` table                   |
+| `WA_AGENT_NAME`             | yes      | Default `wavi`                             |
+| `DASHBOARD_URL`             | prod     | Set automatically after Vercel prod deploy |
+| `TWILIO_*`                  | optional | Only for Twilio DM path                    |
+| `PORT`                      | auto     | `3000` (set by sync script)                |
+| `NODE_ENV`                  | auto     | `production`                               |
 
 ### Dashboard (`apps/dashboard/.env` → Vercel)
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `VITE_API_URL` | yes | `https://<railway-domain>/api` in prod |
-| `VITE_SUPABASE_URL` | yes | Same as API |
-| `VITE_SUPABASE_ANON_KEY` | yes | Public anon key only |
+| Variable                 | Required | Notes                                  |
+| ------------------------ | -------- | -------------------------------------- |
+| `VITE_API_URL`           | yes      | `https://<railway-domain>/api` in prod |
+| `VITE_SUPABASE_URL`      | yes      | Same as API                            |
+| `VITE_SUPABASE_ANON_KEY` | yes      | Public anon key only                   |
 
 ---
 
@@ -117,12 +117,12 @@ bun run deploy:prod
 
 This will:
 
-1. Sync all API secrets from `apps/api/.env` → Railway  
-2. Deploy API from `apps/api`  
-3. Set `VITE_API_URL` from the Railway domain  
-4. Sync dashboard secrets → Vercel  
-5. Deploy dashboard to production  
-6. Set `DASHBOARD_URL` on Railway for CORS  
+1. Sync all API secrets from `apps/api/.env` → Railway
+2. Deploy API from `apps/api`
+3. Set `VITE_API_URL` from the Railway domain
+4. Sync dashboard secrets → Vercel
+5. Deploy dashboard to production
+6. Set `DASHBOARD_URL` on Railway for CORS
 
 Then open the production dashboard → **WhatsApp** → scan QR.
 
@@ -130,13 +130,13 @@ Then open the production dashboard → **WhatsApp** → scan QR.
 
 ## Troubleshooting
 
-| Issue | Fix |
-|-------|-----|
-| CORS / QR stream blocked | Ensure `DASHBOARD_URL` on Railway matches your Vercel URL exactly |
-| Groups page 500 `AGENT_ID not configured` | Run `./scripts/db-setup.sh`, then `bun run sync-secrets:api` |
-| WhatsApp disconnects after deploy | Attach Railway volume at `/data` |
-| Dashboard calls localhost API | Set `VITE_API_URL` in `apps/dashboard/.env` to Railway URL, re-sync + redeploy |
-| `railway login` / `vercel login` expired | Re-authenticate and rerun deploy |
+| Issue                                     | Fix                                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------------------ |
+| CORS / QR stream blocked                  | Ensure `DASHBOARD_URL` on Railway matches your Vercel URL exactly              |
+| Groups page 500 `AGENT_ID not configured` | Run `./scripts/db-setup.sh`, then `bun run sync-secrets:api`                   |
+| WhatsApp disconnects after deploy         | Attach Railway volume at `/data`                                               |
+| Dashboard calls localhost API             | Set `VITE_API_URL` in `apps/dashboard/.env` to Railway URL, re-sync + redeploy |
+| `railway login` / `vercel login` expired  | Re-authenticate and rerun deploy                                               |
 
 ---
 

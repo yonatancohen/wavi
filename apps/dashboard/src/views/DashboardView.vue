@@ -1,12 +1,13 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
     <header class="page-header hidden lg:flex h-14 items-center justify-between">
-      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">{{ t('dashboard.title') }}</h1>
+      <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">
+        {{ t('dashboard.title') }}
+      </h1>
       <AgentStatusBadge />
     </header>
 
     <div class="mx-auto w-full max-w-[1200px] flex-1 px-margin-mobile py-7 lg:px-margin-desktop">
-
       <!-- Hero: greeting + KPI row -->
       <section class="mb-8 animate-slide-up">
         <div class="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -52,13 +53,14 @@
 
       <!-- Bento grid -->
       <div class="bento-grid">
-
         <!-- Active Groups -->
         <div class="flex flex-col gap-5 rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-8">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px] text-primary">group</span>
-              <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dashboard.activeGroups.title') }}</h3>
+              <h3 class="font-sora text-[15px] font-semibold text-on-surface">
+                {{ t('dashboard.activeGroups.title') }}
+              </h3>
             </div>
             <span class="rounded-full bg-primary/[0.08] px-2.5 py-0.5 font-mono text-[11px] text-primary">
               {{ t('dashboard.activeGroups.live', { count: activeGroups.length }) }}
@@ -69,11 +71,10 @@
             <LoadingSkeletons variant="dashboard-groups" :count="4" />
           </div>
 
-          <div
-            v-else-if="activeGroups.length === 0"
-            class="rounded-xl border border-outline-variant bg-surface-container-high/60 p-8 text-center"
-          >
-            <p class="mb-4 text-[13px] text-on-surface-variant">{{ t('dashboard.activeGroups.empty') }}</p>
+          <div v-else-if="activeGroups.length === 0" class="rounded-xl border border-outline-variant bg-surface-container-high/60 p-8 text-center">
+            <p class="mb-4 text-[13px] text-on-surface-variant">
+              {{ t('dashboard.activeGroups.empty') }}
+            </p>
             <RouterLink to="/groups" class="btn btn-primary">{{ t('dashboard.activeGroups.addFromWhatsapp') }}</RouterLink>
           </div>
 
@@ -85,29 +86,22 @@
               class="group relative cursor-pointer overflow-hidden rounded-xl border border-on-surface/[0.07] bg-surface-container-high/60 p-4 transition-all hover:border-primary/30 hover:bg-surface-container-highest/80 no-underline"
             >
               <!-- Status accent bar -->
-              <div
-                class="absolute start-0 top-0 h-full w-[3px]"
-                :class="group.status === 'active'
-                  ? 'bg-primary'
-                  : group.status === 'paused'
-                    ? 'bg-error/70'
-                    : 'bg-secondary/70'"
-              />
+              <div class="absolute start-0 top-0 h-full w-[3px]" :class="group.status === 'active' ? 'bg-primary' : group.status === 'paused' ? 'bg-error/70' : 'bg-secondary/70'" />
               <div class="ps-1">
                 <div class="mb-3 flex items-center justify-between">
-                  <span
-                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                    :class="statusBadgeClass(group.status)"
-                  >
+                  <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" :class="statusBadgeClass(group.status)">
                     {{ statusLabel(group.status, t) }}
                   </span>
                   <span class="font-mono text-[10px] text-on-surface-variant">
                     {{ t('dashboard.activeGroups.msgCount', { count: group.message_count_today }) }}
                   </span>
                 </div>
-                <h4 class="mb-0.5 font-sora text-[15px] font-semibold text-on-surface">{{ group.name }}</h4>
+                <h4 class="mb-0.5 font-sora text-[15px] font-semibold text-on-surface">
+                  {{ group.name }}
+                </h4>
                 <p class="text-[12px] text-on-surface-variant">
-                  {{ group.reply_count_today }} {{ group.reply_count_today === 1 ? t('dashboard.activeGroups.replies', 1) : t('dashboard.activeGroups.replies', 2) }}
+                  {{ group.reply_count_today }}
+                  {{ group.reply_count_today === 1 ? t('dashboard.activeGroups.replies', 1) : t('dashboard.activeGroups.replies', 2) }}
                 </p>
               </div>
             </RouterLink>
@@ -119,86 +113,91 @@
           <AgentHealthPanel />
 
           <div class="flex flex-col rounded-xl border border-outline-variant bg-surface-container p-5">
-          <div class="mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px] text-secondary">bolt</span>
-            <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dashboard.quickActions.title') }}</h3>
+            <div class="mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px] text-secondary">bolt</span>
+              <h3 class="font-sora text-[15px] font-semibold text-on-surface">
+                {{ t('dashboard.quickActions.title') }}
+              </h3>
+            </div>
+            <div class="flex flex-1 flex-col space-y-2">
+              <RouterLink
+                to="/connect"
+                class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-primary/30 hover:bg-surface-container-highest/60"
+              >
+                <span class="material-symbols-outlined text-[18px] text-primary transition-transform group-hover:scale-110">link</span>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">
+                    {{ t('dashboard.quickActions.connectWhatsapp') }}
+                  </p>
+                  <p class="text-[11px] text-on-surface-variant">
+                    {{ t('dashboard.quickActions.connectSubtitle') }}
+                  </p>
+                </div>
+              </RouterLink>
+              <RouterLink
+                to="/groups"
+                class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-secondary/30 hover:bg-surface-container-highest/60"
+              >
+                <span class="material-symbols-outlined text-[18px] text-secondary transition-transform group-hover:scale-110">group_add</span>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">
+                    {{ t('dashboard.quickActions.registerGroups') }}
+                  </p>
+                  <p class="text-[11px] text-on-surface-variant">
+                    {{ t('dashboard.quickActions.registerSubtitle') }}
+                  </p>
+                </div>
+              </RouterLink>
+              <RouterLink
+                to="/activity"
+                class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-tertiary/30 hover:bg-surface-container-highest/60"
+              >
+                <span class="material-symbols-outlined text-[18px] text-tertiary transition-transform group-hover:scale-110">history</span>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">
+                    {{ t('dashboard.quickActions.viewActivity') }}
+                  </p>
+                  <p class="text-[11px] text-on-surface-variant">
+                    {{ t('dashboard.quickActions.viewSubtitle') }}
+                  </p>
+                </div>
+              </RouterLink>
+            </div>
           </div>
-          <div class="flex flex-1 flex-col space-y-2">
-            <RouterLink
-              to="/connect"
-              class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-primary/30 hover:bg-surface-container-highest/60"
-            >
-              <span class="material-symbols-outlined text-[18px] text-primary transition-transform group-hover:scale-110">link</span>
-              <div>
-                <p class="text-[13px] font-semibold text-on-surface">{{ t('dashboard.quickActions.connectWhatsapp') }}</p>
-                <p class="text-[11px] text-on-surface-variant">{{ t('dashboard.quickActions.connectSubtitle') }}</p>
-              </div>
-            </RouterLink>
-            <RouterLink
-              to="/groups"
-              class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-secondary/30 hover:bg-surface-container-highest/60"
-            >
-              <span class="material-symbols-outlined text-[18px] text-secondary transition-transform group-hover:scale-110">group_add</span>
-              <div>
-                <p class="text-[13px] font-semibold text-on-surface">{{ t('dashboard.quickActions.registerGroups') }}</p>
-                <p class="text-[11px] text-on-surface-variant">{{ t('dashboard.quickActions.registerSubtitle') }}</p>
-              </div>
-            </RouterLink>
-            <RouterLink
-              to="/activity"
-              class="group flex w-full items-center gap-3 rounded-lg border border-on-surface/[0.06] bg-surface-container-high/40 p-3.5 text-start no-underline transition-all hover:border-tertiary/30 hover:bg-surface-container-highest/60"
-            >
-              <span class="material-symbols-outlined text-[18px] text-tertiary transition-transform group-hover:scale-110">history</span>
-              <div>
-                <p class="text-[13px] font-semibold text-on-surface">{{ t('dashboard.quickActions.viewActivity') }}</p>
-                <p class="text-[11px] text-on-surface-variant">{{ t('dashboard.quickActions.viewSubtitle') }}</p>
-              </div>
-            </RouterLink>
-          </div>
-        </div>
         </div>
 
         <!-- Recent Activity -->
         <div class="rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-12">
-          <ActiveFlowsIndicator
-            v-if="activeFlowTotal > 0"
-            class="mb-4"
-            :total="activeFlowTotal"
-            :flows="activeFlows"
-          />
+          <ActiveFlowsIndicator v-if="activeFlowTotal > 0" class="mb-4" :total="activeFlowTotal" :flows="activeFlows" />
 
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px] text-primary">history</span>
-              <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('dashboard.recentActivity.title') }}</h3>
+              <h3 class="font-sora text-[15px] font-semibold text-on-surface">
+                {{ t('dashboard.recentActivity.title') }}
+              </h3>
             </div>
-            <RouterLink
-              to="/activity"
-              class="flex items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary"
-            >
+            <RouterLink to="/activity" class="flex items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary">
               {{ t('dashboard.recentActivity.viewAll') }}
               <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_forward</span>
             </RouterLink>
           </div>
 
           <div>
-            <div
-              v-for="item in activityItems"
-              :key="item.title"
-              class="log-row"
-            >
-              <div
-                class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                :class="item.iconBg"
-              >
+            <div v-for="item in activityItems" :key="item.title" class="log-row">
+              <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="item.iconBg">
                 <span class="material-symbols-outlined text-[16px]" :class="item.iconColor">{{ item.icon }}</span>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-3">
-                  <h5 class="text-[13px] font-semibold" :class="item.iconColor">{{ item.title }}</h5>
+                  <h5 class="text-[13px] font-semibold" :class="item.iconColor">
+                    {{ item.title }}
+                  </h5>
                   <span class="log-timestamp shrink-0">{{ item.time }}</span>
                 </div>
-                <p class="mt-0.5 text-[13px] leading-relaxed text-on-surface-variant">{{ item.body }}</p>
+                <p class="mt-0.5 text-[13px] leading-relaxed text-on-surface-variant">
+                  {{ item.body }}
+                </p>
               </div>
             </div>
           </div>
@@ -209,52 +208,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { storeToRefs } from 'pinia'
-import { useGroupsStore } from '../stores/groups'
-import { useFlowsStore } from '../stores/flows'
-import { useAgentStore } from '../stores/agent'
-import { statusBadgeClass, statusLabel } from '../lib/ui'
-import LoadingSkeletons from '../components/LoadingSkeletons.vue'
-import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue'
-import AgentStatusBadge from '../components/AgentStatusBadge.vue'
-import AgentHealthPanel from '../components/AgentHealthPanel.vue'
+import { computed, onMounted } from 'vue';
+import { RouterLink } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
+import { useGroupsStore } from '../stores/groups';
+import { useFlowsStore } from '../stores/flows';
+import { useAgentStore } from '../stores/agent';
+import { statusBadgeClass, statusLabel } from '../lib/ui';
+import LoadingSkeletons from '../components/LoadingSkeletons.vue';
+import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
+import AgentStatusBadge from '../components/AgentStatusBadge.vue';
+import AgentHealthPanel from '../components/AgentHealthPanel.vue';
 
-const { t } = useI18n()
-const store = useGroupsStore()
-const flowsStore = useFlowsStore()
-const agentStore = useAgentStore()
-const { groups, loading } = storeToRefs(store)
-const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore)
-const { connected: agentConnected, healthTier, connecting } = storeToRefs(agentStore)
+const { t } = useI18n();
+const store = useGroupsStore();
+const flowsStore = useFlowsStore();
+const agentStore = useAgentStore();
+const { groups, loading } = storeToRefs(store);
+const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
+const { connected: agentConnected, healthTier, connecting } = storeToRefs(agentStore);
 
-const activeGroups = computed(() =>
-  groups.value.filter((g) => g.status === 'active'),
-)
+const activeGroups = computed(() => groups.value.filter((g) => g.status === 'active'));
 
-const totalMessagesToday = computed(() =>
-  activeGroups.value.reduce((sum, g) => sum + (g.message_count_today ?? 0), 0),
-)
+const totalMessagesToday = computed(() => activeGroups.value.reduce((sum, g) => sum + (g.message_count_today ?? 0), 0));
 
-const totalRepliesToday = computed(() =>
-  activeGroups.value.reduce((sum, g) => sum + (g.reply_count_today ?? 0), 0),
-)
+const totalRepliesToday = computed(() => activeGroups.value.reduce((sum, g) => sum + (g.reply_count_today ?? 0), 0));
 
 const heroSubtitle = computed(() => {
-  if (healthTier.value === 'degraded') return t('dashboard.subtitle.degraded')
-  if (connecting.value) return t('dashboard.subtitle.connecting')
-  if (!agentConnected.value) return t('dashboard.subtitle.disconnected')
-  if (activeGroups.value.length === 0) return t('dashboard.subtitle.noGroups')
+  if (healthTier.value === 'degraded') return t('dashboard.subtitle.degraded');
+  if (connecting.value) return t('dashboard.subtitle.connecting');
+  if (!agentConnected.value) return t('dashboard.subtitle.disconnected');
+  if (activeGroups.value.length === 0) return t('dashboard.subtitle.noGroups');
   return t('dashboard.subtitle.active', {
     count: activeGroups.value.length,
     groups: activeGroups.value.length === 1 ? t('dashboard.group') : t('dashboard.groups_word'),
-  })
-})
+  });
+});
 
 const activityItems = computed(() => {
-  const items = []
+  const items = [];
 
   if (healthTier.value === 'degraded') {
     items.push({
@@ -264,7 +257,7 @@ const activityItems = computed(() => {
       icon: 'sync_problem',
       iconBg: 'bg-secondary/15',
       iconColor: 'text-secondary',
-    })
+    });
   } else if (connecting.value) {
     items.push({
       title: 'WhatsApp',
@@ -273,7 +266,7 @@ const activityItems = computed(() => {
       icon: 'progress_activity',
       iconBg: 'bg-tertiary/15',
       iconColor: 'text-on-surface',
-    })
+    });
   } else if (!agentConnected.value) {
     items.push({
       title: 'WhatsApp',
@@ -282,7 +275,7 @@ const activityItems = computed(() => {
       icon: 'link_off',
       iconBg: 'bg-error/15',
       iconColor: 'text-error',
-    })
+    });
   } else {
     items.push({
       title: 'WhatsApp',
@@ -291,7 +284,7 @@ const activityItems = computed(() => {
       icon: 'check_circle',
       iconBg: 'bg-primary/15',
       iconColor: 'text-primary',
-    })
+    });
   }
 
   for (const group of activeGroups.value.slice(0, 2)) {
@@ -302,7 +295,7 @@ const activityItems = computed(() => {
       icon: 'forum',
       iconBg: 'bg-secondary/15',
       iconColor: 'text-secondary',
-    })
+    });
   }
 
   if (items.length < 3) {
@@ -313,15 +306,15 @@ const activityItems = computed(() => {
       icon: 'smart_toy',
       iconBg: 'bg-primary/15',
       iconColor: 'text-primary',
-    })
+    });
   }
 
-  return items.slice(0, 3)
-})
+  return items.slice(0, 3);
+});
 
 onMounted(async () => {
   try {
-    await store.fetchGroups()
+    await store.fetchGroups();
   } catch {}
-})
+});
 </script>

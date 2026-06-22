@@ -20,13 +20,7 @@
     <span class="block px-5 pb-2 pt-4 text-[9px] font-bold uppercase tracking-[0.15em] text-on-surface-variant/60">
       {{ t('nav.agent') }}
     </span>
-    <RouterLink
-      to="/connect"
-      active-class=""
-      class="nav-item"
-      :class="{ 'router-link-active': isNavActive('/connect') }"
-      :aria-current="isNavActive('/connect') ? 'page' : undefined"
-    >
+    <RouterLink to="/connect" active-class="" class="nav-item" :class="{ 'router-link-active': isNavActive('/connect') }" :aria-current="isNavActive('/connect') ? 'page' : undefined">
       <span class="material-symbols-outlined text-[18px]">link</span>
       {{ t('nav.whatsapp') }}
     </RouterLink>
@@ -34,22 +28,22 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n';
+import { RouterLink, useRoute } from 'vue-router';
 
-defineProps<{ connected: boolean }>()
+defineProps<{ connected: boolean }>();
 
-const { t } = useI18n()
-const route = useRoute()
+const { t } = useI18n();
+const route = useRoute();
 
 const overviewNavItems = [
   { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
   { to: '/groups', icon: 'group', label: 'nav.groups', showDot: false },
   { to: '/activity', icon: 'history', label: 'nav.activity', showDot: false },
-] as const
+] as const;
 
 function isNavActive(to: string) {
-  if (to === '/') return route.path === '/'
-  return route.path === to || route.path.startsWith(`${to}/`)
+  if (to === '/') return route.path === '/';
+  return route.path === to || route.path.startsWith(`${to}/`);
 }
 </script>

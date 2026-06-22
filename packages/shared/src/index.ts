@@ -4,74 +4,68 @@
 
 // ── Enums ────────────────────────────────────────────────────
 
-export type GroupStatus = 'pending_setup' | 'active' | 'paused'
+export type GroupStatus = 'pending_setup' | 'active' | 'paused';
 
-export type LanguageMode = 'auto' | 'he' | 'en' | 'ar' | 'es' | 'fr' | 'ru'
+export type LanguageMode = 'auto' | 'he' | 'en' | 'ar' | 'es' | 'fr' | 'ru';
 
-export type HumorType =
-  | 'sarcastic'
-  | 'absurdist'
-  | 'self-deprecating'
-  | 'dad-jokes'
-  | 'dry'
-  | 'none'
+export type HumorType = 'sarcastic' | 'absurdist' | 'self-deprecating' | 'dad-jokes' | 'dry' | 'none';
 
-export type PlanTier = 'free' | 'starter' | 'pro' | 'team'
+export type PlanTier = 'free' | 'starter' | 'pro' | 'team';
 
 // ── Owner ────────────────────────────────────────────────────
 
 export interface Owner {
-  id: string
-  email: string
-  plan: PlanTier
-  created_at: string
+  id: string;
+  email: string;
+  plan: PlanTier;
+  created_at: string;
 }
 
 // ── Agent ────────────────────────────────────────────────────
 
 export interface Agent {
-  id: string
-  owner_id: string
-  phone_number: string | null
-  agent_name: string
-  created_at: string
+  id: string;
+  owner_id: string;
+  phone_number: string | null;
+  agent_name: string;
+  created_at: string;
 }
 
 export interface WaHealthState {
-  consecutive_cdp_failures: number
-  last_forced_restart_at: string | null
-  restart_in_progress: boolean
-  cdp_op_in_flight: boolean
-  cdp_op_stuck_ms: number
+  consecutive_cdp_failures: number;
+  last_forced_restart_at: string | null;
+  restart_in_progress: boolean;
+  cdp_op_in_flight: boolean;
+  cdp_op_stuck_ms: number;
 }
 
-export type WaConnectionState = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED'
+export type WaConnectionState = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED';
 
 export interface AgentStatusResponse {
-  connected: boolean
-  connecting: boolean
-  state: WaConnectionState
-  phone_number: string | null
-  health: WaHealthState
+  connected: boolean;
+  connecting: boolean;
+  state: WaConnectionState;
+  phone_number: string | null;
+  health: WaHealthState;
 }
 
 // ── Character Config ─────────────────────────────────────────
 
 export interface PersonalitySliders {
-  formality: number      // 0–100
-  humor: number          // 0–100
-  verbosity: number      // 0–100
-  assertiveness: number  // 0–100
-  empathy: number        // 0–100
+  formality: number; // 0–100
+  humor: number; // 0–100
+  verbosity: number; // 0–100
+  assertiveness: number; // 0–100
+  empathy: number; // 0–100
 }
 
 export interface CharacterConfig {
-  voice: string                  // 2-3 sentence voice description
-  opinions: string[]             // 3-5 opinions on group-relevant topics
-  signature_behavior: string     // one recurring quirk
-  sliders: PersonalitySliders
-  preset: 'custom' | 'professional' | 'casual' | 'comedian' | 'warm'
-  version: number
+  voice: string; // 2-3 sentence voice description
+  opinions: string[]; // 3-5 opinions on group-relevant topics
+  signature_behavior: string; // one recurring quirk
+  sliders: PersonalitySliders;
+  preset: 'custom' | 'professional' | 'casual' | 'comedian' | 'warm';
+  version: number;
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
@@ -80,242 +74,242 @@ export const DEFAULT_SLIDERS: PersonalitySliders = {
   verbosity: 50,
   assertiveness: 60,
   empathy: 70,
-}
+};
 
 export const PRESET_SLIDERS: Record<string, PersonalitySliders> = {
   professional: { formality: 85, humor: 15, verbosity: 60, assertiveness: 70, empathy: 40 },
-  casual:       { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65 },
-  comedian:     { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45 },
-  warm:         { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90 },
-  custom:       DEFAULT_SLIDERS,
-}
+  casual: { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65 },
+  comedian: { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45 },
+  warm: { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90 },
+  custom: DEFAULT_SLIDERS,
+};
 
 // ── Group ────────────────────────────────────────────────────
 
 export interface Group {
-  id: string
-  agent_id: string
-  wa_group_id: string
-  name: string
-  status: GroupStatus
-  character_config: CharacterConfig | null
-  character_locked: boolean
-  language_mode: LanguageMode
-  created_at: string
+  id: string;
+  agent_id: string;
+  wa_group_id: string;
+  name: string;
+  status: GroupStatus;
+  character_config: CharacterConfig | null;
+  character_locked: boolean;
+  language_mode: LanguageMode;
+  created_at: string;
 }
 
 export interface GroupWithStats extends Group {
-  member_count: number
-  message_count_today: number
-  reply_count_today: number
-  last_activity: string | null
+  member_count: number;
+  message_count_today: number;
+  reply_count_today: number;
+  last_activity: string | null;
 }
 
 export interface CreateGroupRequest {
-  wa_group_id: string
-  name?: string
+  wa_group_id: string;
+  name?: string;
 }
 
 export interface DiscoveredWaGroup {
-  wa_group_id: string
-  name: string
-  participant_count: number | null
-  last_activity: string | null
-  registered: boolean
-  group_id: string | null
-  status: GroupStatus | null
+  wa_group_id: string;
+  name: string;
+  participant_count: number | null;
+  last_activity: string | null;
+  registered: boolean;
+  group_id: string | null;
+  status: GroupStatus | null;
 }
 
 // ── Messages ─────────────────────────────────────────────────
 
 export interface Message {
-  id: string
-  group_id: string
-  sender_wa_id: string
-  sender_name: string
-  body: string
-  is_agent_reply: boolean
-  flagged_miss: boolean
-  timestamp: string
-  created_at: string
+  id: string;
+  group_id: string;
+  sender_wa_id: string;
+  sender_name: string;
+  body: string;
+  is_agent_reply: boolean;
+  flagged_miss: boolean;
+  timestamp: string;
+  created_at: string;
 }
 
 export interface MessagesPage {
-  messages: Message[]
-  has_more: boolean
+  messages: Message[];
+  has_more: boolean;
 }
 
 // ── User Profiles ────────────────────────────────────────────
 
 export interface UserProfileData {
-  humor_type: HumorType
-  humor_score: number          // 0–100 how humorous they are
-  formality_score: number      // 0–100
-  activity_level: 'high' | 'medium' | 'low' | 'lurker'
-  dominant_topics: string[]
-  sensitivity_flags: string[]  // topics/tones to avoid
-  emoji_usage: 'heavy' | 'moderate' | 'rare' | 'none'
-  avg_message_length: 'long' | 'medium' | 'short' | 'terse'
+  humor_type: HumorType;
+  humor_score: number; // 0–100 how humorous they are
+  formality_score: number; // 0–100
+  activity_level: 'high' | 'medium' | 'low' | 'lurker';
+  dominant_topics: string[];
+  sensitivity_flags: string[]; // topics/tones to avoid
+  emoji_usage: 'heavy' | 'moderate' | 'rare' | 'none';
+  avg_message_length: 'long' | 'medium' | 'short' | 'terse';
 }
 
 export interface UserProfile {
-  id: string
-  group_id: string
-  wa_user_id: string
-  display_name: string
-  profile_data: UserProfileData
-  behavioral_summary: string   // pre-computed prose for prompt injection
-  msg_count: number
-  last_updated: string
+  id: string;
+  group_id: string;
+  wa_user_id: string;
+  display_name: string;
+  profile_data: UserProfileData;
+  behavioral_summary: string; // pre-computed prose for prompt injection
+  msg_count: number;
+  last_updated: string;
 }
 
 // ── Relationship Map ─────────────────────────────────────────
 
 export interface RelationshipSignals {
-  reply_count_a_to_b: number
-  reply_count_b_to_a: number
-  agreement_count: number
-  disagreement_count: number
-  defense_count: number        // times one defended the other
+  reply_count_a_to_b: number;
+  reply_count_b_to_a: number;
+  agreement_count: number;
+  disagreement_count: number;
+  defense_count: number; // times one defended the other
 }
 
 export interface RelationshipPair {
-  id: string
-  group_id: string
-  user_a_wa_id: string
-  user_b_wa_id: string
-  user_a_name: string
-  user_b_name: string
-  interaction_score: number    // 0–1 normalized
-  conflict_score: number       // 0–1
-  solidarity_score: number     // 0–1
-  signals: RelationshipSignals
-  narrative: string            // pre-computed prose: "Dan and Sara frequently clash..."
-  last_updated: string
+  id: string;
+  group_id: string;
+  user_a_wa_id: string;
+  user_b_wa_id: string;
+  user_a_name: string;
+  user_b_name: string;
+  interaction_score: number; // 0–1 normalized
+  conflict_score: number; // 0–1
+  solidarity_score: number; // 0–1
+  signals: RelationshipSignals;
+  narrative: string; // pre-computed prose: "Dan and Sara frequently clash..."
+  last_updated: string;
 }
 
 // ── Group Context ─────────────────────────────────────────────
 
 export interface GroupContext {
-  id: string
-  group_id: string
-  summary_text: string
-  character_version: number
-  generated_at: string
+  id: string;
+  group_id: string;
+  summary_text: string;
+  character_version: number;
+  generated_at: string;
 }
 
 // ── Group Memory ─────────────────────────────────────────────
 
 export interface GroupMemory {
-  id: string
-  group_id: string
-  memory_text: string
-  added_by_wa_id: string
-  added_by_name: string
-  created_at: string
+  id: string;
+  group_id: string;
+  memory_text: string;
+  added_by_wa_id: string;
+  added_by_name: string;
+  created_at: string;
 }
 
 // ── Reply flows (in-flight tag → reply pipeline) ─────────────
 
-export type ReplyFlowStatus = 'queued' | 'processing'
+export type ReplyFlowStatus = 'queued' | 'processing';
 
 export interface ReplyFlow {
-  id: string
-  group_id: string
-  group_name: string
-  sender_name: string
-  message_preview: string
-  status: ReplyFlowStatus
-  queued_at: string
+  id: string;
+  group_id: string;
+  group_name: string;
+  sender_name: string;
+  message_preview: string;
+  status: ReplyFlowStatus;
+  queued_at: string;
 }
 
 export interface ActiveReplyFlows {
-  total: number
-  flows: ReplyFlow[]
+  total: number;
+  flows: ReplyFlow[];
 }
 
 // ── Replies ──────────────────────────────────────────────────
 
 export interface Reply {
-  id: string
-  message_id: string
-  group_id: string
-  body: string
-  prompt_tokens: number
-  completion_tokens: number
-  latency_ms: number
-  flagged_miss: boolean
-  created_at: string
+  id: string;
+  message_id: string;
+  group_id: string;
+  body: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  latency_ms: number;
+  flagged_miss: boolean;
+  created_at: string;
   // joined
-  group_name?: string
-  triggered_by_name?: string
-  triggered_by_message?: string
+  group_name?: string;
+  triggered_by_name?: string;
+  triggered_by_message?: string;
 }
 
 // ── Rate Limit ───────────────────────────────────────────────
 
-export const RATE_LIMIT_MAX = 20       // per hour
-export const RATE_LIMIT_WINDOW = 3600  // seconds
+export const RATE_LIMIT_MAX = 20; // per hour
+export const RATE_LIMIT_WINDOW = 3600; // seconds
 
 // ── Ingestion ────────────────────────────────────────────────
 
 export interface ParsedWAMessage {
-  timestamp: Date
-  sender_name: string
-  body: string
-  is_system_message: boolean
-  is_media_omitted: boolean
+  timestamp: Date;
+  sender_name: string;
+  body: string;
+  is_system_message: boolean;
+  is_media_omitted: boolean;
 }
 
 export interface IngestionProgress {
-  group_id: string
-  total_messages: number
-  processed_messages: number
-  chunks_embedded: number
-  stage: 'parsing' | 'embedding' | 'profiling' | 'relationships' | 'context' | 'synthesizing' | 'done' | 'error'
-  error?: string
+  group_id: string;
+  total_messages: number;
+  processed_messages: number;
+  chunks_embedded: number;
+  stage: 'parsing' | 'embedding' | 'profiling' | 'relationships' | 'context' | 'synthesizing' | 'done' | 'error';
+  error?: string;
 }
 
 // ── API Response Shapes ──────────────────────────────────────
 
 export interface ApiResponse<T> {
-  data: T
-  error: null
+  data: T;
+  error: null;
 }
 
 export interface ApiError {
-  data: null
+  data: null;
   error: {
-    code: string
-    message: string
-  }
+    code: string;
+    message: string;
+  };
 }
 
-export type ApiResult<T> = ApiResponse<T> | ApiError
+export type ApiResult<T> = ApiResponse<T> | ApiError;
 
 // ── Dashboard Realtime Events ─────────────────────────────────
 
 export type RealtimeEvent =
-  | { type: 'new_reply';      payload: Reply }
-  | { type: 'miss_flagged';   payload: { reply_id: string; group_id: string } }
-  | { type: 'group_updated';  payload: Partial<Group> & { id: string } }
+  | { type: 'new_reply'; payload: Reply }
+  | { type: 'miss_flagged'; payload: { reply_id: string; group_id: string } }
+  | { type: 'group_updated'; payload: Partial<Group> & { id: string } }
   | { type: 'ingestion_progress'; payload: IngestionProgress }
   | { type: 'wa_disconnected'; payload: { agent_id: string } }
-  | { type: 'rate_limited';   payload: { group_id: string; wa_user_id: string; user_name: string } }
-  | { type: 'reply_flow_updated'; payload: ActiveReplyFlows }
+  | { type: 'rate_limited'; payload: { group_id: string; wa_user_id: string; user_name: string } }
+  | { type: 'reply_flow_updated'; payload: ActiveReplyFlows };
 
 // ── Prompt Assembly ──────────────────────────────────────────
 
 export interface PromptContext {
-  character_config: CharacterConfig
-  group_name: string
-  language_mode: LanguageMode
-  group_context_summary: string
-  sender_profile: UserProfile
-  relevant_relationships: RelationshipPair[]
-  group_memories: GroupMemory[]
-  rag_chunks: string[]          // top 5 message chunk summaries
-  rag_episode_summaries: string[] // top 3 episode summaries
-  recent_messages: Message[]    // last 20 verbatim
-  current_message: string
+  character_config: CharacterConfig;
+  group_name: string;
+  language_mode: LanguageMode;
+  group_context_summary: string;
+  sender_profile: UserProfile;
+  relevant_relationships: RelationshipPair[];
+  group_memories: GroupMemory[];
+  rag_chunks: string[]; // top 5 message chunk summaries
+  rag_episode_summaries: string[]; // top 3 episode summaries
+  recent_messages: Message[]; // last 20 verbatim
+  current_message: string;
 }

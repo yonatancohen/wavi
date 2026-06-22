@@ -1,17 +1,8 @@
 <template>
-  <div
-    role="status"
-    aria-label="Loading content"
-    :class="rootClass"
-  >
+  <div role="status" aria-label="Loading content" :class="rootClass">
     <!-- Groups page grid -->
     <template v-if="variant === 'group-cards'">
-      <div
-        v-for="i in count"
-        :key="i"
-        class="skeleton-card glass-card rounded-xl p-5"
-        :style="{ animationDelay: `${i * 70}ms` }"
-      >
+      <div v-for="i in count" :key="i" class="skeleton-card glass-card rounded-xl p-5" :style="{ animationDelay: `${i * 70}ms` }">
         <div class="mb-3 flex items-start justify-between gap-3">
           <div class="flex min-w-0 flex-1 items-center gap-2.5">
             <Skeleton class="h-5 w-5 shrink-0 rounded-md" />
@@ -29,12 +20,7 @@
 
     <!-- Dashboard bento group tiles -->
     <template v-else-if="variant === 'dashboard-groups'">
-      <div
-        v-for="i in count"
-        :key="i"
-        class="skeleton-card glass-card rounded-xl p-4"
-        :style="{ animationDelay: `${i * 70}ms` }"
-      >
+      <div v-for="i in count" :key="i" class="skeleton-card glass-card rounded-xl p-4" :style="{ animationDelay: `${i * 70}ms` }">
         <div class="mb-4 flex items-center justify-between">
           <Skeleton class="h-4 w-14 rounded-full" />
           <Skeleton class="h-2.5 w-16 rounded-sm" />
@@ -47,12 +33,7 @@
     <!-- Activity feed -->
     <template v-else-if="variant === 'activity-list'">
       <div class="rounded-xl border border-outline-variant bg-surface-container p-2">
-        <div
-          v-for="i in count"
-          :key="i"
-          class="skeleton-card flex items-start gap-4 border-b border-outline-variant/30 p-4 last:border-0"
-          :style="{ animationDelay: `${i * 60}ms` }"
-        >
+        <div v-for="i in count" :key="i" class="skeleton-card flex items-start gap-4 border-b border-outline-variant/30 p-4 last:border-0" :style="{ animationDelay: `${i * 60}ms` }">
           <Skeleton circle class="h-10 w-10 shrink-0" />
           <div class="min-w-0 flex-1 pt-0.5">
             <div class="mb-3 flex items-center justify-between gap-3">
@@ -74,20 +55,12 @@
     <!-- Group detail -->
     <template v-else-if="variant === 'group-detail'">
       <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <div
-          v-for="i in 3"
-          :key="i"
-          class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-4"
-          :style="{ animationDelay: `${i * 60}ms` }"
-        >
+        <div v-for="i in 3" :key="i" class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-4" :style="{ animationDelay: `${i * 60}ms` }">
           <Skeleton class="mb-2.5 h-2.5 w-20 rounded-sm" />
           <Skeleton class="h-7 w-10 rounded-md" />
         </div>
       </div>
-      <div
-        class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-6"
-        style="animation-delay: 180ms"
-      >
+      <div class="skeleton-card rounded-xl border border-outline-variant bg-surface-container p-6" style="animation-delay: 180ms">
         <div class="mb-5 flex items-center gap-2">
           <Skeleton class="h-6 w-6 rounded-md" />
           <Skeleton class="h-5 w-16 rounded-md" />
@@ -118,37 +91,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import Skeleton from './Skeleton.vue'
+import { computed } from 'vue';
+import Skeleton from './Skeleton.vue';
 
 const props = withDefaults(
   defineProps<{
-    variant:
-      | 'group-cards'
-      | 'dashboard-groups'
-      | 'activity-list'
-      | 'group-detail'
-      | 'discover-list'
-    count?: number
+    variant: 'group-cards' | 'dashboard-groups' | 'activity-list' | 'group-detail' | 'discover-list';
+    count?: number;
   }>(),
   {
     count: 4,
   },
-)
+);
 
 const rootClass = computed(() => {
   switch (props.variant) {
     case 'group-cards':
-      return 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4'
+      return 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4';
     case 'dashboard-groups':
-      return 'grid grid-cols-1 gap-4 md:grid-cols-2'
+      return 'grid grid-cols-1 gap-4 md:grid-cols-2';
     case 'activity-list':
     case 'group-detail':
-      return 'space-y-6'
+      return 'space-y-6';
     case 'discover-list':
-      return 'flex flex-col gap-3 px-6 pb-6 pt-4'
+      return 'flex flex-col gap-3 px-6 pb-6 pt-4';
     default:
-      return ''
+      return '';
   }
-})
+});
 </script>
