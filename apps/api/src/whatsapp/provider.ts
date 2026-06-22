@@ -8,6 +8,12 @@ export type GroupSummary = {
 };
 
 /** Provider-agnostic inbound message. Each backend maps its native event to this. */
+export type QuotedMessage = {
+  body: string;
+  senderWaId: string;
+  senderName: string;
+};
+
 export type InboundMessage = {
   waGroupId: string;
   isGroup: boolean;
@@ -18,6 +24,7 @@ export type InboundMessage = {
   timestampMs: number;
   waMsgId: string;
   mentionedIds: string[];
+  quotedMessage?: QuotedMessage;
   /** Resolves the sender's push name (display name). May perform a network call. */
   resolvePushName(): Promise<string>;
 };

@@ -3,23 +3,23 @@ import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { appendToChunkBuffer } from '../jobs/chunker.js';
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
-import { isAgentTagged } from './agent-identity.js';
+import { isAgentTagged, getAgentUserIds } from './agent-identity.js';
+import { checkInputGuard } from '../ai/guard.js';
+import type { LanguageMode } from '@wavi/shared';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 
+function waUserId(jid: string): string {
+  return jid.split('@')[0] ?? jid;
+}
+
 // ── Identity reconciliation ───────────────────────────────────
-// Ingestion writes user_profiles.wa_user_id = display name (e.g. "Dan Cohen")
-// but live messages identify senders by WA JID (e.g. "972501234567@c.us").
-// This function updates the profile key to the real JID once we observe a live
-// message. It runs non-blocking and caches results in Redis so subsequent
-// messages from the same sender incur only a single Redis EXISTS check.
 async function reconcileUserIdentity(groupId: string, senderWaId: string, displayName: string) {
   if (!displayName || displayName === senderWaId) return;
 
   const cacheKey = `reconciled:${groupId}:${senderWaId}`;
   if (await redis.exists(cacheKey)) return;
 
-  // If a profile already exists keyed by the real WA JID, nothing to do
   const { data: alreadyKeyed } = await db.from('user_profiles').select('id').eq('group_id', groupId).eq('wa_user_id', senderWaId).maybeSingle();
 
   if (alreadyKeyed) {
@@ -27,21 +27,15 @@ async function reconcileUserIdentity(groupId: string, senderWaId: string, displa
     return;
   }
 
-  // Find a profile keyed by the display name (written during ingestion)
   const { data: profile } = await db.from('user_profiles').select('id, wa_user_id').eq('group_id', groupId).eq('display_name', displayName).maybeSingle();
 
   if (!profile || isWaJid(profile.wa_user_id)) {
-    // No display-name profile yet — ingestion may not have run; retry after 1h
     await redis.setex(cacheKey, 3600, '0');
     return;
   }
 
   const oldId = profile.wa_user_id;
-
-  // Update the profile key from display name → real WA JID
   await db.from('user_profiles').update({ wa_user_id: senderWaId }).eq('id', profile.id);
-
-  // Reconcile relationship_map rows that still carry the display-name placeholder
   await reconcileRelationshipIds(groupId, oldId, senderWaId, displayName);
 
   console.log(`[Reconcile] Updated wa_user_id "${oldId}" → ${senderWaId} in group ${groupId}`);
@@ -68,7 +62,6 @@ async function reconcileRelationshipIds(groupId: string, oldId: string, newId: s
       defense_count: number;
     };
 
-    // Re-enforce canonical pair ordering (lower JID first) after key update
     if (userA > userB) {
       [userA, userB] = [userB, userA];
       [nameA, nameB] = [nameB, nameA];
@@ -103,16 +96,21 @@ async function reconcileRelationshipIds(groupId: string, oldId: string, newId: s
 }
 
 export async function handleIncomingMessage(msg: InboundMessage) {
-  // Only handle group messages
   if (!msg.isGroup) return;
 
   const waGroupId = msg.waGroupId;
-  console.log(`[WA] Group message received — wa_group_id: ${waGroupId} | name: ${msg.chatName}`);
-
   const senderWaId = msg.senderWaId;
   const body = msg.body;
 
-  // ── 1. Find group in DB ───────────────────────────────────
+  // Ignore agent's own messages
+  const agentIds = getAgentUserIds();
+  if (agentIds.includes(waUserId(senderWaId))) return;
+
+  // Dedup by waMsgId
+  const dedupKey = `msg_dedup:${msg.waMsgId}`;
+  if (await redis.exists(dedupKey)) return;
+  await redis.setex(dedupKey, 3600, '1');
+
   const { data: group } = await db.from('groups').select('id, name, status, character_config, language_mode').eq('wa_group_id', waGroupId).single();
 
   if (!group) {
@@ -124,8 +122,8 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     return;
   }
 
-  // ── 2. Store message ──────────────────────────────────────
-  const senderName = senderWaId;
+  const resolvedNameEarly = await msg.resolvePushName();
+  const senderName = resolvedNameEarly && resolvedNameEarly !== senderWaId ? resolvedNameEarly : senderWaId;
 
   const { data: stored } = await db
     .from('messages')
@@ -140,7 +138,6 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     .select('id')
     .single();
 
-  // ── 3. Feed chunk buffer (for RAG embedding) ──────────────
   await appendToChunkBuffer(group.id, {
     sender_wa_id: senderWaId,
     sender_name: senderName,
@@ -148,30 +145,38 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     timestamp: new Date(msg.timestampMs),
   });
 
-  // ── 4. Check if agent is tagged ───────────────────────────
   const tagged = isAgentTagged(msg, body);
-  console.log(`[WA] isAgentTagged=${tagged} | mentions=[${msg.mentionedIds?.join(',') ?? ''}]`);
   if (!tagged) {
-    // Reconcile display-name profile keys non-blocking (only needs pushname)
-    msg.resolvePushName().then((pushname) => {
-      if (pushname && pushname !== senderWaId) {
-        reconcileUserIdentity(group.id, senderWaId, pushname).catch((err) => {
-          console.error('[Reconcile] Failed:', err);
-        });
-      }
-    });
+    if (resolvedNameEarly && resolvedNameEarly !== senderWaId) {
+      reconcileUserIdentity(group.id, senderWaId, resolvedNameEarly).catch((err) => {
+        console.error('[Reconcile] Failed:', err);
+      });
+    }
     return;
   }
 
-  // Resolve push name — needed for reply context and reconciliation
-  const resolvedName = await msg.resolvePushName();
-
-  // Reconcile display-name profile keys (non-blocking)
-  reconcileUserIdentity(group.id, senderWaId, resolvedName).catch((err) => {
+  reconcileUserIdentity(group.id, senderWaId, resolvedNameEarly).catch((err) => {
     console.error('[Reconcile] Failed:', err);
   });
 
-  // ── 5. Rate limit check ───────────────────────────────────
+  // Memory commands (F-06)
+  const memoryHandled = await tryHandleMemoryCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+  });
+  if (memoryHandled) return;
+
+  // Bot-loop protection: skip if recent turns are all agent
+  if (await isAgentOnlyLoop(group.id)) {
+    console.log('[WA] Skipping reply — recent turns are all agent messages');
+    return;
+  }
+
   const rateLimitKey = `ratelimit:${group.id}:${senderWaId}`;
   const currentCount = await redis.incr(rateLimitKey);
 
@@ -196,7 +201,21 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     return;
   }
 
-  // ── 6. Queue reply job ────────────────────────────────────
+  const guard = checkInputGuard(body, (group.language_mode ?? 'he') as LanguageMode);
+  if (guard.blocked) {
+    await db.from('messages').insert({
+      group_id: group.id,
+      sender_wa_id: 'agent',
+      sender_name: AGENT_NAME,
+      body: guard.deflection,
+      is_agent_reply: true,
+      timestamp: new Date().toISOString(),
+    });
+    const { sendReply } = await import('./client.js');
+    await sendReply(waGroupId, guard.deflection, msg.waMsgId);
+    return;
+  }
+
   const { queueReplyJob } = await import('../lib/reply-queue.js');
   await queueReplyJob({
     group_id: group.id,
@@ -204,14 +223,101 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     wa_group_id: waGroupId,
     message_id: stored?.id,
     sender_wa_id: senderWaId,
-    sender_name: resolvedName,
+    sender_name: resolvedNameEarly,
     body,
     wa_msg_id: msg.waMsgId,
+    quoted_message: msg.quotedMessage
+      ? {
+          body: msg.quotedMessage.body,
+          sender_wa_id: msg.quotedMessage.senderWaId,
+          sender_name: msg.quotedMessage.senderName,
+        }
+      : null,
   });
 }
 
-// ── Rate limit response stays in character ────────────────────
-function getRateLimitResponse(characterConfig: any): string {
+async function isAgentOnlyLoop(groupId: string): Promise<boolean> {
+  const { data: recent } = await db.from('messages').select('is_agent_reply').eq('group_id', groupId).order('timestamp', { ascending: false }).limit(5);
+
+  if (!recent || recent.length < 3) return false;
+  return recent.every((m) => m.is_agent_reply);
+}
+
+type MemoryCommand = 'remember' | 'forget' | 'recall';
+
+function detectMemoryCommand(body: string): { cmd: MemoryCommand; payload: string } | null {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+
+  const rememberMatch = stripped.match(/^(?:remember|זכור|תזכור)[:\s]+(.+)/i);
+  if (rememberMatch) return { cmd: 'remember', payload: rememberMatch[1].trim() };
+
+  const forgetMatch = stripped.match(/^(?:forget|שכח|תשכח)[:\s]+(.+)/i);
+  if (forgetMatch) return { cmd: 'forget', payload: forgetMatch[1].trim() };
+
+  if (/^(?:what do you remember|מה אתה זוכר|מה את זוכרת)/i.test(stripped)) {
+    return { cmd: 'recall', payload: '' };
+  }
+
+  return null;
+}
+
+async function tryHandleMemoryCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+}): Promise<boolean> {
+  const parsed = detectMemoryCommand(params.body);
+  if (!parsed) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  let reply: string;
+
+  if (parsed.cmd === 'remember') {
+    await db.from('group_memories').insert({
+      group_id: params.groupId,
+      memory_text: parsed.payload,
+      added_by_wa_id: params.senderWaId,
+      added_by_name: params.senderName,
+    });
+    reply = he ? `סבבה, אזכור 👍` : `Got it, I'll remember that 👍`;
+  } else if (parsed.cmd === 'forget') {
+    const { data: memories } = await db.from('group_memories').select('id, memory_text').eq('group_id', params.groupId);
+    const match = (memories ?? []).find((m) => m.memory_text.toLowerCase().includes(parsed.payload.toLowerCase()));
+    if (match) {
+      await db.from('group_memories').delete().eq('id', match.id);
+      reply = he ? `שכחתי ✅` : `Forgot it ✅`;
+    } else {
+      reply = he ? `לא מצאתי משהו כזה לשכוח` : `Couldn't find that to forget`;
+    }
+  } else {
+    const { data: memories } = await db.from('group_memories').select('memory_text').eq('group_id', params.groupId).order('created_at', { ascending: false }).limit(10);
+    if (!memories?.length) {
+      reply = he ? 'עדיין לא זכרתי כלום 😄' : "I haven't stored anything yet 😄";
+    } else {
+      const list = memories.map((m) => `• ${m.memory_text}`).join('\n');
+      reply = he ? `זה מה שאני זוכר:\n${list}` : `Here's what I remember:\n${list}`;
+    }
+  }
+
+  await db.from('messages').insert({
+    group_id: params.groupId,
+    sender_wa_id: 'agent',
+    sender_name: AGENT_NAME,
+    body: reply,
+    is_agent_reply: true,
+    timestamp: new Date().toISOString(),
+  });
+
+  const { sendReply } = await import('./client.js');
+  await sendReply(params.waGroupId, reply, params.waMsgId);
+  return true;
+}
+
+function getRateLimitResponse(characterConfig: { sliders?: { humor?: number } } | null): string {
   const humor = characterConfig?.sliders?.humor ?? 50;
   if (humor > 70) {
     return `Easy there — I need a breather. You've hit your limit for the hour. I'll be back. 😤`;

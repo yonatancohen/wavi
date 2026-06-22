@@ -3,11 +3,27 @@ import { rm } from 'node:fs/promises';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
-import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage } from '../provider.js';
+import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage } from '../provider.js';
 
 // Baileys uses @hapi/boom to encode disconnect reasons in lastDisconnect.error.
 // We read the status code to decide whether to reconnect.
 import { Boom } from '@hapi/boom';
+
+function resolveBaileysQuoted(contextInfo: unknown, fallbackPushName?: string | null): QuotedMessage | undefined {
+  const ctx = contextInfo as {
+    quotedMessage?: { conversation?: string; extendedTextMessage?: { text?: string } } | null;
+    participant?: string;
+  } | null;
+  if (!ctx?.quotedMessage) return undefined;
+  const body = ctx.quotedMessage.conversation ?? ctx.quotedMessage.extendedTextMessage?.text ?? '';
+  if (!body) return undefined;
+  const senderWaId = ctx.participant ?? '';
+  return {
+    body,
+    senderWaId,
+    senderName: fallbackPushName ?? senderWaId,
+  };
+}
 
 // Bun compatibility: in Bun's ws shim, registering 'upgrade' or
 // 'unexpected-response' listeners on a ws.WebSocket silently breaks delivery
@@ -240,13 +256,12 @@ export function createBaileysProvider(): WhatsAppProvider {
           waGroupId: msg.key.remoteJid,
           isGroup: true,
           chatName: msg.key.remoteJid,
-          // In groups, participant holds the sender's JID
           senderWaId: msg.key.participant ?? '',
           body,
           timestampMs: Number(msg.messageTimestamp ?? 0) * 1000,
           waMsgId: msg.key.id ?? '',
           mentionedIds,
-          // pushName is sent inline with the message by Baileys — no extra call needed
+          quotedMessage: resolveBaileysQuoted(contextInfo, msg.pushName),
           resolvePushName: async () => msg.pushName ?? msg.key.participant ?? '',
         };
 

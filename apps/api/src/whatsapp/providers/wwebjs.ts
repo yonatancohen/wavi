@@ -8,13 +8,35 @@ import qrcode from 'qrcode';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
-import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage } from '../provider.js';
+import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage } from '../provider.js';
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth');
 const WA_CACHE_PATH = process.env.WA_CACHE_PATH ?? path.join(API_ROOT, '.wwebjs_cache');
 
 const GET_CONTACT_TIMEOUT_MS = 15_000;
+
+async function resolveQuotedMessage(msg: { hasQuotedMsg?: boolean; getQuotedMessage?: () => Promise<{ body?: string; author?: string; from?: string }> }): Promise<QuotedMessage | undefined> {
+  if (!msg.hasQuotedMsg || !msg.getQuotedMessage) return undefined;
+  try {
+    const quoted = await msg.getQuotedMessage();
+    const senderWaId = quoted.author ?? quoted.from ?? '';
+    let senderName = senderWaId;
+    try {
+      const contact = await (quoted as { getContact?: () => Promise<{ pushname?: string }> }).getContact?.();
+      senderName = contact?.pushname ?? senderWaId;
+    } catch {
+      // use JID fallback
+    }
+    return {
+      body: quoted.body ?? '',
+      senderWaId,
+      senderName,
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 function getProtocolTimeoutMs() {
   const n = Number(process.env.WA_PROTOCOL_TIMEOUT_MS);
@@ -485,6 +507,7 @@ export function createWwebjsProvider(): WhatsAppProvider {
       timestampMs: msg.timestamp * 1000,
       waMsgId: msg.id._serialized,
       mentionedIds: (msg as { mentionedIds?: string[] }).mentionedIds ?? [],
+      quotedMessage: await resolveQuotedMessage(msg),
       resolvePushName: async () => {
         try {
           const contact = await Promise.race([msg.getContact(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('getContact timeout')), GET_CONTACT_TIMEOUT_MS))]);
