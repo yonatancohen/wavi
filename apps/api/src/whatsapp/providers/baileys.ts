@@ -126,7 +126,19 @@ export function createBaileysProvider(): WhatsAppProvider {
       getMessage: async () => undefined,
     })
 
-    sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('creds.update', (update) => {
+      saveCreds()
+      // The LID (@lid JID) may arrive in creds.update after connection.open.
+      // Update agent identity so isAgentTagged() can match @lid mentions.
+      const rawLid = (update as { me?: { lid?: string } }).me?.lid ?? null
+      if (rawLid && _connected) {
+        const lidUser = rawLid.split('@')[0]?.split(':')[0] ?? null
+        if (lidUser) {
+          bindAgentIdentity({ phoneUser: _phoneNumber, wid: _wid, lidUser })
+          console.log(`[Baileys] LID updated — ${lidUser}`)
+        }
+      }
+    })
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update
@@ -160,8 +172,13 @@ export function createBaileysProvider(): WhatsAppProvider {
           // Baileys JID for the linked account is already in @s.whatsapp.net form
           const phoneUser = userId.split('@')[0]?.split(':')[0] ?? null
           _phoneNumber = phoneUser
-          bindAgentIdentity({ phoneUser, wid: userId })
-          console.log(`[Baileys] Connected — phone: ${phoneUser} | wid: ${userId}`)
+          // WhatsApp uses @lid JIDs for @-mentions in groups. Extract the LID
+          // so isAgentTagged() can match it (sock.user.lid may arrive slightly
+          // later via creds.update, but grab it now if already present).
+          const rawLid = (sock?.user as { lid?: string } | undefined)?.lid ?? null
+          const lidUser = rawLid ? (rawLid.split('@')[0]?.split(':')[0] ?? null) : null
+          bindAgentIdentity({ phoneUser, wid: userId, lidUser })
+          console.log(`[Baileys] Connected — phone: ${phoneUser} | wid: ${userId} | lid: ${lidUser ?? 'pending'}`)
         }
 
         // 1. Tell the dashboard QR was scanned and we are finalising
