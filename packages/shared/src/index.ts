@@ -348,3 +348,25 @@ export interface CostStats {
   budget_exceeded: boolean;
   auto_paused: boolean;
 }
+
+// ── Test Chat (admin preview) ────────────────────────────────
+
+export interface TestReplyHistoryTurn {
+  role: 'user' | 'assistant';
+  content: string;
+  sender_name?: string;
+}
+
+export interface TestReplyRequest {
+  message: string;
+  sender_name?: string;
+  sender_wa_id?: string;
+  history?: TestReplyHistoryTurn[];
+}
+
+export interface TestReplyResponse {
+  reply: string;
+  latency_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+}

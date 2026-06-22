@@ -40,6 +40,7 @@ const overviewNavItems = [
   { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
   { to: '/groups', icon: 'group', label: 'nav.groups', showDot: false },
   { to: '/activity', icon: 'history', label: 'nav.activity', showDot: false },
+  { to: '/test-chat', icon: 'science', label: 'nav.testChat', showDot: false },
 ] as const;
 
 function isNavActive(to: string) {

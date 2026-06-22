@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats, CostStats } from '@wavi/shared';
+import type { CreateGroupRequest, DiscoveredWaGroup, Group, GroupWithStats, CostStats, TestReplyRequest, TestReplyResponse } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
 import { getCostStats } from '../lib/cost.js';
+import { generateReplyText } from '../ai/generate.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -22,6 +23,16 @@ function mapGroupRow(row: Record<string, unknown>): GroupWithStats {
     reply_count_today: replyCount?.[0]?.count ?? 0,
     last_activity: null,
   };
+}
+
+const DEFAULT_TEST_SENDER_NAME = 'Tester';
+const DEFAULT_TEST_SENDER_WA_ID = 'test-admin';
+
+function mapTestHistoryToExtraTurns(history: TestReplyRequest['history']) {
+  return (history ?? []).map((turn) => ({
+    role: turn.role,
+    content: turn.role === 'user' && turn.sender_name ? `${turn.sender_name}: ${turn.content}` : turn.content,
+  }));
 }
 
 // ── Groups route ─────────────────────────────────────────────
@@ -147,6 +158,38 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     runRebuildFromStoredMessages(id).catch((err) => {
       console.error('[Rebuild] Failed:', err);
     });
+  });
+
+  // Test reply preview (no WhatsApp delivery, no DB writes)
+  fastify.post<{ Params: { id: string }; Body: TestReplyRequest }>('/:id/test-reply', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const message = req.body?.message?.trim();
+    if (!message) return reply.code(400).send({ error: 'message is required' });
+
+    const senderName = req.body.sender_name?.trim() || DEFAULT_TEST_SENDER_NAME;
+    const senderWaId = req.body.sender_wa_id?.trim() || DEFAULT_TEST_SENDER_WA_ID;
+    const extraTurns = mapTestHistoryToExtraTurns(req.body.history);
+
+    const startTime = Date.now();
+    const { replyText, inputTokens, outputTokens } = await generateReplyText({
+      groupId: req.params.id,
+      senderWaId,
+      senderName,
+      body: message,
+      extraTurns,
+    });
+
+    const result: TestReplyResponse = {
+      reply: replyText,
+      latency_ms: Date.now() - startTime,
+      prompt_tokens: inputTokens,
+      completion_tokens: outputTokens,
+    };
+
+    return result;
   });
 
   // Messages (cursor pagination — latest first, load older via ?before=)

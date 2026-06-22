@@ -1,24 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
-import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
+import { generateReplyText } from './generate.js';
 import { detectNegativeReaction, generateApology } from './recovery.js';
 import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import type { ReplyJob } from '../lib/reply-queue.js';
-import { DEFAULT_REPLY_MODEL, type ReplyModel } from '@wavi/shared';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const MAX_TOKENS = 500;
 const MAX_DELIVERY_ATTEMPTS = 5;
 
 function getAgentId(): string | null {
   return process.env.AGENT_ID ?? null;
-}
-
-function resolveReplyModel(config: { reply_model?: ReplyModel } | null | undefined): ReplyModel {
-  return config?.reply_model ?? DEFAULT_REPLY_MODEL;
 }
 
 // ── Worker loop ───────────────────────────────────────────────
@@ -70,27 +61,16 @@ async function processReplyJob(job: ReplyJob) {
     let outputTokens = job.completion_tokens ?? 0;
 
     if (!replyText) {
-      const ctx = await buildPromptContext({
+      const generated = await generateReplyText({
         groupId: job.group_id,
         senderWaId: job.sender_wa_id,
-        currentMessage: job.body,
+        senderName: job.sender_name,
+        body: job.body,
         quotedMessage: job.quoted_message,
       });
-
-      const replyModel = resolveReplyModel(ctx.character_config);
-      const systemPrompt = buildSystemPrompt(ctx);
-      const conversationTurns = buildConversationTurns(ctx);
-
-      const response = await anthropic.messages.create({
-        model: replyModel,
-        max_tokens: MAX_TOKENS,
-        system: systemPrompt,
-        messages: [...conversationTurns, { role: 'user', content: `${job.sender_name}: ${job.body}` }],
-      });
-
-      replyText = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
-      inputTokens = response.usage.input_tokens;
-      outputTokens = response.usage.output_tokens;
+      replyText = generated.replyText;
+      inputTokens = generated.inputTokens;
+      outputTokens = generated.outputTokens;
     }
 
     if (!replyText) {
