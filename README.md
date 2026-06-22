@@ -70,6 +70,8 @@ INSERT INTO agents (owner_id, agent_name) VALUES ('<owner_id>', 'wavi') RETURNIN
 
 ### 5. Run dev servers
 
+See **[docs/COMMANDS.md](docs/COMMANDS.md)** for all scripts.
+
 ```bash
 bun run dev
 # API:       http://localhost:3000

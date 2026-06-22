@@ -50,6 +50,8 @@ supabase-schema.sql   full DB schema (run in Supabase SQL editor)
 
 ## Commands
 
+Full reference: **[docs/COMMANDS.md](./docs/COMMANDS.md)** (every root + workspace script).
+
 Run from repo root unless noted. Bun is the package manager — never use `npm`/`yarn`/`pnpm`.
 
 ```bash
@@ -59,6 +61,7 @@ bun run dev:api          # API only
 bun run dev:dashboard    # dashboard only
 bun run typecheck        # tsc/vue-tsc across all workspaces
 bun run test             # API test suite (bun test)
+bun run replay           # offline prompt/reply harness (see docs/COMMANDS.md)
 bun run build            # build all workspaces
 bun run lint             # ESLint across all workspaces (TS + Vue)
 bun run lint:fix         # ESLint with autofix
@@ -74,7 +77,7 @@ bun run --filter '@wavi/api' test
 cd apps/api && bun test src/ai/__tests__/recovery.test.ts   # single test file
 ```
 
-DB / deploy (see `docs/DEPLOY.md` before using):
+DB / deploy (see `docs/DEPLOY.md` and `docs/COMMANDS.md` before using):
 
 ```bash
 bun run db:setup         # create owner/agent rows, writes AGENT_ID into apps/api/.env
