@@ -18,7 +18,7 @@
       </p>
     </div>
 
-    <div v-else class="grid gap-3">
+    <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       <article v-for="pair in pairs" :key="pair.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-4">
         <div class="mb-4 flex items-start justify-between gap-2">
           <h3 class="font-sora text-[14px] font-semibold text-on-surface">{{ pair.user_a_name }} & {{ pair.user_b_name }}</h3>

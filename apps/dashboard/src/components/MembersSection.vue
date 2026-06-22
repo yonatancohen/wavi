@@ -18,7 +18,7 @@
       </p>
     </div>
 
-    <div v-else class="grid gap-3">
+    <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       <article v-for="member in members" :key="member.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-4">
         <!-- Display name -->
         <div class="mb-4">
