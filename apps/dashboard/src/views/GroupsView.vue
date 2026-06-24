@@ -78,15 +78,21 @@
               {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
             </div>
 
-            <GroupStatsCard :group="group" variant="inline" class="mb-3" />
-
-            <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-on-surface-variant">
-              <span class="flex items-center gap-1">
-                <span class="material-symbols-outlined text-[12px]">chat</span>
+            <div class="mt-auto flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-on-surface-variant">
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[13px]">group</span>
+                {{ group.member_count ?? '—' }}
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[13px]">person</span>
+                {{ group.profile_count ?? 0 }}
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[13px]">chat</span>
                 {{ group.message_count_today }}
               </span>
-              <span class="flex items-center gap-1">
-                <span class="material-symbols-outlined text-[12px]">smart_toy</span>
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[13px]">smart_toy</span>
                 {{ group.reply_count_today }}
               </span>
             </div>
@@ -194,7 +200,6 @@ import { storeToRefs } from 'pinia';
 import { useGroupsStore } from '../stores/groups';
 import { statusBadgeClass, statusLabel, draftBadgeClass, draftLabel } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
-import GroupStatsCard from '../components/GroupStatsCard.vue';
 import type { DiscoveredWaGroup } from '@wavi/shared';
 
 const { t } = useI18n();

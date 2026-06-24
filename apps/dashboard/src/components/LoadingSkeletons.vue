@@ -11,9 +11,11 @@
           <Skeleton class="h-5 w-[52px] shrink-0 rounded-full" />
         </div>
         <Skeleton class="mb-4 h-2.5 w-[62%] rounded-sm" />
-        <div class="flex gap-5">
-          <Skeleton class="h-3 w-[88px] rounded-sm" />
-          <Skeleton class="h-3 w-[96px] rounded-sm" />
+        <div class="flex gap-4">
+          <Skeleton class="h-3 w-5 rounded-sm" />
+          <Skeleton class="h-3 w-5 rounded-sm" />
+          <Skeleton class="h-3 w-5 rounded-sm" />
+          <Skeleton class="h-3 w-5 rounded-sm" />
         </div>
       </div>
     </template>
@@ -125,7 +127,7 @@ const props = withDefaults(
 const rootClass = computed(() => {
   switch (props.variant) {
     case 'group-cards':
-      return 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4';
+      return 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3';
     case 'dashboard-groups':
       return 'grid grid-cols-1 gap-4';
     case 'activity-list':
