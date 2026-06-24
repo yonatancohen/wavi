@@ -47,9 +47,27 @@ async function getParticipantCountMap(): Promise<Map<string, number | null>> {
   }
 }
 
+async function fetchGroupRowWithStats(id: string): Promise<GroupWithStats> {
+  const { data, error } = await db.from('groups').select(GROUP_STATS_SELECT).eq('id', id).eq('agent_id', getAgentId()).single();
+  if (error) throw error;
+  return mapGroupRow(data);
+}
+
 async function fetchGroupWithStats(id: string): Promise<GroupWithStats> {
-  const [{ data }, participantCounts] = await Promise.all([db.from('groups').select(GROUP_STATS_SELECT).eq('id', id).eq('agent_id', getAgentId()).single().throwOnError(), getParticipantCountMap()]);
-  return mapGroupRow(data, participantCounts);
+  const [group, participantCounts] = await Promise.all([fetchGroupRowWithStats(id), getParticipantCountMap()]);
+  if (group.is_draft) return group;
+  const memberCount = participantCounts.get(group.wa_group_id);
+  if (memberCount == null) return group;
+  return { ...group, member_count: memberCount };
+}
+
+function mapGroupRowFromUpdate(updated: Record<string, unknown>): GroupWithStats {
+  return mapGroupRow({
+    ...updated,
+    message_count_today: [{ count: 0 }],
+    reply_count_today: [{ count: 0 }],
+    profile_count: [{ count: 0 }],
+  });
 }
 
 function mapGroupRow(row: Record<string, unknown>, participantCounts?: Map<string, number | null>): GroupWithStats {
@@ -274,16 +292,21 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const { error } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single();
+    const { data: updated, error } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single();
 
     if (error) {
+      req.log.warn({ err: error, groupId: req.params.id, update }, '[Groups] PATCH update failed');
       return reply.code(500).send({ error: friendlyDbError(error) });
     }
 
     try {
-      return await fetchGroupWithStats(req.params.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load updated group';
+      return await fetchGroupRowWithStats(req.params.id);
+    } catch (fetchErr) {
+      req.log.warn({ err: fetchErr, groupId: req.params.id }, '[Groups] PATCH stats refetch failed');
+      if (updated) {
+        return mapGroupRowFromUpdate(updated as Record<string, unknown>);
+      }
+      const message = fetchErr instanceof Error ? fetchErr.message : 'Failed to load updated group';
       return reply.code(500).send({ error: friendlyDbError({ message }) });
     }
   });

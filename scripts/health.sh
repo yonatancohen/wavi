@@ -68,6 +68,17 @@ else
     ok "Supabase reachable"
     GROUP_COUNT=$(echo "$SB_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?")
     ok "Groups table accessible"
+
+    COL_RESP=$(curl -s --max-time 5 \
+      "${SUPABASE_URL}/rest/v1/groups?select=id,web_search_enabled,image_generation_enabled&limit=1" \
+      -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" 2>/dev/null)
+
+    if echo "$COL_RESP" | grep -q 'image_generation_enabled'; then
+      ok "groups.image_generation_enabled visible to API"
+    else
+      fail "groups.image_generation_enabled not visible — run upgrade SQL + reload schema in Supabase"
+    fi
   else
     fail "Supabase not reachable or schema not applied"
     warn "Run ./scripts/db-setup.sh to apply schema"
