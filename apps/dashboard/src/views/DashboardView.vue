@@ -56,22 +56,26 @@
       <!-- Bento grid: Active Groups | Recent Activity | Session + Quick Actions -->
       <div class="bento-grid items-stretch">
         <!-- Active Groups -->
-        <div class="flex h-full min-h-0 flex-col gap-5 rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-4">
-          <div class="flex items-center justify-between">
+        <div class="flex h-full min-h-0 flex-col rounded-xl border border-outline-variant bg-surface-container p-5 md:col-span-4">
+          <div class="mb-4 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-primary">group</span>
+              <span class="material-symbols-outlined shrink-0 text-[18px] text-primary">group</span>
               <h3 class="font-sora text-[15px] font-semibold text-on-surface">
                 {{ t('dashboard.activeGroups.title') }}
               </h3>
             </div>
-            <span class="rounded-full bg-primary/[0.08] px-2.5 py-0.5 font-mono text-[11px] text-primary">
-              {{ t('dashboard.activeGroups.live', { count: activeGroups.length }) }}
-            </span>
+            <div class="flex shrink-0 items-center gap-3">
+              <span class="rounded-full bg-primary/[0.08] px-2.5 py-0.5 font-mono text-[11px] text-primary">
+                {{ t('dashboard.activeGroups.live', { count: activeGroups.length }) }}
+              </span>
+              <RouterLink to="/groups" class="flex items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary">
+                {{ t('dashboard.activeGroups.viewAll') }}
+                <span class="material-symbols-outlined text-[14px] rtl:scale-x-[-1]">arrow_forward</span>
+              </RouterLink>
+            </div>
           </div>
 
-          <div v-if="loading">
-            <LoadingSkeletons variant="dashboard-groups" :count="3" />
-          </div>
+          <LoadingSkeletons v-if="loading" variant="dashboard-groups" :count="3" />
 
           <div v-else-if="activeGroups.length === 0" class="rounded-xl border border-outline-variant bg-surface-container-high/60 p-8 text-center">
             <p class="mb-4 text-[13px] text-on-surface-variant">
@@ -81,31 +85,28 @@
           </div>
 
           <div v-else class="dashboard-bento-scroll">
-            <div class="grid grid-cols-1 gap-3">
-              <RouterLink
-                v-for="group in activeGroups.slice(0, 6)"
-                :key="group.id"
-                :to="`/groups/${group.id}`"
-                class="group relative cursor-pointer overflow-hidden rounded-xl border border-on-surface/[0.07] bg-surface-container-high/60 p-4 transition-all hover:border-primary/30 hover:bg-surface-container-highest/80 no-underline"
+            <RouterLink v-for="group in activeGroups.slice(0, 6)" :key="group.id" :to="`/groups/${group.id}`" class="log-row no-underline transition-colors hover:bg-on-surface/[0.02]">
+              <div
+                class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                :class="group.status === 'active' ? 'bg-primary/15' : group.status === 'paused' ? 'bg-error/15' : 'bg-secondary/15'"
               >
-                <!-- Status accent bar -->
-                <div class="absolute start-0 top-0 h-full w-[3px]" :class="group.status === 'active' ? 'bg-primary' : group.status === 'paused' ? 'bg-error/70' : 'bg-secondary/70'" />
-                <div class="ps-1">
-                  <div class="mb-3 flex items-center justify-between">
-                    <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" :class="statusBadgeClass(group.status)">
+                <span class="material-symbols-outlined text-[15px]" :class="group.status === 'active' ? 'text-primary' : group.status === 'paused' ? 'text-error' : 'text-secondary'"> forum </span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="mb-1 flex items-start justify-between gap-2">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <h5 class="truncate text-[13px] font-semibold text-on-surface">{{ group.name }}</h5>
+                    <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide" :class="statusBadgeClass(group.status)">
                       {{ statusLabel(group.status, t) }}
                     </span>
-                    <span class="font-mono text-[10px] text-on-surface-variant">
-                      {{ t('dashboard.activeGroups.msgCount', { count: group.message_count_today }) }}
-                    </span>
                   </div>
-                  <h4 class="mb-2 truncate font-sora text-[15px] font-semibold text-on-surface">
-                    {{ group.name }}
-                  </h4>
-                  <GroupInlineStats :group="group" class="mt-auto" />
+                  <HelpTooltip :title="group.name" :body="groupTooltipBody(group)">
+                    <span class="material-symbols-outlined text-[14px] text-on-surface-variant/30 transition-colors hover:text-on-surface-variant/70">info</span>
+                  </HelpTooltip>
                 </div>
-              </RouterLink>
-            </div>
+                <GroupInlineStats :group="group" />
+              </div>
+            </RouterLink>
           </div>
         </div>
 
@@ -223,6 +224,8 @@ import AgentStatusBadge from '../components/AgentStatusBadge.vue';
 import AgentHealthPanel from '../components/AgentHealthPanel.vue';
 import CostBanner from '../components/CostBanner.vue';
 import GroupInlineStats from '../components/GroupInlineStats.vue';
+import HelpTooltip from '../components/HelpTooltip.vue';
+import type { GroupWithStats } from '@wavi/shared';
 
 const { t } = useI18n();
 const store = useGroupsStore();
@@ -314,6 +317,13 @@ const activityItems = computed(() => {
 
   return items.slice(0, 3);
 });
+
+function groupTooltipBody(group: GroupWithStats): string {
+  const id = group.is_draft ? t('groups.draftHint') : group.wa_group_id;
+  const members = group.member_count != null ? String(group.member_count) : '—';
+  const profiles = String(group.profile_count ?? 0);
+  return `${id}\n${t('groupDetail.stats.members')}: ${members} · ${t('groupDetail.stats.profiles')}: ${profiles}\n${group.message_count_today} ${t('groupDetail.stats.messagesToday').toLowerCase()} · ${group.reply_count_today} ${t('groupDetail.stats.repliesToday').toLowerCase()}`;
+}
 
 onMounted(async () => {
   try {

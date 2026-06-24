@@ -100,7 +100,8 @@
       "empty": "No groups registered yet.",
       "addFromWhatsapp": "Add from WhatsApp",
       "msgCount": "{count} msg",
-      "replies": "{count} reply | {count} replies"
+      "replies": "{count} reply | {count} replies",
+      "viewAll": "View all"
     },
     "quickActions": {
       "title": "Quick Actions",

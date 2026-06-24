@@ -100,7 +100,8 @@
       "empty": "אין קבוצות רשומות עדיין.",
       "addFromWhatsapp": "הוסף מוואטסאפ",
       "msgCount": "{count} הודעות",
-      "replies": "תשובה אחת | {count} תשובות"
+      "replies": "תשובה אחת | {count} תשובות",
+      "viewAll": "הצג הכל"
     },
     "quickActions": {
       "title": "פעולות מהירות",
