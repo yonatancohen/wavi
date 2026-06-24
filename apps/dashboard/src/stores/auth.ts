@@ -3,10 +3,13 @@ import { computed, ref } from 'vue';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { isOwnerEmail } from '../lib/allowed-owner';
+import { clearAuthCallbackUrl, hasAuthCallbackPayload, oauthLoginRedirectUrl, redirectSameWindow } from '../lib/login-redirect';
 
-export const isAuthDisabled = import.meta.env.VITE_AUTH_DISABLED === 'true';
+export const isAuthRequired = import.meta.env.VITE_AUTH_REQUIRED === 'true';
 
 export type AuthErrorCode = 'accessDenied' | null;
+
+const OAUTH_CALLBACK_TIMEOUT_MS = 5_000;
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null);
@@ -14,10 +17,13 @@ export const useAuthStore = defineStore('auth', () => {
   const signingIn = ref(false);
   const error = ref<string | null>(null);
   const errorCode = ref<AuthErrorCode>(null);
+  let initPromise: Promise<void> | null = null;
+  let acceptQueue: Promise<void> = Promise.resolve();
+  let explicitSignOut = false;
 
   const isAuthenticated = computed(() => {
-    if (isAuthDisabled) return true;
-    if (!session.value) return false;
+    if (!isAuthRequired) return true;
+    if (!session.value?.access_token) return false;
     return isOwnerEmail(session.value.user.email);
   });
   const accessToken = computed(() => session.value?.access_token ?? null);
@@ -27,69 +33,143 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = next;
   }
 
+  function queueAcceptSession(next: Session | null) {
+    acceptQueue = acceptQueue.then(() => acceptSession(next));
+    return acceptQueue;
+  }
+
   async function rejectUnauthorized(_session: Session) {
     errorCode.value = 'accessDenied';
     error.value = null;
     signingIn.value = false;
-    await supabase.auth.signOut();
-    applySession(null);
+    explicitSignOut = true;
+    try {
+      await supabase.auth.signOut();
+      applySession(null);
+      clearAuthCallbackUrl();
+    } finally {
+      explicitSignOut = false;
+    }
   }
 
   async function acceptSession(next: Session | null) {
-    if (next && !isOwnerEmail(next.user.email)) {
+    // Supabase emits SIGNED_OUT with a null session during OAuth token exchange.
+    // Only clear the local session when the user (or our reject flow) signed out.
+    if (!next) {
+      if (explicitSignOut) applySession(null);
+      return;
+    }
+
+    if (!isOwnerEmail(next.user.email)) {
       await rejectUnauthorized(next);
       return;
     }
 
     applySession(next);
-    if (next) {
-      signingIn.value = false;
-      error.value = null;
-      errorCode.value = null;
+    signingIn.value = false;
+    error.value = null;
+    errorCode.value = null;
+    clearAuthCallbackUrl();
+
+    if (import.meta.env.DEV) {
+      console.info('[Wavi auth] session accepted', {
+        userEmail: next.user.email ?? '(none)',
+        allowedOwnerEmail: import.meta.env.VITE_ALLOWED_OWNER_EMAIL ?? '(unset)',
+        hasAccessToken: !!next.access_token,
+      });
     }
   }
 
   async function init() {
-    if (isAuthDisabled) {
+    if (!isAuthRequired) {
       ready.value = true;
       return;
     }
 
-    const { data } = await supabase.auth.getSession();
-    await acceptSession(data.session);
+    if (ready.value) return;
+    if (initPromise) {
+      await initPromise;
+      return;
+    }
 
-    supabase.auth.onAuthStateChange((_event, next) => {
-      void acceptSession(next);
-    });
+    initPromise = (async () => {
+      const waitingForOAuthCallback = hasAuthCallbackPayload();
+      let resolveInitial: (() => void) | null = null;
 
-    ready.value = true;
+      const initialHydrated = new Promise<void>((resolve) => {
+        resolveInitial = resolve;
+      });
+
+      supabase.auth.onAuthStateChange((event, next) => {
+        void queueAcceptSession(next).finally(() => {
+          if (!resolveInitial) return;
+          const hydrated = event === 'INITIAL_SESSION' || (waitingForOAuthCallback && event === 'SIGNED_IN');
+          if (hydrated) {
+            resolveInitial();
+            resolveInitial = null;
+          }
+        });
+      });
+
+      // Kick off storage / OAuth hash hydration — INITIAL_SESSION fires when done.
+      await supabase.auth.getSession();
+
+      await Promise.race([
+        initialHydrated,
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, OAUTH_CALLBACK_TIMEOUT_MS);
+        }),
+      ]);
+
+      await acceptQueue;
+
+      ready.value = true;
+    })();
+
+    await initPromise;
   }
 
   async function signInWithGoogle() {
-    if (isAuthDisabled) return;
+    if (!isAuthRequired) return;
 
     signingIn.value = true;
     error.value = null;
     errorCode.value = null;
 
-    const { error: authError } = await supabase.auth.signInWithOAuth({
+    const { data, error: authError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: oauthLoginRedirectUrl(),
+        skipBrowserRedirect: true,
       },
     });
 
     if (authError) {
       error.value = authError.message;
       signingIn.value = false;
+      return;
     }
+
+    if (!data?.url) {
+      error.value = 'Could not start Google sign-in';
+      signingIn.value = false;
+      return;
+    }
+
+    redirectSameWindow(data.url);
   }
 
   async function signOut() {
-    if (isAuthDisabled) return;
-    await supabase.auth.signOut();
-    applySession(null);
-    errorCode.value = null;
+    if (!isAuthRequired) return;
+    explicitSignOut = true;
+    try {
+      await supabase.auth.signOut();
+      applySession(null);
+      errorCode.value = null;
+      clearAuthCallbackUrl();
+    } finally {
+      explicitSignOut = false;
+    }
   }
 
   return {

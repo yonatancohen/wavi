@@ -1,8 +1,11 @@
 <template>
-  <!-- Login page renders without app chrome -->
-  <RouterView v-if="isLoginRoute" />
+  <!-- Hold the shell blank until auth is resolved (avoids flashing admin on OAuth callback). -->
+  <div v-if="!authReady" class="min-h-screen bg-background" />
 
-  <div v-else class="flex h-screen overflow-hidden bg-background">
+  <!-- Login page renders without app chrome -->
+  <RouterView v-else-if="isLoginRoute" />
+
+  <div v-else-if="isAuthenticated" class="flex h-screen overflow-hidden bg-background">
     <!-- Desktop sidebar -->
     <nav class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex" :aria-label="t('nav.main')">
       <AppBrand />
@@ -177,7 +180,7 @@ import { useLocale } from './composables/useLocale';
 import { useGroupsStore } from './stores/groups';
 import { useFlowsStore } from './stores/flows';
 import { useAgentStore } from './stores/agent';
-import { useAuthStore, isAuthDisabled } from './stores/auth';
+import { useAuthStore, isAuthRequired } from './stores/auth';
 import AppBrand from './components/AppBrand.vue';
 import AppNavLinks from './components/AppNavLinks.vue';
 import AppNavFooter from './components/AppNavFooter.vue';
@@ -195,8 +198,8 @@ const authStore = useAuthStore();
 const { groups } = storeToRefs(groupsStore);
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
 const { connected: agentConnected } = storeToRefs(agentStore);
-const { userEmail } = storeToRefs(authStore);
-const showSignOut = computed(() => !isAuthDisabled && !!userEmail.value);
+const { userEmail, ready: authReady, isAuthenticated, accessToken } = storeToRefs(authStore);
+const showSignOut = computed(() => isAuthRequired && !!userEmail.value);
 const { mode, cycleMode } = useTheme();
 const { locale, toggleLocale } = useLocale();
 
@@ -243,9 +246,9 @@ const mobilePageSubtitle = computed(() => {
 });
 
 watch(
-  isLoginRoute,
-  (login) => {
-    if (login) {
+  [isLoginRoute, authReady, isAuthenticated, accessToken],
+  ([login, ready, authed, token]) => {
+    if (!ready || login || !authed || !token) {
       flowsStore.stopPolling();
       agentStore.stopPolling();
       return;

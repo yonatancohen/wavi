@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import App from './App.vue';
 import router from './lib/router';
+import { useAuthStore } from './stores/auth';
 import './style.css';
 import { bootstrapTheme } from './composables/useTheme';
 import en from './locales/en.json';
@@ -24,4 +25,14 @@ const i18n = createI18n({
 document.documentElement.lang = savedLocale;
 document.documentElement.dir = savedLocale === 'he' ? 'rtl' : 'ltr';
 
-createApp(App).use(i18n).use(createPinia()).use(router).mount('#app');
+const pinia = createPinia();
+const app = createApp(App);
+
+app.use(i18n).use(pinia).use(router);
+
+async function bootstrap() {
+  await useAuthStore(pinia).init();
+  app.mount('#app');
+}
+
+void bootstrap();

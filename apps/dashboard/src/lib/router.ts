@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { loginRedirectTarget } from './login-redirect';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -30,8 +31,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public) {
     if (auth.isAuthenticated && to.name === 'login') {
-      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/';
-      return { path: redirect, replace: true };
+      return { path: loginRedirectTarget(to.query.redirect), replace: true };
     }
     return true;
   }

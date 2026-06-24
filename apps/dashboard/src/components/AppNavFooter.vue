@@ -37,7 +37,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useTheme } from '../composables/useTheme';
 import { useLocale } from '../composables/useLocale';
-import { useAuthStore, isAuthDisabled } from '../stores/auth';
+import { useAuthStore, isAuthRequired } from '../stores/auth';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -46,7 +46,7 @@ const { userEmail } = storeToRefs(authStore);
 const { mode, cycleMode } = useTheme();
 const { locale, toggleLocale } = useLocale();
 
-const showSignOut = computed(() => !isAuthDisabled);
+const showSignOut = computed(() => isAuthRequired);
 
 async function handleSignOut() {
   await authStore.signOut();
