@@ -1,5 +1,8 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-background">
+  <!-- Login page renders without app chrome -->
+  <RouterView v-if="isLoginRoute" />
+
+  <div v-else class="flex h-screen overflow-hidden bg-background">
     <!-- Desktop sidebar -->
     <nav class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex" :aria-label="t('nav.main')">
       <AppBrand />
@@ -144,6 +147,16 @@
             <span class="flex-1 text-start text-[13px] font-medium text-on-surface">{{ t('nav.language') }}</span>
             <span class="font-mono text-[11px] text-on-surface-variant">{{ locale === 'he' ? 'EN' : 'עב' }}</span>
           </button>
+
+          <template v-if="showSignOut">
+            <p class="px-3 pb-1 pt-4 text-[9px] font-bold uppercase tracking-[0.15em] text-on-surface-variant/60">
+              {{ t('nav.account') }}
+            </p>
+            <button type="button" class="mobile-sheet-row text-error" @click="handleSignOut">
+              <span class="material-symbols-outlined text-[18px]">logout</span>
+              <span class="flex-1 text-start text-[13px] font-medium">{{ t('auth.signOut') }}</span>
+            </button>
+          </template>
         </div>
 
         <div class="border-t border-outline-variant px-5 py-3">
@@ -155,15 +168,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useTheme } from './composables/useTheme';
 import { useLocale } from './composables/useLocale';
 import { useGroupsStore } from './stores/groups';
 import { useFlowsStore } from './stores/flows';
 import { useAgentStore } from './stores/agent';
+import { useAuthStore, isAuthDisabled } from './stores/auth';
 import AppBrand from './components/AppBrand.vue';
 import AppNavLinks from './components/AppNavLinks.vue';
 import AppNavFooter from './components/AppNavFooter.vue';
@@ -173,17 +187,29 @@ import { agentNavItems, isNavActive, mobileQuickNavItems, overviewNavItems } fro
 
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 const groupsStore = useGroupsStore();
 const flowsStore = useFlowsStore();
 const agentStore = useAgentStore();
+const authStore = useAuthStore();
 const { groups } = storeToRefs(groupsStore);
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
 const { connected: agentConnected } = storeToRefs(agentStore);
+const { userEmail } = storeToRefs(authStore);
+const showSignOut = computed(() => !isAuthDisabled && !!userEmail.value);
 const { mode, cycleMode } = useTheme();
 const { locale, toggleLocale } = useLocale();
 
 const settingsOpen = ref(false);
 const navMenuOpen = ref(false);
+
+const isLoginRoute = computed(() => route.path === '/login');
+
+async function handleSignOut() {
+  settingsOpen.value = false;
+  await authStore.signOut();
+  await router.push('/login');
+}
 
 const showMobileBack = computed(() => route.path.startsWith('/groups/') && route.path !== '/groups');
 
@@ -217,6 +243,20 @@ const mobilePageSubtitle = computed(() => {
 });
 
 watch(
+  isLoginRoute,
+  (login) => {
+    if (login) {
+      flowsStore.stopPolling();
+      agentStore.stopPolling();
+      return;
+    }
+    flowsStore.startPolling();
+    agentStore.startPolling();
+  },
+  { immediate: true },
+);
+
+watch(
   () => route.path,
   () => {
     settingsOpen.value = false;
@@ -226,11 +266,6 @@ watch(
 
 watch([settingsOpen, navMenuOpen], ([settings, menu]) => {
   document.body.style.overflow = settings || menu ? 'hidden' : '';
-});
-
-onMounted(() => {
-  flowsStore.startPolling();
-  agentStore.startPolling();
 });
 
 onUnmounted(() => {

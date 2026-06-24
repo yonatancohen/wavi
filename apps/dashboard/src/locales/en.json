@@ -15,10 +15,20 @@
     "appearance": "Appearance",
     "language": "Language",
     "close": "Close",
-    "tapToChange": "Tap to change"
+    "tapToChange": "Tap to change",
+    "account": "Account"
   },
   "brand": {
     "tagline": "Your Witty AI Agent"
+  },
+  "auth": {
+    "title": "Welcome to Wavi",
+    "subtitle": "Sign in to manage your AI agent, groups, and character settings.",
+    "signInGoogle": "Continue with Google",
+    "signingIn": "Signing in…",
+    "signOut": "Sign out",
+    "privacyNote": "Only you can access your dashboard. We never share your data.",
+    "sessionExpired": "Your session expired. Please sign in again."
   },
   "status": {
     "connected": "Connected",

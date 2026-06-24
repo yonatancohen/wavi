@@ -15,10 +15,20 @@
     "appearance": "מראה",
     "language": "שפה",
     "close": "סגור",
-    "tapToChange": "הקש לשינוי"
+    "tapToChange": "הקש לשינוי",
+    "account": "חשבון"
   },
   "brand": {
     "tagline": "הסוכן החכם שלך"
+  },
+  "auth": {
+    "title": "ברוכים הבאים ל-Wavi",
+    "subtitle": "התחבר כדי לנהל את הסוכן, הקבוצות והגדרות הדמות שלך.",
+    "signInGoogle": "המשך עם Google",
+    "signingIn": "מתחבר…",
+    "signOut": "התנתק",
+    "privacyNote": "רק אתה יכול לגשת ללוח הבקרה. אנחנו לעולם לא משתפים את הנתונים שלך.",
+    "sessionExpired": "פג תוקף ההתחברות. אנא התחבר שוב."
   },
   "status": {
     "connected": "מחובר",

@@ -1,10 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { apiFetch } from '../lib/api';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import type { Reply } from '@wavi/shared';
-
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 const PAGE_SIZE = 20;
 

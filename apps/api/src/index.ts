@@ -12,6 +12,7 @@ import { twilioRoute } from './routes/twilio.js';
 import { startReplyWorker } from './ai/worker.js';
 import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js';
 import { allowedDashboardOrigins, isOriginAllowed } from './lib/cors.js';
+import { isAuthRequired, requireAuth } from './lib/auth.js';
 
 // wwebjs runs some internal logic (e.g. re-injecting on a LOGOUT navigation)
 // from un-awaited handlers. When those throw — most notably the puppeteer
@@ -66,6 +67,18 @@ await server.register(cors, {
   credentials: true,
 });
 await server.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
+
+if (isAuthRequired()) {
+  server.addHook('onRequest', async (request, reply) => {
+    if (request.url.startsWith('/health')) return;
+
+    const user = await requireAuth(request);
+    if (!user) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
+  });
+  server.log.info('API auth enabled (AUTH_REQUIRED=true)');
+}
 
 // ── Routes ───────────────────────────────────────────────────
 await server.register(healthRoute, { prefix: '/health' });

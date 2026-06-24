@@ -58,8 +58,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { createClient } from '@supabase/supabase-js';
 import { apiFetch } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import LoadingState from './LoadingState.vue';
 import type { Message, MessagesPage } from '@wavi/shared';
 
@@ -68,8 +68,6 @@ const PAGE_SIZE = 50;
 const { t, locale } = useI18n();
 
 const props = defineProps<{ groupId: string }>();
-
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 const messages = ref<Message[]>([]);
 const loading = ref(true);

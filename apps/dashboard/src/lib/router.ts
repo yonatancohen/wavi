@@ -1,8 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+      meta: { public: true },
+    },
     { path: '/', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
     { path: '/groups', name: 'groups', component: () => import('../views/GroupsView.vue') },
     { path: '/groups/:id', name: 'group', component: () => import('../views/GroupDetailView.vue') },
@@ -12,6 +19,28 @@ const router = createRouter({
     { path: '/how-it-works', name: 'how-it-works', component: () => import('../views/HowItWorksView.vue') },
     { path: '/connect', name: 'connect', component: () => import('../views/ConnectView.vue') },
   ],
+});
+
+router.beforeEach(async (to) => {
+  const auth = useAuthStore();
+
+  if (!auth.ready) {
+    await auth.init();
+  }
+
+  if (to.meta.public) {
+    if (auth.isAuthenticated && to.name === 'login') {
+      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/';
+      return { path: redirect, replace: true };
+    }
+    return true;
+  }
+
+  if (!auth.isAuthenticated) {
+    return { path: '/login', query: { redirect: to.fullPath }, replace: true };
+  }
+
+  return true;
 });
 
 export default router;
