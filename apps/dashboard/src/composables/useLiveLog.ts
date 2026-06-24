@@ -138,9 +138,9 @@ export function useLiveLog() {
   });
 
   const entries = computed(() => {
-    const items: LiveLogEntry[] = [...flows.value.map((flow) => flowEntry(flow, locale.value, t)), ...replies.value.slice(0, 30).map((reply) => replyEntry(reply as ReplyRow, locale.value, t))];
+    const items: LiveLogEntry[] = [...flows.value.map((flow) => flowEntry(flow, locale.value, t)), ...replies.value.map((reply) => replyEntry(reply as ReplyRow, locale.value, t))];
 
-    return items.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    return items.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 25);
   });
 
   async function refresh() {
