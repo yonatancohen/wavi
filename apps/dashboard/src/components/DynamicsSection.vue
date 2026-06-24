@@ -86,6 +86,7 @@ import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
 import type { RelationshipPair } from '@wavi/shared';
+import { useConfirm } from '../composables/useConfirm';
 
 const { t } = useI18n();
 
@@ -152,9 +153,16 @@ async function saveNarrative(pair: RelationshipPair) {
   }
 }
 
+const { confirm } = useConfirm();
+
 async function removePair(pair: RelationshipPair) {
-  const confirmed = window.confirm(t('dynamics.confirmRemove', { a: pair.user_a_name, b: pair.user_b_name }));
-  if (!confirmed) return;
+  const ok = await confirm({
+    title: t('dynamics.confirmRemoveTitle'),
+    message: t('dynamics.confirmRemove', { a: pair.user_a_name, b: pair.user_b_name }),
+    confirmLabel: t('dynamics.remove'),
+    variant: 'destructive',
+  });
+  if (!ok) return;
 
   const previous = [...pairs.value];
   pairs.value = pairs.value.filter((p) => p.id !== pair.id);

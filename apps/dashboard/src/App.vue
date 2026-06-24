@@ -168,8 +168,9 @@
       </div>
     </Teleport>
   </div>
-</template>
 
+  <ConfirmDialog />
+</template>
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -186,6 +187,7 @@ import AppNavLinks from './components/AppNavLinks.vue';
 import AppNavFooter from './components/AppNavFooter.vue';
 import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from './components/AgentStatusBadge.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 import { agentNavItems, isNavActive, mobileQuickNavItems, overviewNavItems } from './lib/nav-items';
 
 const { t } = useI18n();

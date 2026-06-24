@@ -10,7 +10,7 @@
       {{ t('rebuild.body') }}
     </p>
 
-    <button type="button" class="btn btn-secondary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="rebuilding || streaming" @click="onRebuildClick">
+    <button type="button" class="btn btn-primary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="rebuilding || streaming" @click="onRebuildClick">
       <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': rebuilding || streaming }">autorenew</span>
       {{ rebuilding || streaming ? t('rebuild.running') : t('rebuild.button') }}
     </button>
@@ -59,6 +59,7 @@ import { ref, toRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import { useIngestionProgress, INGESTION_STAGES } from '../composables/useIngestionProgress';
+import { useConfirm } from '../composables/useConfirm';
 
 const { t } = useI18n();
 
@@ -74,11 +75,17 @@ const emit = defineEmits<{ complete: [] }>();
 const store = useGroupsStore();
 const rebuilding = ref(false);
 const rebuildError = ref<string | null>(null);
+const { confirm } = useConfirm();
 
 const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
 
-function onRebuildClick() {
-  if (!window.confirm(t('rebuild.confirm'))) return;
+async function onRebuildClick() {
+  const ok = await confirm({
+    title: t('rebuild.confirmTitle'),
+    message: t('rebuild.confirm'),
+    confirmLabel: t('rebuild.button'),
+  });
+  if (!ok) return;
   void startRebuild();
 }
 
