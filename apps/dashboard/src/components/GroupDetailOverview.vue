@@ -31,7 +31,7 @@
 
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
         <StatCell :label="t('groupDetail.stats.members')" :value="memberDisplay" :hint="memberHint" icon="group" />
-        <StatCell :label="t('groupDetail.stats.profiles')" :value="String(group.profile_count)" icon="person" value-class="text-tertiary" />
+        <StatCell :label="t('groupDetail.stats.profiles')" :value="profileDisplay" icon="person" value-class="text-tertiary" />
         <StatCell :label="t('groupDetail.stats.messagesToday')" :value="String(group.message_count_today)" icon="chat" value-class="text-primary" />
         <StatCell :label="t('groupDetail.stats.repliesToday')" :value="String(group.reply_count_today)" icon="smart_toy" value-class="text-secondary" />
         <StatCell :label="t('groupDetail.stats.status')" :value="statusLabel(group.status, t)" icon="toggle_on" :value-class="statusValueClass" :numeric="false" />
@@ -72,6 +72,8 @@ const memberHint = computed(() => {
   return t('groupDetail.overview.membersUnavailable');
 });
 
+const profileDisplay = computed(() => String(props.group.profile_count ?? 0));
+
 const statusValueClass = computed(() => {
   if (props.group.status === 'active') return 'text-primary';
   if (props.group.status === 'paused') return 'text-error';
@@ -79,7 +81,7 @@ const statusValueClass = computed(() => {
 });
 
 const collapsedSummary = computed(() => {
-  const parts = [t('groupDetail.overview.summaryProfiles', { count: props.group.profile_count })];
+  const parts = [t('groupDetail.overview.summaryProfiles', { count: props.group.profile_count ?? 0 })];
   if (props.group.member_count != null) {
     parts.push(t('groupDetail.overview.summaryMembers', { count: props.group.member_count }));
   }

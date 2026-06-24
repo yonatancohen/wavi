@@ -46,6 +46,11 @@ async function getParticipantCountMap(): Promise<Map<string, number | null>> {
   }
 }
 
+async function fetchGroupWithStats(id: string): Promise<GroupWithStats> {
+  const [{ data }, participantCounts] = await Promise.all([db.from('groups').select(GROUP_STATS_SELECT).eq('id', id).eq('agent_id', getAgentId()).single().throwOnError(), getParticipantCountMap()]);
+  return mapGroupRow(data, participantCounts);
+}
+
 function mapGroupRow(row: Record<string, unknown>, participantCounts?: Map<string, number | null>): GroupWithStats {
   const msgCount = row.message_count_today as { count: number }[] | undefined;
   const replyCount = row.reply_count_today as { count: number }[] | undefined;
@@ -156,7 +161,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(500).send({ error: error.message });
     }
 
-    return mapGroupRow(data);
+    return fetchGroupWithStats(data.id);
   });
 
   fastify.post<{ Body: CreateDraftGroupRequest }>('/draft', async (req, reply) => {
@@ -181,7 +186,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(500).send({ error: error.message });
     }
 
-    return mapGroupRow(data);
+    return fetchGroupWithStats(data.id);
   });
 
   fastify.post<{ Params: { id: string }; Body: LinkGroupRequest }>('/:id/link', async (req, reply) => {
@@ -217,10 +222,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       updates.name = req.body.name.trim();
     }
 
-    const { data, error } = await db.from('groups').update(updates).eq('id', id).eq('agent_id', getAgentId()).select().single();
+    const { error } = await db.from('groups').update(updates).eq('id', id).eq('agent_id', getAgentId()).select().single();
     if (error) return reply.code(500).send({ error: error.message });
 
-    return mapGroupRow(data);
+    return fetchGroupWithStats(id);
   });
 
   fastify.post<{ Params: { id: string } }>('/:id/unlink', async (req, reply) => {
@@ -235,11 +240,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send({ error: 'Only groups in setup can be unlinked. Pause or finish setup first.' });
     }
 
-    const { data, error } = await db.from('groups').update({ wa_group_id: createDraftWaGroupId() }).eq('id', id).eq('agent_id', getAgentId()).select().single();
+    const { error } = await db.from('groups').update({ wa_group_id: createDraftWaGroupId() }).eq('id', id).eq('agent_id', getAgentId()).select().single();
 
     if (error) return reply.code(500).send({ error: error.message });
 
-    return mapGroupRow(data);
+    return fetchGroupWithStats(id);
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req) => {
@@ -262,8 +267,8 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const { data } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single().throwOnError();
-    return mapGroupRow(data);
+    await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single().throwOnError();
+    return fetchGroupWithStats(req.params.id);
   });
 
   // ── POST /:id/rebuild — regenerate intelligence from stored messages ──

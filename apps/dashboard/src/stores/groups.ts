@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { apiFetch } from '../lib/api';
+import { normalizeGroupWithStats } from '../lib/ui';
 import type { GroupWithStats, CharacterConfig, DiscoveredWaGroup, CreateGroupRequest, CreateDraftGroupRequest, LinkGroupRequest } from '@wavi/shared';
 
 export const useGroupsStore = defineStore('groups', () => {
@@ -18,7 +19,7 @@ export const useGroupsStore = defineStore('groups', () => {
     loading.value = true;
     error.value = null;
     try {
-      groups.value = await apiFetch<GroupWithStats[]>('/groups');
+      groups.value = (await apiFetch<GroupWithStats[]>('/groups')).map(normalizeGroupWithStats);
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load groups';
     } finally {
@@ -27,7 +28,7 @@ export const useGroupsStore = defineStore('groups', () => {
   }
 
   async function fetchGroup(id: string) {
-    const group = await apiFetch<GroupWithStats>(`/groups/${id}`);
+    const group = normalizeGroupWithStats(await apiFetch<GroupWithStats>(`/groups/${id}`));
     const idx = groups.value.findIndex((g) => g.id === id);
     if (idx !== -1) groups.value[idx] = group;
     else groups.value.unshift(group);
@@ -53,10 +54,12 @@ export const useGroupsStore = defineStore('groups', () => {
     registering.value = payload.wa_group_id;
     error.value = null;
     try {
-      const group = await apiFetch<GroupWithStats>('/groups', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const group = normalizeGroupWithStats(
+        await apiFetch<GroupWithStats>('/groups', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }),
+      );
       groups.value.unshift(group);
       const idx = discovered.value.findIndex((g) => g.wa_group_id === payload.wa_group_id);
       if (idx !== -1) {
@@ -75,10 +78,12 @@ export const useGroupsStore = defineStore('groups', () => {
 
   async function createDraftGroup(payload: CreateDraftGroupRequest) {
     error.value = null;
-    const group = await apiFetch<GroupWithStats>('/groups/draft', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const group = normalizeGroupWithStats(
+      await apiFetch<GroupWithStats>('/groups/draft', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
     groups.value.unshift(group);
     return group;
   }
@@ -101,15 +106,18 @@ export const useGroupsStore = defineStore('groups', () => {
   }
 
   function replaceGroup(updated: GroupWithStats) {
-    const idx = groups.value.findIndex((g) => g.id === updated.id);
-    if (idx !== -1) groups.value[idx] = updated;
+    const normalized = normalizeGroupWithStats(updated);
+    const idx = groups.value.findIndex((g) => g.id === normalized.id);
+    if (idx !== -1) groups.value[idx] = normalized;
   }
 
   async function updateCharacter(groupId: string, config: CharacterConfig) {
-    const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ character_config: config }),
-    });
+    const updated = normalizeGroupWithStats(
+      await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ character_config: config }),
+      }),
+    );
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updated;
     return updated;
@@ -120,10 +128,12 @@ export const useGroupsStore = defineStore('groups', () => {
   }
 
   async function patchGroup(groupId: string, patch: Record<string, unknown>) {
-    const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    });
+    const updated = normalizeGroupWithStats(
+      await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    );
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updated;
     return updated;

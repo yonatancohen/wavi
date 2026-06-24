@@ -6,13 +6,13 @@
     </div>
     <div class="grid grid-cols-2 gap-3">
       <StatCell :label="t('groupDetail.stats.members')" :value="memberDisplay" :hint="memberHint" icon="group" />
-      <StatCell :label="t('groupDetail.stats.profiles')" :value="String(group.profile_count)" icon="person" value-class="text-tertiary" />
+      <StatCell :label="t('groupDetail.stats.profiles')" :value="profileDisplay" icon="person" value-class="text-tertiary" />
     </div>
   </section>
 
   <div v-else class="grid grid-cols-2 gap-2">
     <StatCell :label="t('groupDetail.stats.members')" :value="memberDisplay" :hint="memberHint" icon="group" compact />
-    <StatCell :label="t('groupDetail.stats.profiles')" :value="String(group.profile_count)" icon="person" value-class="text-tertiary" compact />
+    <StatCell :label="t('groupDetail.stats.profiles')" :value="profileDisplay" icon="person" value-class="text-tertiary" compact />
   </div>
 </template>
 
@@ -43,4 +43,6 @@ const memberHint = computed(() => {
   if (props.group.is_draft) return t('groupDetail.overview.membersDraft');
   return t('groupDetail.overview.membersUnavailable');
 });
+
+const profileDisplay = computed(() => String(props.group.profile_count ?? 0));
 </script>

@@ -1,4 +1,13 @@
-import type { GroupStatus } from '@wavi/shared';
+import type { GroupStatus, GroupWithStats } from '@wavi/shared';
+
+export function normalizeGroupWithStats(group: GroupWithStats): GroupWithStats {
+  return {
+    ...group,
+    profile_count: group.profile_count ?? 0,
+    message_count_today: group.message_count_today ?? 0,
+    reply_count_today: group.reply_count_today ?? 0,
+  };
+}
 
 export function statusLabel(status: GroupStatus, t?: (key: string) => string): string {
   if (t) return t(`status_label.${status}`);
