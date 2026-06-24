@@ -12,7 +12,7 @@ import { twilioRoute } from './routes/twilio.js';
 import { startReplyWorker } from './ai/worker.js';
 import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js';
 import { allowedDashboardOrigins, isOriginAllowed } from './lib/cors.js';
-import { isAuthRequired, requireAuth } from './lib/auth.js';
+import { isAuthRequired, requireAuth, getLastAuthReject } from './lib/auth.js';
 
 // wwebjs runs some internal logic (e.g. re-injecting on a LOGOUT navigation)
 // from un-awaited handlers. When those throw — most notably the puppeteer
@@ -74,7 +74,9 @@ if (isAuthRequired()) {
 
     const user = await requireAuth(request);
     if (!user) {
-      return reply.code(401).send({ error: 'Unauthorized' });
+      const reject = getLastAuthReject();
+      const body = process.env.NODE_ENV !== 'production' && reject ? { error: 'Unauthorized', auth: reject } : { error: 'Unauthorized' };
+      return reply.code(401).send(body);
     }
   });
   server.log.info('API auth enabled (AUTH_REQUIRED=true)');
