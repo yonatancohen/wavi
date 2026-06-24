@@ -1,73 +1,25 @@
 <template>
   <div class="flex flex-col bg-background">
-    <!-- Mobile tab bar (desktop header is hidden below lg) -->
-    <nav v-if="group && !loading && !error" class="group-tabs-mobile" role="tablist" :aria-label="group.name">
-      <div class="group-tabs">
-        <RouterLink
-          v-for="tab in tabs"
-          :key="tab.id"
-          :to="tabRoute(tab.id)"
-          replace
-          role="tab"
-          class="group-tab"
-          :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
-          :aria-selected="activeTab === tab.id ? 'true' : 'false'"
-        >
-          {{ tab.label }}
-        </RouterLink>
-      </div>
-    </nav>
+    <template v-if="group && !loading && !error">
+      <GroupDetailOverview :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
 
-    <!-- Mobile status + go live (desktop actions live in page-header below) -->
-    <div v-if="group && !loading && !error" class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface/95 px-margin-mobile py-3 lg:hidden">
-      <div class="flex flex-wrap items-center gap-2">
-        <span v-if="group.is_draft" class="badge shrink-0 px-2.5 py-1" :class="draftBadgeClass()">
-          {{ draftLabel(t) }}
-        </span>
-        <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
-          {{ statusLabel(group.status, t) }}
-        </span>
-      </div>
-      <div class="flex shrink-0 items-center gap-2">
-        <button
-          v-if="group.status !== 'active'"
-          class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
-          :disabled="saving || group.is_draft"
-          :title="group.is_draft ? t('groupDetail.setup.linkBeforeLive') : undefined"
-          @click="goLive"
-        >
-          <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-          {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
-        </button>
-        <button v-if="group.status === 'active'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="pause">
-          <span class="material-symbols-outlined text-[16px]">pause</span>
-          {{ t('groupDetail.setup.pause') }}
-        </button>
-        <button v-if="group.status === 'paused'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="goLive">
-          <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-          {{ t('groupDetail.setup.resume') }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="group && !loading && !error" class="group-stats border-b border-outline-variant px-margin-mobile py-3 lg:hidden">
-      <span v-if="group.member_count != null" class="group-stat">
-        <span class="text-on-surface-variant">{{ t('groupDetail.stats.members') }}</span>
-        <span class="font-semibold text-on-surface">{{ group.member_count }}</span>
-      </span>
-      <span class="group-stat">
-        <span class="text-on-surface-variant">{{ t('groupDetail.stats.profiles') }}</span>
-        <span class="font-semibold text-tertiary">{{ group.profile_count }}</span>
-      </span>
-      <span class="group-stat">
-        <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
-        <span class="font-semibold text-primary">{{ group.message_count_today }}</span>
-      </span>
-      <span class="group-stat">
-        <span class="text-on-surface-variant">{{ t('groupDetail.stats.repliesToday') }}</span>
-        <span class="font-semibold text-secondary">{{ group.reply_count_today }}</span>
-      </span>
-    </div>
+      <nav class="group-tabs-mobile" role="tablist" :aria-label="group.name">
+        <div class="group-tabs">
+          <RouterLink
+            v-for="tab in tabs"
+            :key="tab.id"
+            :to="tabRoute(tab.id)"
+            replace
+            role="tab"
+            class="group-tab"
+            :class="activeTab === tab.id ? 'group-tab-active' : 'group-tab-inactive'"
+            :aria-selected="activeTab === tab.id ? 'true' : 'false'"
+          >
+            {{ tab.label }}
+          </RouterLink>
+        </div>
+      </nav>
+    </template>
 
     <header class="page-header page-header--group sticky top-0 z-10 hidden lg:block">
       <RouterLink to="/groups" class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary">
@@ -75,68 +27,17 @@
         {{ t('groupDetail.back') }}
       </RouterLink>
 
-      <div v-if="group" class="flex flex-wrap items-start justify-between gap-4">
-        <div class="min-w-0 flex-1">
-          <h1 class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
-            {{ group.name }}
-          </h1>
-          <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">
-            {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
-          </p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <span v-if="group.is_draft" class="badge shrink-0 px-2.5 py-1" :class="draftBadgeClass()">
-            {{ draftLabel(t) }}
-          </span>
-          <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
-            {{ statusLabel(group.status, t) }}
-          </span>
-          <button
-            v-if="group.status !== 'active'"
-            class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
-            :disabled="saving || group.is_draft"
-            :title="group.is_draft ? t('groupDetail.setup.linkBeforeLive') : undefined"
-            @click="goLive"
-          >
-            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-            {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
-          </button>
-          <button v-if="group.status === 'active'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="pause">
-            <span class="material-symbols-outlined text-[16px]">pause</span>
-            {{ t('groupDetail.setup.pause') }}
-          </button>
-          <button v-if="group.status === 'paused'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="goLive">
-            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-            {{ t('groupDetail.setup.resume') }}
-          </button>
-        </div>
+      <div v-if="group" class="min-w-0">
+        <h1 class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
+          {{ group.name }}
+        </h1>
+        <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">
+          {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
+        </p>
       </div>
       <h1 v-else class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
         {{ t('groupDetail.group') }}
       </h1>
-
-      <div v-if="group && !loading" class="group-stats">
-        <span v-if="group.member_count != null" class="group-stat">
-          <span class="text-on-surface-variant">{{ t('groupDetail.stats.members') }}</span>
-          <span class="font-semibold text-on-surface">{{ group.member_count }}</span>
-        </span>
-        <span class="group-stat">
-          <span class="text-on-surface-variant">{{ t('groupDetail.stats.profiles') }}</span>
-          <span class="font-semibold text-tertiary">{{ group.profile_count }}</span>
-        </span>
-        <span class="group-stat">
-          <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
-          <span class="font-semibold text-primary">{{ group.message_count_today }}</span>
-        </span>
-        <span class="group-stat">
-          <span class="text-on-surface-variant">{{ t('groupDetail.stats.repliesToday') }}</span>
-          <span class="font-semibold text-secondary">{{ group.reply_count_today }}</span>
-        </span>
-        <span class="group-stat">
-          <span class="text-on-surface-variant">{{ t('groupDetail.stats.status') }}</span>
-          <span class="font-semibold" :class="group.status === 'active' ? 'text-primary' : group.status === 'paused' ? 'text-error' : 'text-secondary'">{{ statusLabel(group.status, t) }}</span>
-        </span>
-      </div>
 
       <div v-if="group && !loading && !error" class="group-tabs-bar">
         <nav class="group-tabs" role="tablist" :aria-label="group.name">
@@ -164,8 +65,6 @@
       </div>
 
       <template v-else-if="group">
-        <GroupStatsCard class="mb-4" :group="group" />
-
         <div v-show="activeTab === 'setup'" class="bento-grid items-stretch">
           <div class="col-span-12">
             <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
@@ -228,7 +127,6 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
-import { statusBadgeClass, statusLabel, draftBadgeClass, draftLabel } from '../lib/ui';
 import GroupWhatsAppLink from '../components/GroupWhatsAppLink.vue';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import IngestUpload from '../components/IngestUpload.vue';
@@ -238,7 +136,7 @@ import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
-import GroupStatsCard from '../components/GroupStatsCard.vue';
+import GroupDetailOverview from '../components/GroupDetailOverview.vue';
 import type { GroupWithStats } from '@wavi/shared';
 
 type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat';

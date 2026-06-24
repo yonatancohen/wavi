@@ -206,6 +206,10 @@
     },
     "overview": {
       "title": "Group overview",
+      "expand": "Show group details",
+      "collapse": "Hide group details",
+      "summaryProfiles": "{count} profiles",
+      "summaryMembers": "{count} members",
       "membersDraft": "Link WhatsApp to see member count",
       "membersUnavailable": "Connect WhatsApp to load member count"
     },

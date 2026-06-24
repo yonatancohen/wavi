@@ -206,6 +206,10 @@
     },
     "overview": {
       "title": "סקירת קבוצה",
+      "expand": "הצג פרטי קבוצה",
+      "collapse": "הסתר פרטי קבוצה",
+      "summaryProfiles": "{count} פרופילים",
+      "summaryMembers": "{count} חברים",
       "membersDraft": "חבר לוואטסאפ כדי לראות מספר חברים",
       "membersUnavailable": "חבר וואטסאפ כדי לטעון מספר חברים"
     },

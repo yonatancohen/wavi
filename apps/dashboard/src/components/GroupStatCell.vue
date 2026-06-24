@@ -4,7 +4,10 @@
       <span class="material-symbols-outlined text-[14px]">{{ icon }}</span>
       {{ label }}
     </div>
-    <div class="font-mono text-[18px] font-semibold leading-none tabular-nums text-on-surface" :class="[valueClass, compact ? 'text-[16px]' : 'text-[18px]']">
+    <div
+      class="font-semibold leading-none text-on-surface"
+      :class="[valueClass, numeric === false ? 'font-body text-[13px]' : 'font-mono tabular-nums', compact ? 'text-[16px]' : numeric === false ? 'text-[13px]' : 'text-[18px]']"
+    >
       {{ value }}
     </div>
     <p v-if="hint" class="mt-1 text-[10px] leading-snug text-on-surface-variant/70">
@@ -22,7 +25,8 @@ withDefaults(
     hint?: string;
     valueClass?: string;
     compact?: boolean;
+    numeric?: boolean;
   }>(),
-  { compact: false, hint: undefined, valueClass: '' },
+  { compact: false, hint: undefined, valueClass: '', numeric: true },
 );
 </script>
