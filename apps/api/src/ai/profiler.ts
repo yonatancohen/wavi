@@ -5,6 +5,7 @@ import { buildMinimalProfileData, filterCrossMemberAliases, MIN_LLM_PROFILE_MESS
 import { upsertUserProfile } from '../lib/profile-store.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
+import { recordAnthropicCall } from '../lib/usage.js';
 
 interface ProfileMessage {
   body: string;
@@ -15,7 +16,7 @@ const PROFILE_LLM_RETRIES = 2;
 
 export type ProfileBuildResult = 'full' | 'stub' | 'skipped';
 
-async function extractAliasesFromContext(displayName: string, ownMessages: string[], addressedSamples: string[], languageMode: LanguageMode): Promise<string[]> {
+async function extractAliasesFromContext(displayName: string, ownMessages: string[], addressedSamples: string[], languageMode: LanguageMode, groupId: string): Promise<string[]> {
   if (addressedSamples.length === 0) return [];
 
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -49,6 +50,8 @@ ${addressedSamples.slice(0, 40).join('\n').slice(0, 1200)}`,
       },
     ],
   });
+
+  await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
@@ -99,7 +102,7 @@ async function upsertStubProfile(
   );
 }
 
-async function callProfileLlm(displayName: string, sample: string, languageMode: LanguageMode): Promise<string> {
+async function callProfileLlm(displayName: string, sample: string, languageMode: LanguageMode, groupId: string): Promise<string> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const lang = synthesisLanguageInstruction(languageMode);
@@ -134,6 +137,8 @@ ${sample.slice(0, 2000)}`,
     ],
   });
 
+  await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
+
   return response.content[0].type === 'text' ? response.content[0].text : '{}';
 }
 
@@ -164,7 +169,7 @@ export async function profileUser(
   let lastError: unknown;
   for (let attempt = 1; attempt <= PROFILE_LLM_RETRIES; attempt++) {
     try {
-      const text = await callProfileLlm(displayName, sample, languageMode);
+      const text = await callProfileLlm(displayName, sample, languageMode, groupId);
       const parsed = parseProfileJson(text);
       const llmAliases = filterCrossMemberAliases(parsed.aliases ?? [], displayName, options?.otherMemberNames ?? []);
       const aliases = mergeAliases(safeAliases, ...llmAliases);
@@ -224,7 +229,7 @@ export async function buildUserProfilesFromHistory(
   for (const [waUserId, { displayName, bodies }] of Object.entries(byUser)) {
     const observed = observedAliasesByPerson?.get(waUserId) ?? [];
     const addressedSamples = collectAddressedSamples(waUserId, displayName, messages);
-    const llmAliases = filterCrossMemberAliases(await extractAliasesFromContext(displayName, bodies, addressedSamples, languageMode), displayName, otherMemberNames);
+    const llmAliases = filterCrossMemberAliases(await extractAliasesFromContext(displayName, bodies, addressedSamples, languageMode, groupId), displayName, otherMemberNames);
     const allAliases = mergeAliases(observed, ...llmAliases);
 
     const result = await profileUser(

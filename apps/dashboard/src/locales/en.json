@@ -151,6 +151,53 @@
     "testChatSubline": "{tokens} tokens · ${amount} est.",
     "failedLoad": "Failed to load cost stats"
   },
+  "usage": {
+    "title": "Usage & cost",
+    "groupTitle": "Group usage",
+    "failedLoad": "Failed to load usage stats",
+    "periods": {
+      "today": "Today",
+      "week": "This week",
+      "month": "This month",
+      "allTime": "All time"
+    },
+    "period": {
+      "requests": "Requests",
+      "inputTokens": "Input tokens",
+      "outputTokens": "Output tokens",
+      "estimatedSpend": "Est. spend",
+      "avgLatency": "Avg latency",
+      "weekNote": "Week",
+      "weekStartsSunday": "Starts Sunday (UTC)"
+    },
+    "live": {
+      "inFlight": "In flight now",
+      "peakToday": "Peak concurrent today",
+      "split": "{processing} thinking · {queued} queued · {queue} in queue"
+    },
+    "breakdown": {
+      "title": "Request breakdown",
+      "empty": "No tracked requests in this period yet.",
+      "line": "{requests} requests · {tokens} tokens",
+      "types": {
+        "whatsapp_reply": "WhatsApp replies",
+        "test_chat": "Test chat",
+        "synthesis": "Synthesis jobs",
+        "embedding": "Embeddings",
+        "image_generation": "Image generation",
+        "recovery": "Recovery apologies"
+      }
+    },
+    "topGroups": {
+      "title": "Top groups this month",
+      "empty": "No group usage yet this month.",
+      "line": "{requests} requests · {tokens} tokens"
+    },
+    "extremes": {
+      "min": "Min reply tokens",
+      "max": "Max reply tokens"
+    }
+  },
   "groups": {
     "title": "Groups",
     "subtitle": "Register WhatsApp groups where Wavi should listen and reply",

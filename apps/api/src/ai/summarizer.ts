@@ -1,10 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { LanguageMode, EmojiUsageLevel, VoiceExample } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
+import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CHARACTER_SYNTHESIS_RETRIES = 2;
+
+export interface SynthesisUsageContext {
+  groupId?: string;
+}
 
 export type SynthesizedCharacter = {
   voice: string;
@@ -84,12 +89,13 @@ Respond in valid JSON only (no markdown, no explanation):
 }`;
 }
 
-async function callCharacterSynthesis(prompt: string): Promise<string> {
+async function callCharacterSynthesis(prompt: string, usageContext?: SynthesisUsageContext): Promise<string> {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }],
   });
+  await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
   return response.content[0].type === 'text' ? response.content[0].text : '{}';
 }
 
@@ -100,7 +106,7 @@ function parseCharacterJson(text: string): SynthesizedCharacter {
 
 // ── Episode summary (every 100 messages) ─────────────────────
 
-export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto'): Promise<string> {
+export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<string> {
   const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -112,13 +118,20 @@ export async function generateEpisodeSummary(content: string, languageMode: Lang
       },
     ],
   });
+  await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group activity.';
 }
 
 // ── Rolling group context (every 100 messages) ────────────────
 
-export async function generateGroupContext(params: { groupName: string; recentContent: string; previousContext: string; languageMode?: LanguageMode }): Promise<string> {
+export async function generateGroupContext(params: {
+  groupName: string;
+  recentContent: string;
+  previousContext: string;
+  languageMode?: LanguageMode;
+  usageContext?: SynthesisUsageContext;
+}): Promise<string> {
   const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -141,19 +154,26 @@ Write a SHORT context summary (max 150 words) covering:
       },
     ],
   });
+  await recordAnthropicCall({ type: 'synthesis', groupId: params.usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : '';
 }
 
 // ── Character synthesis (Sonnet — used at setup only) ─────────
 
-export async function synthesizeCharacter(params: { groupName: string; episodeSummaries: string[]; userProfiles: string[]; languageMode: LanguageMode }): Promise<SynthesizedCharacter> {
+export async function synthesizeCharacter(params: {
+  groupName: string;
+  episodeSummaries: string[];
+  userProfiles: string[];
+  languageMode: LanguageMode;
+  usageContext?: SynthesisUsageContext;
+}): Promise<SynthesizedCharacter> {
   const prompt = buildCharacterSynthesisPrompt(params);
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= CHARACTER_SYNTHESIS_RETRIES; attempt++) {
     try {
-      const text = await callCharacterSynthesis(prompt);
+      const text = await callCharacterSynthesis(prompt, params.usageContext);
       return parseCharacterJson(text);
     } catch (err) {
       lastError = err;
@@ -166,7 +186,7 @@ export async function synthesizeCharacter(params: { groupName: string; episodeSu
 }
 
 /** Chunk summary (1 sentence). */
-export async function generateChunkSummary(content: string, languageMode: LanguageMode = 'auto'): Promise<string> {
+export async function generateChunkSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<string> {
   const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -178,6 +198,7 @@ export async function generateChunkSummary(content: string, languageMode: Langua
       },
     ],
   });
+  await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group conversation.';
 }

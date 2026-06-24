@@ -59,8 +59,8 @@ export async function flushChunkBuffer(groupId: string) {
     const { data: group } = await db.from('groups').select('name, language_mode').eq('id', groupId).single();
     const languageMode = (group?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
 
-    const summary = await generateChunkSummary(content, languageMode);
-    const embedding = await embed(content);
+    const summary = await generateChunkSummary(content, languageMode, { groupId });
+    const embedding = await embed(content, { groupId });
 
     await db.from('message_chunks').insert({
       group_id: groupId,
@@ -106,8 +106,8 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
     .map((m) => `${m.sender_name}: ${m.body}`)
     .join('\n');
 
-  const summary = await generateEpisodeSummary(content, languageMode);
-  const embedding = await embed(summary);
+  const summary = await generateEpisodeSummary(content, languageMode, { groupId });
+  const embedding = await embed(summary, { groupId });
 
   const msgFrom = recentMessages[0].timestamp;
   const msgTo = recentMessages[recentMessages.length - 1].timestamp;
@@ -140,6 +140,7 @@ async function maybeGenerateGroupContext(groupId: string) {
     recentContent,
     previousContext: prevCtx?.summary_text ?? '',
     languageMode,
+    usageContext: { groupId },
   });
 
   await db.from('group_contexts').insert({

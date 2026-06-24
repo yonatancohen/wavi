@@ -1,11 +1,8 @@
 import type { CostStats, TestChatCostStats } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { redis } from './redis.js';
-
-const HAIKU_INPUT_PER_M = 0.8;
-const HAIKU_OUTPUT_PER_M = 4;
-const SONNET_INPUT_PER_M = 3;
-const SONNET_OUTPUT_PER_M = 15;
+import { estimateCostUsd } from './pricing.js';
+import { recordTrackedUsage } from './usage.js';
 
 const TEST_CHAT_COST_TTL_SEC = 60 * 60 * 24 * 45;
 
@@ -21,13 +18,6 @@ function monthStart(): string {
 
 function testChatCostKey(month = currentMonthKey()): string {
   return `test_chat_cost:${month}`;
-}
-
-function estimateCostUsd(inputTokens: number, outputTokens: number): number {
-  // Blended estimate — most replies use Haiku
-  const inputCost = (inputTokens / 1_000_000) * HAIKU_INPUT_PER_M;
-  const outputCost = (outputTokens / 1_000_000) * HAIKU_OUTPUT_PER_M;
-  return inputCost + outputCost;
 }
 
 function emptyTestChatCost(): TestChatCostStats {
@@ -55,9 +45,16 @@ async function getTestChatCostStats(): Promise<TestChatCostStats> {
   };
 }
 
-export async function recordTestChatUsage(inputTokens: number, outputTokens: number): Promise<void> {
+export async function recordTestChatUsage(inputTokens: number, outputTokens: number, groupId?: string): Promise<void> {
   const key = testChatCostKey();
   await Promise.all([redis.hincrby(key, 'input_tokens', inputTokens), redis.hincrby(key, 'output_tokens', outputTokens), redis.hincrby(key, 'replies', 1), redis.expire(key, TEST_CHAT_COST_TTL_SEC)]);
+  await recordTrackedUsage({
+    type: 'test_chat',
+    groupId,
+    inputTokens,
+    outputTokens,
+    requests: 1,
+  });
 }
 
 export async function getCostStats(agentId: string): Promise<CostStats> {
@@ -116,8 +113,4 @@ export async function maybeAutoPauseOnBudget(agentId: string): Promise<boolean> 
   return true;
 }
 
-export function estimateReplyCost(inputTokens: number, outputTokens: number, model: string): number {
-  const inputRate = model.includes('sonnet') ? SONNET_INPUT_PER_M : HAIKU_INPUT_PER_M;
-  const outputRate = model.includes('sonnet') ? SONNET_OUTPUT_PER_M : HAIKU_OUTPUT_PER_M;
-  return (inputTokens / 1_000_000) * inputRate + (outputTokens / 1_000_000) * outputRate;
-}
+export { estimateReplyCost } from './pricing.js';

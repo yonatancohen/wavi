@@ -28,7 +28,7 @@
           </RouterLink>
         </div>
 
-        <CostBanner class="mb-5" />
+        <UsageSection class="mb-5" />
 
         <!-- KPI cells -->
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -217,7 +217,7 @@ import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from '../components/AgentStatusBadge.vue';
 import AgentHealthPanel from '../components/AgentHealthPanel.vue';
-import CostBanner from '../components/CostBanner.vue';
+import UsageSection from '../components/UsageSection.vue';
 import GroupInlineStats from '../components/GroupInlineStats.vue';
 
 const { t } = useI18n();

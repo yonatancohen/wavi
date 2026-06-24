@@ -326,6 +326,77 @@ export interface ReplyFlow {
 export interface ActiveReplyFlows {
   total: number;
   flows: ReplyFlow[];
+  queue_depth: number;
+  queued_count: number;
+  processing_count: number;
+  peak_inflight_today: number;
+}
+
+// ── Usage observability ──────────────────────────────────────
+
+export const USAGE_REQUEST_TYPES = ['whatsapp_reply', 'test_chat', 'synthesis', 'embedding', 'image_generation', 'recovery'] as const;
+
+export type UsageRequestType = (typeof USAGE_REQUEST_TYPES)[number];
+
+export interface UsageTypeStats {
+  type: UsageRequestType;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  spent_usd_estimate: number;
+}
+
+export interface UsagePeriodStats {
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  spent_usd_estimate: number;
+  avg_latency_ms: number | null;
+  breakdown: UsageTypeStats[];
+}
+
+export interface UsageReplyExtreme {
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  spent_usd_estimate: number;
+  group_id: string;
+  group_name: string;
+  created_at: string;
+}
+
+export interface GroupUsageRank {
+  group_id: string;
+  group_name: string;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  spent_usd_estimate: number;
+}
+
+export interface AgentUsageStats {
+  today: UsagePeriodStats;
+  week: UsagePeriodStats;
+  month: UsagePeriodStats;
+  all_time: UsagePeriodStats;
+  top_groups: GroupUsageRank[];
+  min_reply: UsageReplyExtreme | null;
+  max_reply: UsageReplyExtreme | null;
+  budget_usd: number | null;
+  budget_exceeded: boolean;
+  auto_paused: boolean;
+  week_starts_on: 'sunday';
+}
+
+export interface GroupUsageStats {
+  group_id: string;
+  today: UsagePeriodStats;
+  week: UsagePeriodStats;
+  month: UsagePeriodStats;
+  all_time: UsagePeriodStats;
+  min_reply: UsageReplyExtreme | null;
+  max_reply: UsageReplyExtreme | null;
+  week_starts_on: 'sunday';
 }
 
 // ── Replies ──────────────────────────────────────────────────

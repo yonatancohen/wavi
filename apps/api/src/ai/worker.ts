@@ -106,7 +106,7 @@ async function processReplyJob(job: ReplyJob) {
 
       if (generated.imagePrompt) {
         try {
-          const image = await generateImage(generated.imagePrompt);
+          const image = await generateImage(generated.imagePrompt, job.group_id);
           imageCaption = generated.imageCaption ?? '';
           media = {
             data: image.buffer,
@@ -221,7 +221,7 @@ export async function checkForNegativeReaction(params: { groupId: string; sender
 
   const { data: group } = await db.from('groups').select('character_config').eq('id', params.groupId).single();
 
-  const apology = await generateApology(group?.character_config);
+  const apology = await generateApology(group?.character_config, params.groupId);
 
   await deliverReply(params.waGroupId, apology);
 

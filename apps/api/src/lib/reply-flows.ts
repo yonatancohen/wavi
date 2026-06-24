@@ -1,4 +1,5 @@
 import { redis } from './redis.js';
+import { recordInflightPeak } from './usage.js';
 
 const ACTIVE_KEY = 'reply_flows:active';
 const FLOW_TTL = 600; // 10 min safety net if completion is missed
@@ -40,6 +41,8 @@ export async function registerReplyFlow(params: { group_id: string; group_name: 
 
   await redis.set(flowKey(id), JSON.stringify(record), { ex: FLOW_TTL });
   await redis.zadd(ACTIVE_KEY, { score: queued_at, member: id });
+  const total = await redis.zcard(ACTIVE_KEY);
+  if (total) await recordInflightPeak(total);
   return id;
 }
 

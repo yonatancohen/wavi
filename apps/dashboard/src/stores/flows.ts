@@ -9,6 +9,8 @@ const POLL_MS_IDLE = 120_000;
 export const useFlowsStore = defineStore('flows', () => {
   const total = ref(0);
   const flows = ref<ActiveReplyFlows['flows']>([]);
+  const queueDepth = ref(0);
+  const peakInflightToday = ref(0);
   const polling = ref(false);
   let timer: ReturnType<typeof setInterval> | null = null;
   let subscribers = 0;
@@ -27,9 +29,13 @@ export const useFlowsStore = defineStore('flows', () => {
       const data = await apiFetch<ActiveReplyFlows>('/flows/active');
       total.value = data.total;
       flows.value = data.flows;
+      queueDepth.value = data.queue_depth ?? 0;
+      peakInflightToday.value = data.peak_inflight_today ?? 0;
     } catch {
       total.value = 0;
       flows.value = [];
+      queueDepth.value = 0;
+      peakInflightToday.value = 0;
     }
 
     schedulePolling(total.value > 0 ? POLL_MS_ACTIVE : POLL_MS_IDLE);
@@ -55,5 +61,5 @@ export const useFlowsStore = defineStore('flows', () => {
     currentPollMs = POLL_MS_IDLE;
   }
 
-  return { total, flows, refresh, startPolling, stopPolling };
+  return { total, flows, queueDepth, peakInflightToday, refresh, startPolling, stopPolling };
 });

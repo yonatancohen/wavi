@@ -103,7 +103,10 @@ async function embedMessageChunks(groupId: string, realMessages: ResolvedExportM
     const pairs = batch.map((chunk, idx) => ({ chunk, content: contents[idx] ?? '' })).filter(({ content }) => content.length > 20);
     if (pairs.length === 0) continue;
 
-    const embeddings = await embedBatch(pairs.map((p) => p.content));
+    const embeddings = await embedBatch(
+      pairs.map((p) => p.content),
+      { groupId },
+    );
     const rows = pairs.map(({ chunk, content }, idx) => ({
       group_id: groupId,
       content,
@@ -144,10 +147,10 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   for (let i = 0; i < realMessages.length; i += 100) {
     const slice = realMessages.slice(i, i + 100);
     const content = slice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
-    const summary = await generateEpisodeSummary(content, languageMode);
+    const summary = await generateEpisodeSummary(content, languageMode, { groupId });
     episodeSummaries.push(summary);
 
-    const embedding = await embed(summary);
+    const embedding = await embed(summary, { groupId });
     await db.from('episode_summaries').insert({
       group_id: groupId,
       summary,
@@ -170,6 +173,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
     recentContent,
     previousContext: prevCtx?.summary_text ?? '',
     languageMode,
+    usageContext: { groupId },
   });
 
   await db.from('group_contexts').insert({

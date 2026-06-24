@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { CharacterConfig } from '@wavi/shared';
+import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -29,7 +30,7 @@ export function detectNegativeReaction(message: string): boolean {
 
 // ── In-character apology ──────────────────────────────────────
 
-export async function generateApology(characterConfig: CharacterConfig | null): Promise<string> {
+export async function generateApology(characterConfig: CharacterConfig | null, groupId?: string): Promise<string> {
   if (!characterConfig) {
     return 'Ok, that was off. My bad.';
   }
@@ -65,6 +66,8 @@ Do NOT be overly formal. Stay in character. No quotes.`,
           },
         ],
       });
+
+      await recordAnthropicCall({ type: 'recovery', groupId, usage: response.usage });
 
       return response.content[0].type === 'text' ? response.content[0].text.trim() : fallbackApology(humor);
     } catch {

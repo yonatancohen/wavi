@@ -28,6 +28,7 @@ export async function synthesizeCharacterForGroup(groupId: string): Promise<Char
     episodeSummaries: episodeSummaries.slice(-10),
     userProfiles: (profiles ?? []).map((p) => `${p.display_name}: ${p.behavioral_summary}`),
     languageMode,
+    usageContext: { groupId },
   });
 
   const characterConfig: CharacterConfig = {

@@ -6,6 +6,8 @@ import type {
   Group,
   GroupWithStats,
   CostStats,
+  AgentUsageStats,
+  GroupUsageStats,
   TestReplyRequest,
   TestReplyResponse,
   TestImagePreviewRequest,
@@ -21,6 +23,7 @@ import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress, clearIngestionProgress } from '../jobs/ingestion-pipeline.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
+import { getAgentUsageStats, getGroupUsageStats } from '../lib/usage.js';
 import { generateReplyText } from '../ai/generate.js';
 import { generateImage } from '../ai/generate-image.js';
 import { getProfileAliases } from '../lib/alias-store.js';
@@ -138,6 +141,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   // Must be registered before /:id
   fastify.get('/cost', async () => {
     const stats: CostStats = await getCostStats(getAgentId());
+    return stats;
+  });
+
+  fastify.get('/usage', async () => {
+    const stats: AgentUsageStats = await getAgentUsageStats(getAgentId());
     return stats;
   });
 
@@ -408,7 +416,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       ...(imagePrompt ? { image_prompt: imagePrompt, image_caption: imageCaption } : {}),
     };
 
-    await recordTestChatUsage(inputTokens, outputTokens);
+    await recordTestChatUsage(inputTokens, outputTokens, req.params.id);
 
     return result;
   });
@@ -430,7 +438,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const image = await generateImage(prompt);
+      const image = await generateImage(prompt, req.params.id);
       const result: TestImagePreviewResponse = {
         image_base64: image.buffer.toString('base64'),
         mimetype: image.mimetype,
@@ -474,6 +482,12 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   // Members
+  fastify.get<{ Params: { id: string } }>('/:id/usage', async (req, reply) => {
+    const stats = await getGroupUsageStats(getAgentId(), req.params.id);
+    if (!stats) return reply.code(404).send({ error: 'Group not found' });
+    return stats satisfies GroupUsageStats;
+  });
+
   fastify.get<{ Params: { id: string } }>('/:id/members', async (req, reply) => {
     const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
 

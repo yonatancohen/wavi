@@ -151,6 +151,53 @@
     "testChatSubline": "{tokens} טוקנים · ${amount} משוער",
     "failedLoad": "טעינת נתוני עלות נכשלה"
   },
+  "usage": {
+    "title": "שימוש ועלות",
+    "groupTitle": "שימוש בקבוצה",
+    "failedLoad": "טעינת נתוני שימוש נכשלה",
+    "periods": {
+      "today": "היום",
+      "week": "השבוע",
+      "month": "החודש",
+      "allTime": "מאז ומעולם"
+    },
+    "period": {
+      "requests": "בקשות",
+      "inputTokens": "טוקנים נכנסים",
+      "outputTokens": "טוקנים יוצאים",
+      "estimatedSpend": "הוצאה משוערת",
+      "avgLatency": "זמן תגובה ממוצע",
+      "weekNote": "שבוע",
+      "weekStartsSunday": "מתחיל ביום ראשון (UTC)"
+    },
+    "live": {
+      "inFlight": "בטיפול עכשיו",
+      "peakToday": "שיא מקבילי היום",
+      "split": "{processing} חושב · {queued} בתור · {queue} בתור Redis"
+    },
+    "breakdown": {
+      "title": "פירוט בקשות",
+      "empty": "אין בקשות מתועדות בתקופה הזו עדיין.",
+      "line": "{requests} בקשות · {tokens} טוקנים",
+      "types": {
+        "whatsapp_reply": "תשובות WhatsApp",
+        "test_chat": "צ'אט בדיקה",
+        "synthesis": "משימות סינתזה",
+        "embedding": "הטמעות",
+        "image_generation": "יצירת תמונות",
+        "recovery": "התנצלויות שחזור"
+      }
+    },
+    "topGroups": {
+      "title": "קבוצות מובילות החודש",
+      "empty": "אין שימוש בקבוצות החודש.",
+      "line": "{requests} בקשות · {tokens} טוקנים"
+    },
+    "extremes": {
+      "min": "מינימום טוקנים לתשובה",
+      "max": "מקסימום טוקנים לתשובה"
+    }
+  },
   "groups": {
     "title": "קבוצות",
     "subtitle": "רשום קבוצות וואטסאפ שבהן Wavi יאזין ויגיב",

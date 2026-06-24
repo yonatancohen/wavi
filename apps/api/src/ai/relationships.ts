@@ -4,6 +4,7 @@ import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
 import { extractMentionLabels, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
+import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -189,7 +190,7 @@ export async function buildRelationshipMap(
 
   for (let i = 0; i < narrativePairs.length; i += 5) {
     const batch = narrativePairs.slice(i, i + 5);
-    const batchNarratives = await generateNarrativesBatch(batch, languageMode);
+    const batchNarratives = await generateNarrativesBatch(batch, languageMode, groupId);
     for (const [key, narrative] of batchNarratives) {
       narratives.set(key, narrative);
     }
@@ -250,6 +251,7 @@ export async function buildRelationshipMap(
 async function generateNarrativesBatch(
   pairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }>,
   languageMode: LanguageMode = 'auto',
+  groupId?: string,
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   if (pairs.length === 0) return result;
@@ -278,6 +280,8 @@ Respond with JSON only: ["sentence 1", "sentence 2", ...]`,
       },
     ],
   });
+
+  await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '[]';
 

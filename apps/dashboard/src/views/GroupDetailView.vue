@@ -7,6 +7,7 @@
 
       <div class="border-b border-outline-variant px-margin-mobile py-4 lg:hidden">
         <GroupDetailStatsGrid :group="group" />
+        <GroupUsagePanel class="mt-4" :group-id="group.id" />
       </div>
 
       <nav class="group-tabs-mobile" role="tablist" :aria-label="group.name">
@@ -48,8 +49,9 @@
         {{ t('groupDetail.group') }}
       </h1>
 
-      <div v-if="group && !loading && !error" class="mt-4">
+      <div v-if="group && !loading && !error" class="mt-4 space-y-4">
         <GroupDetailStatsGrid :group="group" />
+        <GroupUsagePanel :group-id="group.id" />
       </div>
 
       <div v-if="group && !loading && !error" class="group-tabs-bar group-tabs-scroll">
@@ -135,6 +137,7 @@ import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
+import GroupUsagePanel from '../components/GroupUsagePanel.vue';
 import GroupDetailStatusBar from '../components/GroupDetailStatusBar.vue';
 import GroupDetailStatsGrid from '../components/GroupDetailStatsGrid.vue';
 import type { GroupWithStats } from '@wavi/shared';

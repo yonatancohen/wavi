@@ -76,7 +76,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
 // ── Layer 2: pgvector RAG fetch ───────────────────────────────
 
 async function fetchRAGContext(groupId: string, query: string) {
-  const queryEmbedding = await embed(query);
+  const queryEmbedding = await embed(query, { groupId });
 
   const [chunksResult, episodesResult] = await Promise.all([
     db.rpc('search_message_chunks', {
