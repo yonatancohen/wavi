@@ -5,7 +5,7 @@
   <!-- Login page renders without app chrome -->
   <RouterView v-else-if="isLoginRoute" />
 
-  <div v-else-if="isAuthenticated" class="flex h-dvh overflow-hidden bg-background">
+  <div v-else-if="isAuthenticated" class="flex h-svh overflow-hidden bg-background lg:h-dvh">
     <!-- Desktop sidebar -->
     <nav class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex" :aria-label="t('nav.main')">
       <AppBrand />
@@ -23,7 +23,9 @@
           <RouterLink v-if="showMobileBack" to="/groups" class="icon-btn min-h-10 min-w-10 shrink-0" :aria-label="t('groupDetail.back')">
             <span class="material-symbols-outlined text-[20px] rtl:scale-x-[-1]">arrow_back</span>
           </RouterLink>
-          <img v-else src="/wavi-mascot.jpg" alt="" class="h-8 w-8 shrink-0 rounded-lg object-contain ring-1 ring-outline-variant/30" />
+          <RouterLink v-else to="/" class="icon-btn min-h-10 min-w-10 shrink-0 p-0" :aria-label="t('nav.dashboard')">
+            <img src="/wavi-mascot.jpg" alt="" class="h-8 w-8 rounded-lg object-contain ring-1 ring-outline-variant/30" />
+          </RouterLink>
           <div class="min-w-0">
             <p class="truncate font-sora text-[14px] font-bold tracking-tight text-on-surface">
               {{ mobilePageTitle }}
