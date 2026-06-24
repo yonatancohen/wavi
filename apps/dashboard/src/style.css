@@ -256,13 +256,13 @@
 
   /* ── Mobile bottom navigation ────────────────── */
   .mobile-bottom-nav {
-    @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-outline-variant bg-surface-container-low;
+    @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-outline-variant bg-surface-container-low;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   }
 
   .mobile-bottom-nav-item {
-    @apply relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium text-on-surface-variant no-underline transition-colors;
+    @apply relative flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[9px] font-medium text-on-surface-variant no-underline transition-colors;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -272,15 +272,15 @@
   }
 
   .mobile-bottom-nav-label {
-    @apply max-w-full truncate leading-none;
+    @apply max-w-full truncate px-0.5 text-center leading-none;
   }
 
   .mobile-bottom-nav-dot {
-    @apply absolute end-[calc(50%-1.125rem)] top-2 h-1.5 w-1.5 animate-status-pulse rounded-full bg-primary;
+    @apply absolute end-[calc(50%-0.875rem)] top-2 h-1.5 w-1.5 animate-status-pulse rounded-full bg-primary;
   }
 
   [dir='rtl'] .mobile-bottom-nav-dot {
-    @apply start-[calc(50%-1.125rem)] end-auto;
+    @apply start-[calc(50%-0.875rem)] end-auto;
   }
 
   /* ── Icon button (touch-friendly) ────────────── */
