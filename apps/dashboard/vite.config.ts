@@ -2,6 +2,23 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 
+function isLocalViteApiUrl(url: string | undefined): boolean {
+  if (!url?.trim()) return true;
+  if (url === '/api') return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url);
+}
+
+function assertViteApiUrlForVercelBuild() {
+  if (!process.env.VERCEL) return;
+
+  const url = process.env.VITE_API_URL?.trim();
+  if (!url || isLocalViteApiUrl(url)) {
+    throw new Error('VITE_API_URL must be set to your Railway API URL (…/api) for Vercel Preview and Production builds. Run: bun run sync-secrets');
+  }
+}
+
+assertViteApiUrlForVercelBuild();
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {

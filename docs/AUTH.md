@@ -46,7 +46,7 @@ bun run auth:setup
 This will:
 
 - Enable Google provider on your Supabase project
-- Set redirect URLs (`http://localhost:5173/login`, Vercel preview wildcard, production `/login`)
+- Set redirect URLs (`http://localhost:5173/**`, `https://**.vercel.app/**`, production `/login`)
 - Copy `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` into `apps/dashboard/.env`
 
 ### 4. Test locally
@@ -96,9 +96,9 @@ After OAuth works end-to-end:
 
 Redirect URLs should include:
 
-- `http://localhost:5173/login`
-- `https://*-*.vercel.app/login` (preview deploys)
-- `https://your-app.vercel.app/login` (production)
+- `http://localhost:5173/**`
+- `https://**.vercel.app/**` (all Vercel preview + production deploys)
+- `https://your-app.vercel.app/login` (production, optional explicit entry)
 
 ---
 
@@ -107,6 +107,7 @@ Redirect URLs should include:
 | Symptom                             | Fix                                                                                    |
 | ----------------------------------- | -------------------------------------------------------------------------------------- |
 | Redirected to Google then error     | Check Google redirect URI matches `https://<ref>.supabase.co/auth/v1/callback` exactly |
-| Stuck on `/login` after Google      | Add your dashboard URL + `/login` to Supabase URL Configuration                        |
+| Stuck on `/login` after Google      | Add `https://**.vercel.app/**` to Supabase URL Configuration (preview deploys)         |
+| Preview deploy shows "Bad request"  | Run `bun run sync-secrets` so Vercel Preview has `VITE_API_URL` → Railway `/api`       |
 | API returns 401 in production       | Set `AUTH_REQUIRED=true` only after OAuth works; ensure dashboard sends Bearer token   |
 | `redirect_uri_mismatch` from Google | Re-check Authorized redirect URIs in Google Cloud Console                              |

@@ -101,9 +101,9 @@ fi
 
 # ── Build redirect allow-list ─────────────────────────────────
 REDIRECT_URLS=(
-  "http://localhost:5173/login"
-  "http://127.0.0.1:5173/login"
-  "https://*-*.vercel.app/login"
+  "http://localhost:5173/**"
+  "http://127.0.0.1:5173/**"
+  "https://**.vercel.app/**"
 )
 
 if [[ -n "${DASHBOARD_URL:-}" ]]; then

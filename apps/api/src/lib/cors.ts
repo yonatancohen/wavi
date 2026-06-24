@@ -36,7 +36,7 @@ export function isOriginAllowed(origin: string | undefined): boolean {
   if (allowedDashboardOrigins().includes(normalized)) return true;
 
   // Dashboard is on Vercel — allow prod + preview deploy URLs (DASHBOARD_URL is often stale).
-  if (process.env.NODE_ENV === 'production' && isVercelAppOrigin(normalized)) return true;
+  if (isVercelAppOrigin(normalized)) return true;
 
   return false;
 }

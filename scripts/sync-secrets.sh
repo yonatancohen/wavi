@@ -190,6 +190,12 @@ sync_vercel() {
     fail "Vercel production env verification failed — VITE_* vars are empty on Vercel"
   fi
 
+  if verify_vercel_env "$ROOT" preview; then
+    ok "Vercel preview env verified"
+  else
+    fail "Vercel preview env verification failed — set Preview env vars on Vercel (bun run sync-secrets)"
+  fi
+
   ok "Vercel secrets synced"
 }
 

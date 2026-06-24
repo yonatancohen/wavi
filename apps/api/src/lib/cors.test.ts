@@ -32,11 +32,18 @@ describe('isOriginAllowed', () => {
     expect(isOriginAllowed('https://wavi-fawn.vercel.app')).toBe(true);
   });
 
+  test('allows vercel.app preview origins in development', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.DASHBOARD_URL = 'http://localhost:5173';
+    expect(isOriginAllowed('https://wavi-git-main-user.vercel.app')).toBe(true);
+  });
+
   test('rejects unknown origins in development', () => {
     process.env.NODE_ENV = 'development';
     process.env.DASHBOARD_URL = 'https://wavi-fawn.vercel.app';
     expect(isOriginAllowed('https://wavi-fawn.vercel.app')).toBe(true);
-    expect(isOriginAllowed('https://other.vercel.app')).toBe(false);
+    expect(isOriginAllowed('https://other.vercel.app')).toBe(true);
+    expect(isOriginAllowed('https://evil.example.com')).toBe(false);
   });
 
   test('parses comma-separated dashboard URLs', () => {

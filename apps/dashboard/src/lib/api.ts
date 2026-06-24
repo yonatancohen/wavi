@@ -33,7 +33,47 @@ export async function openEventSource(path: string): Promise<EventSource> {
 
 let handlingUnauthorized = false;
 
+function isMisconfiguredApiBase(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!BASE.startsWith('/')) return false;
+  const host = window.location.hostname;
+  return host !== 'localhost' && host !== '127.0.0.1';
+}
+
+async function readResponseBody(res: Response): Promise<{ json: unknown | null; text: string }> {
+  const text = await res.text();
+  if (!text) return { json: null, text: '' };
+  try {
+    return { json: JSON.parse(text) as unknown, text };
+  } catch {
+    return { json: null, text };
+  }
+}
+
+function apiErrorMessage(status: number, body: unknown | null, rawText: string): string {
+  if (body && typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    if (typeof record.error === 'string') return record.error;
+    if (typeof record.message === 'string') return record.message;
+  }
+
+  const trimmed = rawText.trimStart();
+  if (trimmed.startsWith('<!') || trimmed.includes('<html')) {
+    return 'API misconfigured — this deployment is calling itself instead of Railway. Set VITE_API_URL for Preview on Vercel.';
+  }
+
+  if (status === 400 && (!body || rawText === '')) {
+    return 'Bad request — API URL may be misconfigured for this Vercel preview deployment.';
+  }
+
+  return `Request failed (${status})`;
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isMisconfiguredApiBase()) {
+    throw new Error('API misconfigured — set VITE_API_URL to your Railway API (/api) for this deployment.');
+  }
+
   const isFormData = init?.body instanceof FormData;
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string> | undefined),
@@ -53,6 +93,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     ...init,
     headers,
   });
+  const { json: body, text } = await readResponseBody(res);
+
   if (!res.ok) {
     if (res.status === 401 && isAuthRequired && sentAuth && !handlingUnauthorized) {
       handlingUnauthorized = true;
@@ -69,10 +111,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
         handlingUnauthorized = false;
       }
     }
-    const body = await res.json().catch(() => null);
     logApiAuthFailure(path, res.status, body);
-    const message = body?.error ?? body?.message ?? `Request failed (${res.status})`;
-    throw new Error(message);
+    throw new Error(apiErrorMessage(res.status, body, text));
   }
-  return res.json();
+
+  if (body == null) {
+    throw new Error('API returned an empty response.');
+  }
+
+  return body as T;
 }

@@ -423,14 +423,24 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const prompt = req.body?.prompt?.trim();
-    if (!prompt) return reply.code(400).send({ error: 'prompt is required' });
+    if (!prompt) {
+      return reply.code(400).send({
+        error: req.body == null ? 'Request body is required' : 'prompt is required',
+      });
+    }
 
-    const image = await generateImage(prompt);
-    const result: TestImagePreviewResponse = {
-      image_base64: image.buffer.toString('base64'),
-      mimetype: image.mimetype,
-    };
-    return result;
+    try {
+      const image = await generateImage(prompt);
+      const result: TestImagePreviewResponse = {
+        image_base64: image.buffer.toString('base64'),
+        mimetype: image.mimetype,
+      };
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Image preview failed';
+      console.error('[preview-image] Failed:', message);
+      return reply.code(502).send({ error: message });
+    }
   });
 
   // Messages (cursor pagination — latest first, load older via ?before=)

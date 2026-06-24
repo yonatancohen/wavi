@@ -259,13 +259,14 @@ function truncatePrompt(prompt: string, max = 120) {
 }
 
 async function previewImage(turn: TestChatTurn) {
-  if (!selectedGroupId.value || !turn.image_prompt || turn.image_preview_loading) return;
+  const prompt = turn.image_prompt?.trim();
+  if (!selectedGroupId.value || !prompt || turn.image_preview_loading) return;
 
   turn.image_preview_loading = true;
   turn.image_preview_error = undefined;
 
   try {
-    const body: TestImagePreviewRequest = { prompt: turn.image_prompt };
+    const body: TestImagePreviewRequest = { prompt };
     const result = await apiFetch<TestImagePreviewResponse>(`/groups/${selectedGroupId.value}/preview-image`, {
       method: 'POST',
       body: JSON.stringify(body),
