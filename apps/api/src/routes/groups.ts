@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type {
   CreateGroupRequest,
+  CreateDraftGroupRequest,
   DiscoveredWaGroup,
   Group,
   GroupWithStats,
@@ -11,7 +12,9 @@ import type {
   UpdateRelationshipRequest,
   MergeMembersRequest,
   UserProfileData,
+  LinkGroupRequest,
 } from '@wavi/shared';
+import { isDraftGroup } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
@@ -19,6 +22,7 @@ import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { generateReplyText } from '../ai/generate.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
+import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -30,8 +34,10 @@ function mapGroupRow(row: Record<string, unknown>): GroupWithStats {
   const msgCount = row.message_count_today as { count: number }[] | undefined;
   const replyCount = row.reply_count_today as { count: number }[] | undefined;
   const { message_count_today: _m, reply_count_today: _r, ...rest } = row;
+  const waGroupId = String(rest.wa_group_id ?? '');
   return {
     ...(rest as unknown as Group),
+    is_draft: isDraftGroup(waGroupId),
     member_count: 0,
     message_count_today: msgCount?.[0]?.count ?? 0,
     reply_count_today: replyCount?.[0]?.count ?? 0,
@@ -78,7 +84,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       const waGroups = await listGroupChats();
       const { data: registered } = await db.from('groups').select('id, wa_group_id, status').eq('agent_id', getAgentId()).throwOnError();
 
-      const regMap = new Map((registered ?? []).map((r) => [r.wa_group_id, r]));
+      const regMap = new Map((registered ?? []).filter((r) => !isDraftGroup(r.wa_group_id)).map((r) => [r.wa_group_id, r]));
 
       const result: DiscoveredWaGroup[] = waGroups.map((g) => {
         const existing = regMap.get(g.wa_group_id);
@@ -110,6 +116,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send({ error: 'wa_group_id is required' });
     }
 
+    if (isDraftGroup(wa_group_id.trim())) {
+      return reply.code(400).send({ error: 'Invalid wa_group_id' });
+    }
+
     const { data: existing } = await db.from('groups').select('id').eq('wa_group_id', wa_group_id.trim()).maybeSingle();
 
     if (existing) {
@@ -136,14 +146,106 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return mapGroupRow(data);
   });
 
+  fastify.post<{ Body: CreateDraftGroupRequest }>('/draft', async (req, reply) => {
+    const name = req.body?.name?.trim();
+    if (!name) {
+      return reply.code(400).send({ error: 'name is required' });
+    }
+
+    const { data, error } = await db
+      .from('groups')
+      .insert({
+        agent_id: getAgentId(),
+        wa_group_id: createDraftWaGroupId(),
+        name,
+        status: 'pending_setup',
+        language_mode: 'he',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return reply.code(500).send({ error: error.message });
+    }
+
+    return mapGroupRow(data);
+  });
+
+  fastify.post<{ Params: { id: string }; Body: LinkGroupRequest }>('/:id/link', async (req, reply) => {
+    const { id } = req.params;
+    const waGroupId = req.body?.wa_group_id?.trim();
+    if (!waGroupId) {
+      return reply.code(400).send({ error: 'wa_group_id is required' });
+    }
+    if (isDraftGroup(waGroupId)) {
+      return reply.code(400).send({ error: 'Invalid wa_group_id' });
+    }
+
+    const { data: group } = await db.from('groups').select('id, wa_group_id, status').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+    if (!isDraftGroup(group.wa_group_id)) {
+      return reply.code(409).send({ error: 'Group is already linked to WhatsApp' });
+    }
+
+    const { data: taken } = await db.from('groups').select('id').eq('wa_group_id', waGroupId).neq('id', id).maybeSingle();
+    if (taken) {
+      return reply.code(409).send({ error: 'This WhatsApp group is already registered' });
+    }
+
+    try {
+      await assertWaGroupDiscoverable(waGroupId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WhatsApp not connected';
+      return reply.code(400).send({ error: message });
+    }
+
+    const updates: Record<string, string> = { wa_group_id: waGroupId };
+    if (req.body?.name?.trim()) {
+      updates.name = req.body.name.trim();
+    }
+
+    const { data, error } = await db.from('groups').update(updates).eq('id', id).eq('agent_id', getAgentId()).select().single();
+    if (error) return reply.code(500).send({ error: error.message });
+
+    return mapGroupRow(data);
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/unlink', async (req, reply) => {
+    const { id } = req.params;
+
+    const { data: group } = await db.from('groups').select('id, wa_group_id, status').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+    if (isDraftGroup(group.wa_group_id)) {
+      return reply.code(409).send({ error: 'Group is not linked to WhatsApp' });
+    }
+    if (group.status !== 'pending_setup') {
+      return reply.code(400).send({ error: 'Only groups in setup can be unlinked. Pause or finish setup first.' });
+    }
+
+    const { data, error } = await db.from('groups').update({ wa_group_id: createDraftWaGroupId() }).eq('id', id).eq('agent_id', getAgentId()).select().single();
+
+    if (error) return reply.code(500).send({ error: error.message });
+
+    return mapGroupRow(data);
+  });
+
   fastify.get<{ Params: { id: string } }>('/:id', async (req) => {
     const { data } = await db.from('groups').select('*').eq('id', req.params.id).eq('agent_id', getAgentId()).single().throwOnError();
     return mapGroupRow(data);
   });
 
-  fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req) => {
+  fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req, reply) => {
     const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'name'];
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
+
+    if (update.status === 'active') {
+      const { data: current } = await db.from('groups').select('wa_group_id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+      if (!current) return reply.code(404).send({ error: 'Group not found' });
+      if (isDraftGroup(current.wa_group_id)) {
+        return reply.code(400).send({ error: 'Connect this group to WhatsApp before going live.' });
+      }
+    }
+
     const { data } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single().throwOnError();
     return mapGroupRow(data);
   });

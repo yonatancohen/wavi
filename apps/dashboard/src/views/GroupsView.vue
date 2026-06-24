@@ -9,17 +9,29 @@
           {{ t('groups.subtitle') }}
         </p>
       </div>
-      <button class="btn btn-primary flex shrink-0 items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
-        <span class="material-symbols-outlined text-[16px]">group_add</span>
-        {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
-      </button>
+      <div class="flex shrink-0 flex-wrap gap-2">
+        <button class="btn btn-secondary flex items-center justify-center gap-2" :disabled="creatingDraft" @click="openCreateDraft">
+          <span class="material-symbols-outlined text-[16px]">edit_note</span>
+          {{ creatingDraft ? t('groups.loading') : t('groups.createDraft') }}
+        </button>
+        <button class="btn btn-primary flex items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
+          <span class="material-symbols-outlined text-[16px]">group_add</span>
+          {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
+        </button>
+      </div>
     </header>
 
     <div class="page-content py-7">
-      <button class="btn btn-primary mb-4 flex w-full items-center justify-center gap-2 lg:hidden" :disabled="discovering" @click="openDiscover">
-        <span class="material-symbols-outlined text-[16px]">group_add</span>
-        {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
-      </button>
+      <div class="mb-4 flex flex-col gap-2 sm:flex-row">
+        <button class="btn btn-secondary flex w-full items-center justify-center gap-2" :disabled="creatingDraft" @click="openCreateDraft">
+          <span class="material-symbols-outlined text-[16px]">edit_note</span>
+          {{ creatingDraft ? t('groups.loading') : t('groups.createDraft') }}
+        </button>
+        <button class="btn btn-primary flex w-full items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
+          <span class="material-symbols-outlined text-[16px]">group_add</span>
+          {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
+        </button>
+      </div>
 
       <div v-if="error" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
         {{ error }}
@@ -40,7 +52,10 @@
         <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
           {{ t('groups.empty.body') }}
         </p>
-        <button class="btn btn-primary" @click="openDiscover">{{ t('groups.empty.cta') }}</button>
+        <div class="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <button class="btn btn-secondary" @click="openCreateDraft">{{ t('groups.empty.createDraft') }}</button>
+          <button class="btn btn-primary" @click="openDiscover">{{ t('groups.empty.cta') }}</button>
+        </div>
       </div>
 
       <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
@@ -60,13 +75,18 @@
                   {{ group.name }}
                 </div>
               </div>
-              <span class="badge shrink-0 px-2 py-0.5" :class="statusBadgeClass(group.status)">
-                {{ statusLabel(group.status, t) }}
-              </span>
+              <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                <span v-if="group.is_draft" class="badge px-2 py-0.5" :class="draftBadgeClass()">
+                  {{ draftLabel(t) }}
+                </span>
+                <span class="badge shrink-0 px-2 py-0.5" :class="statusBadgeClass(group.status)">
+                  {{ statusLabel(group.status, t) }}
+                </span>
+              </div>
             </div>
 
             <div class="mb-3 break-all font-mono text-[10px] text-on-surface-variant/60">
-              {{ group.wa_group_id }}
+              {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
             </div>
 
             <div class="flex gap-4 font-mono text-[11px] text-on-surface-variant">
@@ -142,6 +162,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Create draft modal -->
+    <div v-if="showCreateDraft" class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6" @click.self="closeCreateDraft">
+      <div class="w-full max-w-[480px] rounded-t-2xl border border-outline-variant bg-surface-container p-5 shadow-2xl sm:rounded-xl sm:p-6">
+        <h2 class="font-sora text-[17px] font-semibold text-on-surface">{{ t('groups.createDraftTitle') }}</h2>
+        <p class="mt-1 text-[12px] text-on-surface-variant">{{ t('groups.createDraftSubtitle') }}</p>
+
+        <div v-if="createDraftError" class="mt-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
+          {{ createDraftError }}
+        </div>
+
+        <label class="mt-5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+          {{ t('groups.createDraftName') }}
+        </label>
+        <input
+          v-model="draftName"
+          type="text"
+          class="mt-2 w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+          :placeholder="t('groups.createDraftPlaceholder')"
+          @keyup.enter="createDraft"
+        />
+
+        <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button class="btn btn-secondary" @click="closeCreateDraft">{{ t('groups.cancel') }}</button>
+          <button class="btn btn-primary" :disabled="creatingDraft || !draftName.trim()" @click="createDraft">
+            {{ creatingDraft ? t('groups.createDraftSaving') : t('groups.createDraftConfirm') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -151,7 +201,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useGroupsStore } from '../stores/groups';
-import { statusBadgeClass, statusLabel } from '../lib/ui';
+import { statusBadgeClass, statusLabel, draftBadgeClass, draftLabel } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import type { DiscoveredWaGroup } from '@wavi/shared';
 
@@ -161,7 +211,11 @@ const router = useRouter();
 const { groups, discovered, loading, discovering, registering } = storeToRefs(store);
 
 const showDiscover = ref(false);
+const showCreateDraft = ref(false);
 const discoverError = ref<string | null>(null);
+const createDraftError = ref<string | null>(null);
+const draftName = ref('');
+const creatingDraft = ref(false);
 const error = ref<string | null>(null);
 
 async function openDiscover() {
@@ -176,6 +230,32 @@ async function openDiscover() {
 
 function closeDiscover() {
   showDiscover.value = false;
+}
+
+function openCreateDraft() {
+  showCreateDraft.value = true;
+  createDraftError.value = null;
+  draftName.value = '';
+}
+
+function closeCreateDraft() {
+  showCreateDraft.value = false;
+}
+
+async function createDraft() {
+  const name = draftName.value.trim();
+  if (!name) return;
+  creatingDraft.value = true;
+  createDraftError.value = null;
+  try {
+    const group = await store.createDraftGroup({ name });
+    closeCreateDraft();
+    router.push(`/groups/${group.id}`);
+  } catch (e) {
+    createDraftError.value = e instanceof Error ? e.message : t('groups.failedCreateDraft');
+  } finally {
+    creatingDraft.value = false;
+  }
 }
 
 async function register(item: DiscoveredWaGroup) {

@@ -141,10 +141,20 @@
     "title": "קבוצות",
     "subtitle": "רשום קבוצות וואטסאפ שבהן Wavi יאזין ויגיב",
     "addFromWhatsapp": "הוסף מוואטסאפ",
+    "createDraft": "צור טיוטה",
+    "createDraftTitle": "צור קבוצת טיוטה",
+    "createDraftSubtitle": "הכן היסטוריה ודמות לפני ש-Wavi מצטרף לצ'אט בוואטסאפ.",
+    "createDraftName": "שם הקבוצה",
+    "createDraftPlaceholder": "למשל: חברים מהשישי",
+    "createDraftConfirm": "צור טיוטה",
+    "createDraftSaving": "יוצר…",
+    "cancel": "ביטול",
+    "draftHint": "טיוטה — עדיין לא מחוברת לוואטסאפ",
     "loading": "טוען…",
     "empty": {
       "title": "אין קבוצות רשומות עדיין",
-      "body": "חבר את וואטסאפ, ואז הוסף קבוצה שאתה כבר בה כדי ש-Wavi יידע איפה להופיע.",
+      "body": "צור טיוטה להכנה מהיסטוריית הצ'אט, או הוסף קבוצה מוואטסאפ כש-Wavi כבר בצ'אט.",
+      "createDraft": "צור טיוטה",
       "cta": "הוסף מוואטסאפ"
     },
     "discover": {
@@ -161,7 +171,26 @@
     },
     "failedLoad": "טעינת קבוצות נכשלה",
     "failedDiscover": "גילוי קבוצות נכשל",
-    "failedRegister": "רישום הקבוצה נכשל"
+    "failedRegister": "רישום הקבוצה נכשל",
+    "failedCreateDraft": "יצירת קבוצת טיוטה נכשלה"
+  },
+  "groupLink": {
+    "title": "חיבור וואטסאפ",
+    "draftBody": "זו קבוצת טיוטה. העלה היסטוריה וכוון את הדמות עכשיו, ואז חבר אותה כש-Wavi מצטרף לצ'אט האמיתי.",
+    "linkedBody": "Wavi מאזין ומגיב בקבוצת וואטסאפ זו. הודעות חיות נכנסות אחרי שעוברים ל-Live.",
+    "linkedChat": "צ'אט מחובר",
+    "connect": "חבר לוואטסאפ",
+    "loadingChats": "טוען צ'אטים…",
+    "unlink": "נתק מוואטסאפ",
+    "unlinking": "מנתק…",
+    "unlinkBlocked": "ניתוק זמין רק כל עוד הקבוצה בהגדרה.",
+    "pickerTitle": "חבר לקבוצת וואטסאפ",
+    "pickerSubtitle": "בחר את הצ'אט שבו Wavi כבר חבר",
+    "pickerEmpty": "לא נמצאו צ'אטים קבוצתיים לא מקושרים. הוסף את Wavi לקבוצה קודם.",
+    "link": "חבר",
+    "linking": "מחבר…",
+    "failedLink": "חיבור הקבוצה נכשל",
+    "failedUnlink": "ניתוק הקבוצה נכשל"
   },
   "groupDetail": {
     "back": "קבוצות",
@@ -187,7 +216,9 @@
       "goLive": "הפעל",
       "pause": "השהה",
       "resume": "חדש",
-      "saving": "שומר…"
+      "saving": "שומר…",
+      "linkBeforeLive": "חבר את הקבוצה לוואטסאפ לפני ההפעלה.",
+      "draftNotice": "הפעלה חסומה עד שמחברים את הטיוטה לקבוצת וואטסאפ."
     },
     "nextSteps": {
       "title": "שלבים הבאים",
@@ -442,7 +473,8 @@
   "status_label": {
     "active": "פעיל",
     "paused": "מושהה",
-    "pending_setup": "הגדרה"
+    "pending_setup": "הגדרה",
+    "draft": "טיוטה"
   },
   "howItWorks": {
     "title": "איך Wavi עובד",
