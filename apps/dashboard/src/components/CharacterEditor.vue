@@ -186,7 +186,8 @@ watch(
 
 const isDirty = computed(() => {
   if (!localConfig.value || !props.group.character_config) return false;
-  return JSON.stringify(localConfig.value) !== JSON.stringify(props.group.character_config);
+  const saved = cloneConfig(props.group.character_config);
+  return JSON.stringify(localConfig.value) !== JSON.stringify(saved);
 });
 
 function addOpinion() {
