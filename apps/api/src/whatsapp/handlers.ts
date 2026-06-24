@@ -2,7 +2,7 @@ import type { InboundMessage } from './provider.js';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { appendToChunkBuffer } from '../jobs/chunker.js';
-import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
+import { isGroupReplyEnabled, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
 import { isAgentTagged, getAgentUserIds } from './agent-identity.js';
 import { checkInputGuard } from '../ai/guard.js';
 import type { LanguageMode } from '@wavi/shared';
@@ -187,6 +187,11 @@ export async function handleIncomingMessage(msg: InboundMessage) {
         console.error('[Reconcile] Failed:', err);
       });
     }
+    return;
+  }
+
+  if (!isGroupReplyEnabled(group.status)) {
+    console.log(`[WA] Group not live — ${group.name} (${group.status})`);
     return;
   }
 

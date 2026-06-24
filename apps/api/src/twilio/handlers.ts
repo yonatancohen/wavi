@@ -1,7 +1,7 @@
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { appendToChunkBuffer } from '../jobs/chunker.js';
-import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
+import { isGroupReplyEnabled, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
 
 export async function handleTwilioMessage(from: string, body: string) {
   // from = 'whatsapp:+972501234567'
@@ -27,6 +27,8 @@ export async function handleTwilioMessage(from: string, body: string) {
   }
 
   if (!group || group.status === 'paused') return;
+
+  const replyEnabled = isGroupReplyEnabled(group.status);
 
   // ── 2. Store message ──────────────────────────────────────
   const { data: stored } = await db
@@ -58,13 +60,15 @@ export async function handleTwilioMessage(from: string, body: string) {
     await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW);
   }
 
-  if (currentCount > RATE_LIMIT_MAX) {
+  if (replyEnabled && currentCount > RATE_LIMIT_MAX) {
     if (currentCount === RATE_LIMIT_MAX + 1) {
       const { sendReply } = await import('./client.js');
       await sendReply(from, getRateLimitResponse(group.character_config));
     }
     return;
   }
+
+  if (!replyEnabled) return;
 
   // ── 5. Queue reply job ────────────────────────────────────
   const { queueReplyJob } = await import('../lib/reply-queue.js');

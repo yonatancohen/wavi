@@ -4,6 +4,7 @@ import { generateReplyText } from './generate.js';
 import { detectNegativeReaction, generateApology } from './recovery.js';
 import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
+import { isGroupReplyEnabled, type GroupStatus } from '@wavi/shared';
 import type { ReplyJob } from '../lib/reply-queue.js';
 
 const MAX_DELIVERY_ATTEMPTS = 5;
@@ -66,6 +67,12 @@ async function processReplyJob(job: ReplyJob) {
         console.warn('[ReplyWorker] Skipping reply — budget auto-pause active');
         return;
       }
+    }
+
+    const { data: group } = await db.from('groups').select('status').eq('id', job.group_id).maybeSingle();
+    if (!group || !isGroupReplyEnabled(group.status as GroupStatus)) {
+      console.warn(`[ReplyWorker] Skipping reply — group ${job.group_id} is not live (${group?.status ?? 'missing'})`);
+      return;
     }
 
     let replyText = job.reply_text?.trim() ?? '';

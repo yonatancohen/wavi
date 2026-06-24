@@ -6,6 +6,11 @@
 
 export type GroupStatus = 'pending_setup' | 'active' | 'paused';
 
+/** Only active groups may send WhatsApp replies; pending_setup still ingests messages. */
+export function isGroupReplyEnabled(status: GroupStatus): boolean {
+  return status === 'active';
+}
+
 export type LanguageMode = 'auto' | 'he' | 'en' | 'ar' | 'es' | 'fr' | 'ru';
 
 export type HumorType = 'sarcastic' | 'absurdist' | 'self-deprecating' | 'dad-jokes' | 'dry' | 'none';
