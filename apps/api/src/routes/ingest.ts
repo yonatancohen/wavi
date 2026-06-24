@@ -92,15 +92,23 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
       reply.raw.write(`data: ${JSON.stringify(progress)}\n\n`);
     };
 
+    // Heartbeat counter — send a keepalive SSE comment every ~15 s when no
+    // data is flowing so Railway's proxy doesn't close the idle connection.
+    let pollsSinceData = 0;
+
     const interval = setInterval(async () => {
       const raw = await redis.get(`ingestion_progress:${groupId}`);
       if (raw) {
+        pollsSinceData = 0;
         const progress = typeof raw === 'string' ? JSON.parse(raw) : raw;
         sendProgress(progress);
         if (progress.stage === 'done' || progress.stage === 'error') {
           clearInterval(interval);
           reply.raw.end();
         }
+      } else {
+        pollsSinceData++;
+        if (pollsSinceData % 30 === 0) reply.raw.write(': heartbeat\n\n');
       }
     }, 500);
 

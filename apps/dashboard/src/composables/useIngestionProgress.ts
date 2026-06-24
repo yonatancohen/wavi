@@ -52,9 +52,13 @@ export function useIngestionProgress(groupId: Ref<string>) {
     };
 
     eventSource.onerror = () => {
-      if (streaming.value && progress.value?.stage !== 'done') {
-        streamError.value = streamError.value ?? 'Lost connection to progress stream';
-        closeStream();
+      // readyState CONNECTING means the browser is auto-reconnecting — not fatal.
+      // Only treat it as a real failure once the browser gives up (CLOSED).
+      if (eventSource?.readyState === EventSource.CLOSED) {
+        if (streaming.value && progress.value?.stage !== 'done') {
+          streamError.value = 'Lost connection to progress stream';
+          closeStream();
+        }
       }
     };
   }
