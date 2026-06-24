@@ -100,21 +100,27 @@
           </p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div v-for="slider in sliders" :key="slider.key">
-              <div class="mb-1 flex items-center justify-between text-[12px]">
+              <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
                 <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
-                <span class="font-mono tabular-nums text-on-surface-variant">
+                <span class="shrink-0 font-mono tabular-nums text-on-surface-variant">
                   {{ localConfig.sliders[slider.key] }}
                 </span>
               </div>
+              <p class="mb-1.5 text-[10px] leading-snug text-on-surface-variant/75">
+                {{ t(`character.sliderDesc.${slider.key}`) }}
+              </p>
               <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
             </div>
             <div class="sm:col-span-2">
-              <div class="mb-1 flex items-center justify-between text-[12px]">
+              <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
                 <span class="text-on-surface">{{ t('character.slider.emoji_usage') }}</span>
-                <span class="font-medium text-on-surface-variant">
+                <span class="shrink-0 font-medium text-on-surface-variant">
                   {{ t(`character.emojiUsage.${localConfig.sliders.emoji_usage}`) }}
                 </span>
               </div>
+              <p class="mb-1.5 text-[10px] leading-snug text-on-surface-variant/75">
+                {{ t('character.sliderDesc.emoji_usage') }}
+              </p>
               <input :value="emojiUsageIndex" type="range" min="0" :max="EMOJI_USAGE_LEVELS.length - 1" step="1" class="w-full accent-primary" @input="onEmojiUsageInput" />
               <div class="mt-1 flex justify-between text-[10px] text-on-surface-variant/70">
                 <span v-for="level in EMOJI_USAGE_LEVELS" :key="level">

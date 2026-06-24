@@ -403,6 +403,14 @@
       "empathy": "Empathy",
       "emoji_usage": "Emoji usage"
     },
+    "sliderDesc": {
+      "formality": "Casual slang vs. polished, formal phrasing.",
+      "humor": "Straight answers vs. jokes and playful banter.",
+      "verbosity": "Short one-liners vs. longer, more detailed replies.",
+      "assertiveness": "Hedged and neutral vs. direct and opinionated.",
+      "empathy": "Task-focused vs. warm and emotionally attuned.",
+      "emoji_usage": "How often Wavi adds emojis to messages."
+    },
     "emojiUsage": {
       "none": "None",
       "low": "Low",
