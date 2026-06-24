@@ -1,11 +1,14 @@
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { generateReplyText } from './generate.js';
+import { generateImage } from './generate-image.js';
+import { formatImageMessageBody } from './image-reply.js';
 import { detectNegativeReaction, generateApology } from './recovery.js';
 import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { isGroupReplyEnabled, type GroupStatus } from '@wavi/shared';
 import type { ReplyJob } from '../lib/reply-queue.js';
+import type { ReplyMedia } from '../whatsapp/provider.js';
 
 const MAX_DELIVERY_ATTEMPTS = 5;
 const REPLY_QUEUE_KEY = 'reply_jobs';
@@ -52,7 +55,7 @@ export async function startReplyWorker() {
 
 async function processReplyJob(job: ReplyJob) {
   const startTime = Date.now();
-  const isDeliveryRetry = Boolean(job.reply_text);
+  const isDeliveryRetry = Boolean(job.reply_text || job.reply_image_base64);
   console.log(`[ReplyWorker] Processing job for group ${job.group_id}${isDeliveryRetry ? ' (delivery retry)' : ''}`);
 
   await markReplyFlowProcessing(job.flow_id);
@@ -76,10 +79,18 @@ async function processReplyJob(job: ReplyJob) {
     }
 
     let replyText = job.reply_text?.trim() ?? '';
+    let imageCaption = job.reply_image_caption ?? '';
+    let media: ReplyMedia | undefined;
     let inputTokens = job.prompt_tokens ?? 0;
     let outputTokens = job.completion_tokens ?? 0;
 
-    if (!replyText) {
+    if (job.reply_image_base64 && job.reply_image_mimetype) {
+      media = {
+        data: Buffer.from(job.reply_image_base64, 'base64'),
+        mimetype: job.reply_image_mimetype,
+        caption: imageCaption || undefined,
+      };
+    } else if (!replyText && !media) {
       const generated = await generateReplyText({
         groupId: job.group_id,
         senderWaId: job.sender_wa_id,
@@ -90,9 +101,25 @@ async function processReplyJob(job: ReplyJob) {
       replyText = generated.replyText;
       inputTokens = generated.inputTokens;
       outputTokens = generated.outputTokens;
+
+      if (generated.imagePrompt) {
+        try {
+          const image = await generateImage(generated.imagePrompt);
+          imageCaption = generated.imageCaption ?? '';
+          media = {
+            data: image.buffer,
+            mimetype: image.mimetype,
+            caption: imageCaption || undefined,
+          };
+          replyText = formatImageMessageBody(imageCaption, generated.imagePrompt);
+        } catch (err) {
+          console.error('[ReplyWorker] Image generation failed, falling back to text:', err);
+          replyText = imageCaption || "couldn't generate that image right now, try again?";
+        }
+      }
     }
 
-    if (!replyText) {
+    if (!replyText && !media) {
       console.warn('[ReplyWorker] Empty reply generated');
       return;
     }
@@ -100,7 +127,7 @@ async function processReplyJob(job: ReplyJob) {
     const latencyMs = Date.now() - startTime;
 
     try {
-      await deliverReply(job.wa_group_id, replyText, job.wa_msg_id);
+      await deliverReply(job.wa_group_id, replyText, job.wa_msg_id, media);
     } catch (err) {
       const attempt = (job.delivery_attempts ?? 0) + 1;
       if (attempt < MAX_DELIVERY_ATTEMPTS) {
@@ -112,6 +139,9 @@ async function processReplyJob(job: ReplyJob) {
             reply_text: replyText,
             prompt_tokens: inputTokens,
             completion_tokens: outputTokens,
+            reply_image_base64: media?.data.toString('base64'),
+            reply_image_mimetype: media?.mimetype,
+            reply_image_caption: imageCaption,
             delivery_attempts: attempt,
           }),
         );
@@ -149,7 +179,7 @@ async function processReplyJob(job: ReplyJob) {
 
     if (agentId) await maybeAutoPauseOnBudget(agentId);
 
-    console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${inputTokens + outputTokens} tokens)`);
+    console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${inputTokens + outputTokens} tokens${media ? ', with image' : ''})`);
   } catch (err) {
     console.error('[ReplyWorker] Job failed:', err);
   } finally {
@@ -195,13 +225,17 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function deliverReply(waDestination: string, body: string, quotedMsgId?: string) {
+async function deliverReply(waDestination: string, body: string, quotedMsgId?: string, media?: ReplyMedia) {
   if (waDestination.endsWith('@g.us')) {
     const { sendReply } = await import('../whatsapp/client.js');
-    await sendReply(waDestination, body, quotedMsgId || undefined);
+    await sendReply(waDestination, body, quotedMsgId || undefined, media);
     return;
   }
 
+  if (media) {
+    console.warn('[ReplyWorker] Image replies are not supported on the Twilio DM path — sending caption as text');
+  }
+
   const { sendReply } = await import('../twilio/client.js');
-  await sendReply(waDestination, body);
+  await sendReply(waDestination, media?.caption || body);
 }

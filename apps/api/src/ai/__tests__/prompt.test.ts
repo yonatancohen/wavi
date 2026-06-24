@@ -33,6 +33,7 @@ function makeContext(overrides: Partial<PromptContext> = {}): PromptContext {
     recent_messages: [],
     resolved_display_names: {},
     current_message: 'hello',
+    image_generation_enabled: false,
     ...overrides,
   };
 }
@@ -242,5 +243,25 @@ describe('buildSystemPrompt', () => {
       },
     });
     expect(buildSystemPrompt(ctx)).toContain('Emoji usage: medium');
+  });
+
+  it('includes image generation instructions when enabled', () => {
+    const ctx = makeContext({
+      image_generation_enabled: true,
+      character_config: {
+        voice: 'Test voice.',
+        opinions: ['opinion'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    expect(buildSystemPrompt(ctx)).toContain('IMAGE_PROMPT:');
+  });
+
+  it('omits image generation instructions when disabled', () => {
+    const ctx = makeContext({ image_generation_enabled: false });
+    expect(buildSystemPrompt(ctx)).not.toContain('IMAGE_PROMPT:');
   });
 });

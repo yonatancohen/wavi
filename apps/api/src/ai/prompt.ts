@@ -41,7 +41,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 
 async function fetchStructuredContext(groupId: string, senderWaId: string) {
   const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult] = await Promise.all([
-    db.from('groups').select('name, character_config, language_mode, web_search_enabled').eq('id', groupId).single(),
+    db.from('groups').select('name, character_config, language_mode, web_search_enabled, image_generation_enabled').eq('id', groupId).single(),
 
     db.from('user_profiles').select('*').eq('group_id', groupId).eq('wa_user_id', senderWaId).single(),
 
@@ -64,6 +64,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     group_name: groupResult.data?.name ?? 'the group',
     language_mode: (groupResult.data?.language_mode ?? 'auto') as LanguageMode,
     web_search_enabled: groupResult.data?.web_search_enabled ?? false,
+    image_generation_enabled: groupResult.data?.image_generation_enabled ?? false,
     sender_profile: profileResult.data ?? null,
     relevant_relationships: relationshipsResult.data ?? [],
     group_memories: memoriesResult.data ?? [],

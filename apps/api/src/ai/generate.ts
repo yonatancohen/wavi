@@ -1,10 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
+import { parseImageReply } from './image-reply.js';
 import { DEFAULT_REPLY_MODEL, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const MAX_TOKENS = 500;
+
+export type GeneratedReply = {
+  replyText: string;
+  imagePrompt?: string;
+  imageCaption?: string;
+  inputTokens: number;
+  outputTokens: number;
+};
 
 function resolveReplyModel(config: { reply_model?: ReplyModel } | null | undefined): ReplyModel {
   return config?.reply_model ?? DEFAULT_REPLY_MODEL;
@@ -17,7 +26,7 @@ export async function generateReplyText(params: {
   body: string;
   quotedMessage?: QuotedMessageContext | null;
   extraTurns?: Array<{ role: 'user' | 'assistant'; content: string }>;
-}): Promise<{ replyText: string; inputTokens: number; outputTokens: number }> {
+}): Promise<GeneratedReply> {
   const ctx = await buildPromptContext({
     groupId: params.groupId,
     senderWaId: params.senderWaId,
@@ -36,11 +45,26 @@ export async function generateReplyText(params: {
     messages: [...conversationTurns, ...(params.extraTurns ?? []), { role: 'user', content: `${params.senderName}: ${params.body}` }],
   });
 
-  const replyText = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
-
-  return {
-    replyText,
+  const rawReply = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+  const usage = {
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
+  };
+
+  if (ctx.image_generation_enabled) {
+    const imageReply = parseImageReply(rawReply);
+    if (imageReply) {
+      return {
+        replyText: imageReply.caption,
+        imagePrompt: imageReply.imagePrompt,
+        imageCaption: imageReply.caption,
+        ...usage,
+      };
+    }
+  }
+
+  return {
+    replyText: rawReply,
+    ...usage,
   };
 }

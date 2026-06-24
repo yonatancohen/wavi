@@ -32,9 +32,10 @@ CREATE TABLE groups (
   status           text DEFAULT 'pending_setup',
   character_config jsonb,
   character_locked boolean DEFAULT false,
-  language_mode        text DEFAULT 'he', -- actively-tuned default; 'en'/'auto' also supported
-  web_search_enabled boolean DEFAULT false, -- Tavily web search for factual / current-info questions
-  created_at           timestamptz DEFAULT now()
+  language_mode             text DEFAULT 'he', -- actively-tuned default; 'en'/'auto' also supported
+  web_search_enabled        boolean DEFAULT false, -- Tavily web search for factual / current-info questions
+  image_generation_enabled  boolean NOT NULL DEFAULT false,
+  created_at                timestamptz DEFAULT now()
 );
 
 CREATE TABLE messages (

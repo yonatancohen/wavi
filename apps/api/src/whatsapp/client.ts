@@ -1,4 +1,4 @@
-import type { SSEClient } from './provider.js';
+import type { SSEClient, ReplyMedia } from './provider.js';
 import { createWwebjsProvider } from './providers/wwebjs.js';
 import { createBaileysProvider } from './providers/baileys.js';
 
@@ -12,5 +12,5 @@ export const getWaConnectionState = () => provider.getConnectionState();
 export const getWaHealthState = () => provider.getHealthState();
 export const getWaIdentitySnapshot = () => provider.getIdentitySnapshot();
 export const listGroupChats = () => provider.listGroupChats();
-export const sendReply = (id: string, body: string, q?: string) => provider.sendReply(id, body, q);
+export const sendReply = (id: string, body: string, q?: string, media?: ReplyMedia) => provider.sendReply(id, body, q, media);
 export const recoverFromUnhandledWaError = (err: unknown) => provider.recoverFromUnhandledError(err);

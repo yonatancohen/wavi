@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth, MessageTypes } = pkg;
+const { Client, LocalAuth, MessageTypes, MessageMedia } = pkg;
 import qrcode from 'qrcode';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
-import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage } from '../provider.js';
+import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth');
@@ -600,17 +600,29 @@ export function createWwebjsProvider(): WhatsAppProvider {
     throw new Error('WhatsApp is not connected');
   }
 
-  async function sendReplyOnce(waGroupId: string, replyBody: string, quotedMsgId?: string) {
+  async function sendReplyOnce(waGroupId: string, replyBody: string, quotedMsgId?: string, media?: ReplyMedia) {
     await waitUntilConnected();
 
     const chat = await waClient.getChatById(waGroupId);
     if (!chat) throw new Error(`WhatsApp chat not found: ${waGroupId}`);
 
-    const typingMs = Math.min(Math.max(replyBody.length * 25, 1500), 5000);
+    const typingMs = Math.min(Math.max((media ? (media.caption?.length ?? 0) : replyBody.length) * 25, 1500), 5000);
     const jitter = Math.floor(Math.random() * 800);
     await chat.sendStateTyping();
     await sleep(typingMs + jitter);
     await chat.clearState();
+
+    if (media) {
+      const messageMedia = new MessageMedia(media.mimetype, media.data.toString('base64'));
+      const options = media.caption ? { caption: media.caption } : {};
+      if (quotedMsgId) {
+        const quoted = await waClient.getMessageById(quotedMsgId);
+        await chat.sendMessage(messageMedia, { ...options, quotedMessageId: quoted.id._serialized });
+      } else {
+        await chat.sendMessage(messageMedia, options);
+      }
+      return;
+    }
 
     if (quotedMsgId) {
       const quoted = await waClient.getMessageById(quotedMsgId);
@@ -742,13 +754,13 @@ export function createWwebjsProvider(): WhatsAppProvider {
         });
     },
 
-    sendReply(waGroupId: string, replyBody: string, quotedMsgId?: string) {
+    sendReply(waGroupId: string, replyBody: string, quotedMsgId?: string, media?: ReplyMedia) {
       return withWaLock(async () => {
         const maxAttempts = 3;
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
-            await sendReplyOnce(waGroupId, replyBody, quotedMsgId);
+            await sendReplyOnce(waGroupId, replyBody, quotedMsgId, media);
             return;
           } catch (err) {
             if (!isProtocolOrCdpError(err) || attempt === maxAttempts) throw err;

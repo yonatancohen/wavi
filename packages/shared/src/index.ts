@@ -161,6 +161,7 @@ export interface Group {
   language_mode: LanguageMode;
   /** When true, Wavi may search the web for factual / current-info questions. */
   web_search_enabled: boolean;
+  image_generation_enabled: boolean;
   created_at: string;
 }
 
@@ -442,6 +443,7 @@ export interface PromptContext {
   quoted_message?: QuotedMessageContext | null;
   current_message: string;
   web_search?: WebSearchContext | null;
+  image_generation_enabled: boolean;
 }
 
 // ── Cost observability ───────────────────────────────────────
@@ -486,4 +488,6 @@ export interface TestReplyResponse {
   latency_ms: number;
   prompt_tokens: number;
   completion_tokens: number;
+  image_prompt?: string;
+  image_caption?: string;
 }

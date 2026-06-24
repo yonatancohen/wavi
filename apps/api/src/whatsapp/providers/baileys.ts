@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
-import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage } from '../provider.js';
+import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 
 // Baileys uses @hapi/boom to encode disconnect reasons in lastDisconnect.error.
 // We read the status code to decide whether to reconnect.
@@ -392,7 +392,7 @@ export function createBaileysProvider(): WhatsAppProvider {
       }));
     },
 
-    async sendReply(waGroupId: string, body: string, quotedMsgId?: string) {
+    async sendReply(waGroupId: string, body: string, quotedMsgId?: string, media?: ReplyMedia) {
       if (!sock || !_connected) {
         throw new Error('WhatsApp is not connected');
       }
@@ -401,11 +401,25 @@ export function createBaileysProvider(): WhatsAppProvider {
 
       await sock.sendPresenceUpdate('composing', jid);
 
-      // Simulate human typing delay
-      const typingMs = Math.min(Math.max(body.length * 25, 1500), 5000);
+      const typingLen = media ? (media.caption?.length ?? 0) : body.length;
+      const typingMs = Math.min(Math.max(typingLen * 25, 1500), 5000);
       await jitteredDelay(typingMs, 800);
 
       await sock.sendPresenceUpdate('paused', jid);
+
+      if (media) {
+        const payload = { image: media.data, caption: media.caption };
+        if (quotedMsgId) {
+          const proto = recentProtos.get(quotedMsgId);
+          if (proto) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await sock.sendMessage(jid, payload, { quoted: proto as any });
+            return;
+          }
+        }
+        await sock.sendMessage(jid, payload);
+        return;
+      }
 
       if (quotedMsgId) {
         const proto = recentProtos.get(quotedMsgId);

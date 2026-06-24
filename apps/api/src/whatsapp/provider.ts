@@ -39,6 +39,13 @@ export type WaHealthState = {
   cdp_op_stuck_ms: number;
 };
 
+/** Optional image attachment for WhatsApp delivery. */
+export type ReplyMedia = {
+  data: Buffer;
+  mimetype: string;
+  caption?: string;
+};
+
 export interface WhatsAppProvider {
   start(): Promise<void> | void;
   stop(): Promise<void>;
@@ -49,7 +56,7 @@ export interface WhatsAppProvider {
   /** Snapshot of the linked account identity — safe to call any time. */
   getIdentitySnapshot(): { wid: string | null; phone: string | null };
   listGroupChats(): Promise<GroupSummary[]>;
-  sendReply(waGroupId: string, body: string, quotedMsgId?: string): Promise<void>;
+  sendReply(waGroupId: string, body: string, quotedMsgId?: string, media?: ReplyMedia): Promise<void>;
   /**
    * Decide whether an otherwise-unhandled process error originated from this
    * backend's internals and is safe to recover from (by restarting the client).

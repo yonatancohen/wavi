@@ -62,6 +62,8 @@ function mapGroupRow(row: Record<string, unknown>, participantCounts?: Map<strin
 
   return {
     ...(rest as unknown as Group),
+    web_search_enabled: Boolean(rest.web_search_enabled ?? false),
+    image_generation_enabled: Boolean(rest.image_generation_enabled ?? false),
     is_draft: isDraft,
     member_count: memberCount,
     profile_count: profileCount?.[0]?.count ?? 0,
@@ -256,7 +258,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req, reply) => {
-    const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'web_search_enabled', 'name'];
+    const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'web_search_enabled', 'image_generation_enabled', 'name'];
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
 
     if (update.status === 'active') {
@@ -311,7 +313,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const extraTurns = mapTestHistoryToExtraTurns(req.body.history);
 
     const startTime = Date.now();
-    const { replyText, inputTokens, outputTokens } = await generateReplyText({
+    const { replyText, imagePrompt, imageCaption, inputTokens, outputTokens } = await generateReplyText({
       groupId: req.params.id,
       senderWaId,
       senderName,
@@ -324,6 +326,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       latency_ms: Date.now() - startTime,
       prompt_tokens: inputTokens,
       completion_tokens: outputTokens,
+      ...(imagePrompt ? { image_prompt: imagePrompt, image_caption: imageCaption } : {}),
     };
 
     await recordTestChatUsage(inputTokens, outputTokens);

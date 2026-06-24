@@ -40,6 +40,29 @@
 
     <p v-if="saving" class="text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
 
+    <div class="mb-6 border-t border-outline-variant pt-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.imageGeneration') }}</p>
+          <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+            {{ t('groupSettings.imageGenerationHint') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="imageGenerationEnabled"
+          class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors"
+          :class="imageGenerationEnabled ? 'bg-primary' : 'bg-outline-variant'"
+          :disabled="savingImage"
+          @click="toggleImageGeneration"
+        >
+          <span class="absolute top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="imageGenerationEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
+        </button>
+      </div>
+      <p v-if="savingImage" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
+    </div>
+
     <div class="mt-auto border-t border-outline-variant pt-5">
       <RebuildIntelligence embedded :group-id="group.id" @complete="emit('rebuildComplete')" />
     </div>
@@ -61,7 +84,9 @@ const emit = defineEmits<{ updated: [group: GroupWithStats]; rebuildComplete: []
 const store = useGroupsStore();
 const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');
 const webSearchEnabled = ref(props.group.web_search_enabled ?? false);
+const imageGenerationEnabled = ref(props.group.image_generation_enabled ?? false);
 const saving = ref(false);
+const savingImage = ref(false);
 const saveError = ref<string | null>(null);
 
 watch(
@@ -75,6 +100,13 @@ watch(
   () => props.group.web_search_enabled,
   (enabled) => {
     webSearchEnabled.value = enabled ?? false;
+  },
+);
+
+watch(
+  () => props.group.image_generation_enabled,
+  (enabled) => {
+    imageGenerationEnabled.value = enabled ?? false;
   },
 );
 
@@ -105,6 +137,22 @@ async function saveWebSearch() {
     webSearchEnabled.value = props.group.web_search_enabled ?? false;
   } finally {
     saving.value = false;
+  }
+}
+
+async function toggleImageGeneration() {
+  const next = !imageGenerationEnabled.value;
+  imageGenerationEnabled.value = next;
+  savingImage.value = true;
+  saveError.value = null;
+  try {
+    const updated = await store.patchGroup(props.group.id, { image_generation_enabled: next });
+    emit('updated', updated);
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : t('groupSettings.failedSave');
+    imageGenerationEnabled.value = props.group.image_generation_enabled ?? false;
+  } finally {
+    savingImage.value = false;
   }
 }
 </script>

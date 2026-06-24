@@ -23,6 +23,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const quotedBlock = buildQuotedReplyBlock(ctx);
   const memoriesBlock = buildMemoriesBlock(ctx);
   const webSearchBlock = buildWebSearchBlock(ctx);
+  const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled);
 
   return `
 BLOCK 1 — IDENTITY
@@ -62,6 +63,8 @@ ${mentionedBlock}
 ${memoriesBlock}
 
 ${webSearchBlock}
+
+${imageBlock}
 
 BLOCK 8 — RELEVANT HISTORY (retrieved by semantic search)
 ${ctx.rag_chunks.length > 0 ? ctx.rag_chunks.map((chunk, i) => `[Past context ${i + 1}]: ${chunk}`).join('\n') : 'No relevant past context found.'}
@@ -223,4 +226,15 @@ function buildWebSearchBlock(ctx: PromptContext): string {
   return `BLOCK — WEB SEARCH (live results for: "${search.query}")
 Use these for factual or current-info questions. Prefer this over guessing. Group history and memories still win for in-group context.
 ${lines.join('\n')}`;
+}
+
+function buildImageGenerationBlock(enabled: boolean): string {
+  if (!enabled) return '';
+  return `BLOCK — IMAGE GENERATION (only when explicitly requested)
+You can generate and send an image when someone clearly asks you to draw, create, generate, or make a picture/image/visual/meme.
+Do NOT use this for normal chat — only when they want a visual created.
+When sending an image, respond with ONLY this exact format (no other text, no markdown):
+IMAGE_PROMPT: <detailed English prompt for the image model — vivid, specific, safe-for-work>
+CAPTION: <short in-character WhatsApp caption, or leave empty after the colon>
+For normal text replies, respond as usual — never use the IMAGE_PROMPT format unless you are sending an image.`;
 }

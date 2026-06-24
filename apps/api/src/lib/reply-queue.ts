@@ -20,6 +20,10 @@ export interface ReplyJob {
   delivery_attempts?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
+  /** Base64 image payload when Claude requested an image and generation succeeded. */
+  reply_image_base64?: string;
+  reply_image_mimetype?: string;
+  reply_image_caption?: string;
 }
 
 export async function queueReplyJob(params: {
