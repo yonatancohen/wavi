@@ -110,11 +110,10 @@ if [[ -n "${DASHBOARD_URL:-}" ]]; then
   REDIRECT_URLS+=("${DASHBOARD_URL%/}/login")
 fi
 
-if command -v jq &>/dev/null; then
-  REDIRECT_JSON=$(printf '%s\n' "${REDIRECT_URLS[@]}" | jq -R . | jq -s .)
-else
-  REDIRECT_JSON=$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${REDIRECT_URLS[@]}")
-fi
+URI_ALLOW_LIST=$(
+  IFS=,
+  echo "${REDIRECT_URLS[*]}"
+)
 
 SITE_URL="${DASHBOARD_URL:-http://localhost:5173}"
 SITE_URL="${SITE_URL%/}"
@@ -127,7 +126,7 @@ PATCH_BODY=$(cat <<EOF
   "external_google_client_id": "${GOOGLE_CLIENT_ID}",
   "external_google_secret": "${GOOGLE_CLIENT_SECRET}",
   "site_url": "${SITE_URL}",
-  "additional_redirect_urls": ${REDIRECT_JSON}
+  "uri_allow_list": "${URI_ALLOW_LIST}"
 }
 EOF
 )
@@ -214,5 +213,5 @@ echo "  bun run dev"
 echo "  Open http://localhost:5173 → you should be redirected to /login"
 echo ""
 echo "Production (after deploy):"
-echo "  Set AUTH_REQUIRED=true in apps/api/.env and run bun run sync-secrets:api"
-echo "  Remove VITE_AUTH_DISABLED from dashboard env if you set it for local bypass"
+echo "  Set AUTH_REQUIRED=true in apps/api/.env and VITE_AUTH_REQUIRED=true in apps/dashboard/.env"
+echo "  Run bun run sync-secrets:api"

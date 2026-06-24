@@ -57,7 +57,7 @@ bun run dev
 
 Open [http://localhost:5173](http://localhost:5173) — you should be redirected to `/login`. Click **Continue with Google**.
 
-**Local bypass:** If OAuth is not ready yet, add `VITE_AUTH_DISABLED=true` to `apps/dashboard/.env` to skip login during development.
+**Local bypass:** If OAuth is not ready yet, add `VITE_AUTH_REQUIRED=false` to `apps/dashboard/.env` to skip login during development.
 
 ---
 
@@ -84,8 +84,8 @@ Use the **exact email** on your Google account (check at [myaccount.google.com](
 After OAuth works end-to-end:
 
 1. Set `AUTH_REQUIRED=true` in `apps/api/.env`
-2. Run `bun run sync-secrets:api`
-3. Remove `VITE_AUTH_DISABLED` from dashboard env if set
+2. Set `VITE_AUTH_REQUIRED=true` in `apps/dashboard/.env`
+3. Run `bun run sync-secrets:api`
 
 ---
 
