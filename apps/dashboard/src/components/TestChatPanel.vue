@@ -175,6 +175,33 @@ const sendError = ref<string | null>(null);
 const scrollEl = ref<HTMLElement | null>(null);
 const draftEl = ref<HTMLTextAreaElement | null>(null);
 
+const STORAGE_KEY_PREFIX = 'wavi:test-chat:';
+const MAX_STORED_TURNS = 100;
+
+function storageKey(groupId: string) {
+  return `${STORAGE_KEY_PREFIX}${groupId}`;
+}
+
+function saveTurns(groupId: string, newTurns: TestChatTurn[]) {
+  if (!groupId) return;
+  try {
+    const capped = newTurns.slice(-MAX_STORED_TURNS);
+    localStorage.setItem(storageKey(groupId), JSON.stringify(capped));
+  } catch {
+    // storage quota exceeded or unavailable — silently skip
+  }
+}
+
+function loadStoredTurns(groupId: string): TestChatTurn[] {
+  if (!groupId) return [];
+  try {
+    const raw = localStorage.getItem(storageKey(groupId));
+    return raw ? (JSON.parse(raw) as TestChatTurn[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 const MAX_DRAFT_ROWS = 6;
 
 const canSend = computed(() => Boolean(selectedGroupId.value) && !sending.value && (senderMode.value === 'generic' || Boolean(selectedMemberId.value)));
@@ -237,16 +264,23 @@ async function loadMembers(groupId: string) {
 }
 
 function clearSession() {
+  if (selectedGroupId.value) localStorage.removeItem(storageKey(selectedGroupId.value));
   turns.value = [];
   draft.value = '';
   sendError.value = null;
 }
 
+function switchToGroup(groupId: string) {
+  turns.value = loadStoredTurns(groupId);
+  draft.value = '';
+  sendError.value = null;
+}
+
 function onGroupChange() {
-  clearSession();
   selectedMemberId.value = '';
   senderMode.value = 'generic';
   members.value = [];
+  switchToGroup(selectedGroupId.value);
   if (selectedGroupId.value) loadMembers(selectedGroupId.value);
 }
 
@@ -305,7 +339,7 @@ async function sendMessage() {
 function applyFixedGroup(groupId: string) {
   if (!groupId) return;
   selectedGroupId.value = groupId;
-  clearSession();
+  switchToGroup(groupId);
   selectedMemberId.value = '';
   senderMode.value = 'generic';
   loadMembers(groupId);
@@ -319,7 +353,14 @@ watch(
   { immediate: true },
 );
 
-watch(turns, () => scrollToBottom(), { deep: true });
+watch(
+  turns,
+  (newTurns) => {
+    if (selectedGroupId.value) saveTurns(selectedGroupId.value, newTurns);
+    scrollToBottom();
+  },
+  { deep: true },
+);
 watch(draft, () => nextTick(resizeDraft));
 
 onMounted(async () => {
