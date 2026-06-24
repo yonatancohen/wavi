@@ -62,10 +62,11 @@ See `apps/api/scripts/replay.ts`, `apps/api/scripts/replay-fixtures.json`, and [
 
 ## Database
 
-| Command            | What it does                                                                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `bun run db:setup` | Create owner/agent rows in Supabase and write `AGENT_ID` into `apps/api/.env`. Run `supabase-schema.sql` in the Supabase SQL editor first. |
-| `bun run db:reset` | **Destructive** — wipe Wavi data for the configured Supabase project (see script before running).                                          |
+| Command              | What it does                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bun run db:setup`   | Create owner/agent rows in Supabase and write `AGENT_ID` into `apps/api/.env`. Run `supabase-schema.sql` in the Supabase SQL editor first. |
+| `bun run auth:setup` | Configure Supabase Google OAuth + redirect URLs for dashboard login. See [AUTH.md](./AUTH.md).                                             |
+| `bun run db:reset`   | **Destructive** — wipe Wavi data for the configured Supabase project (see script before running).                                          |
 
 ---
 

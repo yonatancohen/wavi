@@ -14,7 +14,7 @@
     "dev:dashboard": "bash scripts/dev.sh dashboard",
     "setup": "bash scripts/setup.sh",
     "db:setup": "bash scripts/db-setup.sh",
-    "db:reset": "bash scripts/db-reset.sh",
+    "auth:setup": "bash scripts/auth-setup.sh",
     "deploy": "bash scripts/deploy.sh",
     "deploy:prod": "bash scripts/deploy.sh --prod",
     "deploy:quick": "bash scripts/deploy-quick.sh",
