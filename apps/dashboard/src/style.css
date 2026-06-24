@@ -256,7 +256,7 @@
 
   /* ── Mobile bottom navigation ────────────────── */
   .mobile-bottom-nav {
-    @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-outline-variant bg-surface-container-low;
+    @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-outline-variant bg-surface-container-low;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   }
@@ -320,6 +320,28 @@
 
   .mobile-sheet-row:active {
     @apply scale-[0.99];
+  }
+
+  .mobile-sheet-nav-row {
+    @apply flex w-full min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 no-underline transition-colors;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-sheet-nav-row:hover {
+    background-color: color-mix(in srgb, rgb(var(--color-on-surface)) 4%, transparent);
+  }
+
+  .mobile-sheet-nav-row:active {
+    @apply scale-[0.99];
+  }
+
+  .mobile-sheet-nav-row-active {
+    @apply text-primary;
+    background-color: color-mix(in srgb, rgb(var(--color-primary)) 8%, transparent);
+  }
+
+  .mobile-sheet-nav-row-active .material-symbols-outlined {
+    @apply text-primary;
   }
 
   /* ── Responsive page actions ─────────────────── */

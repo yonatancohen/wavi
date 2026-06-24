@@ -8,6 +8,8 @@
     "testChat": "Test Chat",
     "howItWorks": "How It Works",
     "whatsapp": "WhatsApp",
+    "liveLog": "Live Log",
+    "menu": "Menu",
     "main": "Main navigation",
     "settings": "Settings",
     "appearance": "Appearance",
@@ -318,6 +320,43 @@
     "flagging": "Saving…",
     "failedFlag": "Failed to update flag",
     "failedLoad": "Failed to load activity"
+  },
+  "liveLog": {
+    "title": "Live Log",
+    "subtitle": "Real-time agent status, in-flight replies, and recent activity",
+    "refresh": "Refresh",
+    "live": "Live",
+    "count": "{count} event | {count} events",
+    "kindFlow": "In progress",
+    "kindReply": "Reply",
+    "unknownGroup": "Unknown group",
+    "flowBody": "{sender} — {status}: \"{preview}\"",
+    "flowBodyNoPreview": "{sender} — {status}",
+    "replyBodyWithTrigger": "Reply to {trigger}: {text}",
+    "failedLoad": "Failed to load live log",
+    "empty": {
+      "title": "Nothing in the log yet",
+      "body": "Agent status, active replies, and recent responses will show up here as Wavi runs."
+    },
+    "tone": {
+      "healthy": "Online",
+      "degraded": "Recovering",
+      "connecting": "Connecting",
+      "offline": "Offline"
+    },
+    "status": {
+      "healthyTitle": "Agent online",
+      "healthyBody": "WhatsApp is linked and listening for tags.",
+      "healthyWithPhone": "Linked to +{phone} and listening for tags.",
+      "healthyWithHealth": "Linked to +{phone}. {cdp} recent CDP failure(s) — auto-recovering if needed.",
+      "linked": "linked account",
+      "degradedTitle": "Session recovering",
+      "degradedBody": "WhatsApp is connected but the browser hit an issue. Replies may lag briefly.",
+      "connectingTitle": "Connecting…",
+      "connectingBody": "WhatsApp session is authenticating.",
+      "offlineTitle": "Agent offline",
+      "offlineBody": "WhatsApp is not linked. Connect to start seeing live activity."
+    }
   },
   "character": {
     "title": "Group character",

@@ -46,21 +46,74 @@
       <!-- Mobile bottom navigation -->
       <nav class="mobile-bottom-nav lg:hidden" :aria-label="t('nav.main')">
         <RouterLink
-          v-for="item in mobileNavItems"
+          v-for="item in mobileQuickNavItems"
           :key="item.to"
           :to="item.to"
           active-class=""
           class="mobile-bottom-nav-item"
-          :class="{ 'router-link-active': isNavActive(item.to) }"
+          :class="{ 'router-link-active': isNavActive(route.path, item.to) }"
           :aria-label="t(item.label)"
-          :aria-current="isNavActive(item.to) ? 'page' : undefined"
+          :aria-current="isNavActive(route.path, item.to) ? 'page' : undefined"
         >
           <span class="material-symbols-outlined text-[22px]">{{ item.icon }}</span>
           <span class="mobile-bottom-nav-label">{{ t(item.label) }}</span>
           <span v-if="item.showDot && agentConnected" class="mobile-bottom-nav-dot" />
         </RouterLink>
+
+        <button type="button" class="mobile-bottom-nav-item" :class="{ 'router-link-active': navMenuOpen }" :aria-expanded="navMenuOpen" :aria-label="t('nav.menu')" @click="navMenuOpen = true">
+          <span class="material-symbols-outlined text-[22px]">menu</span>
+          <span class="mobile-bottom-nav-label">{{ t('nav.menu') }}</span>
+        </button>
       </nav>
     </div>
+
+    <!-- Mobile navigation menu -->
+    <Teleport to="body">
+      <div v-if="navMenuOpen" class="mobile-sheet-backdrop" @click="navMenuOpen = false" />
+      <div v-if="navMenuOpen" class="mobile-sheet" role="dialog" :aria-label="t('nav.menu')">
+        <div class="flex items-center justify-between border-b border-outline-variant px-5 py-4">
+          <h2 class="font-sora text-[15px] font-semibold text-on-surface">
+            {{ t('nav.menu') }}
+          </h2>
+          <button type="button" class="icon-btn" :aria-label="t('nav.close')" @click="navMenuOpen = false">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        <div class="max-h-[min(70vh,32rem)] overflow-y-auto p-3">
+          <p class="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.15em] text-on-surface-variant/60">
+            {{ t('nav.overview') }}
+          </p>
+          <RouterLink
+            v-for="item in overviewNavItems"
+            :key="item.to"
+            :to="item.to"
+            class="mobile-sheet-nav-row"
+            :class="{ 'mobile-sheet-nav-row-active': isNavActive(route.path, item.to) }"
+            @click="navMenuOpen = false"
+          >
+            <span class="material-symbols-outlined text-[18px] text-on-surface-variant">{{ item.icon }}</span>
+            <span class="flex-1 text-[13px] font-medium text-on-surface">{{ t(item.label) }}</span>
+            <span v-if="item.showDot && agentConnected" class="status-dot" />
+          </RouterLink>
+
+          <p class="px-3 pb-1 pt-4 text-[9px] font-bold uppercase tracking-[0.15em] text-on-surface-variant/60">
+            {{ t('nav.agent') }}
+          </p>
+          <RouterLink
+            v-for="item in agentNavItems"
+            :key="item.to"
+            :to="item.to"
+            class="mobile-sheet-nav-row"
+            :class="{ 'mobile-sheet-nav-row-active': isNavActive(route.path, item.to) }"
+            @click="navMenuOpen = false"
+          >
+            <span class="material-symbols-outlined text-[18px] text-on-surface-variant">{{ item.icon }}</span>
+            <span class="flex-1 text-[13px] font-medium text-on-surface">{{ t(item.label) }}</span>
+          </RouterLink>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Mobile settings sheet -->
     <Teleport to="body">
@@ -116,6 +169,7 @@ import AppNavLinks from './components/AppNavLinks.vue';
 import AppNavFooter from './components/AppNavFooter.vue';
 import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from './components/AgentStatusBadge.vue';
+import { agentNavItems, isNavActive, mobileQuickNavItems, overviewNavItems } from './lib/nav-items';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -129,19 +183,7 @@ const { mode, cycleMode } = useTheme();
 const { locale, toggleLocale } = useLocale();
 
 const settingsOpen = ref(false);
-
-const mobileNavItems = [
-  { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
-  { to: '/groups', icon: 'group', label: 'nav.groups', showDot: false },
-  { to: '/how-it-works', icon: 'menu_book', label: 'nav.howItWorks', showDot: false },
-  { to: '/test-chat', icon: 'science', label: 'nav.testChat', showDot: false },
-  { to: '/connect', icon: 'link', label: 'nav.whatsapp', showDot: false },
-] as const;
-
-function isNavActive(to: string) {
-  if (to === '/') return route.path === '/';
-  return route.path === to || route.path.startsWith(`${to}/`);
-}
+const navMenuOpen = ref(false);
 
 const showMobileBack = computed(() => route.path.startsWith('/groups/') && route.path !== '/groups');
 
@@ -150,6 +192,7 @@ const mobilePageTitle = computed(() => {
   if (path === '/') return t('dashboard.title');
   if (path === '/groups') return t('groups.title');
   if (path === '/activity') return t('activity.title');
+  if (path === '/live-log') return t('liveLog.title');
   if (path === '/test-chat') return t('testChat.title');
   if (path === '/how-it-works') return t('howItWorks.title');
   if (path === '/connect') return t('connect.title');
@@ -166,6 +209,7 @@ const mobilePageSubtitle = computed(() => {
   if (path === '/') return t('brand.tagline');
   if (path === '/groups') return t('groups.subtitle');
   if (path === '/activity') return t('activity.subtitle');
+  if (path === '/live-log') return t('liveLog.subtitle');
   if (path === '/test-chat') return t('testChat.subtitle');
   if (path === '/how-it-works') return t('howItWorks.subtitle');
   if (path === '/connect') return t('connect.subtitle');
@@ -176,11 +220,12 @@ watch(
   () => route.path,
   () => {
     settingsOpen.value = false;
+    navMenuOpen.value = false;
   },
 );
 
-watch(settingsOpen, (open) => {
-  document.body.style.overflow = open ? 'hidden' : '';
+watch([settingsOpen, navMenuOpen], ([settings, menu]) => {
+  document.body.style.overflow = settings || menu ? 'hidden' : '';
 });
 
 onMounted(() => {

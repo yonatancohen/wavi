@@ -8,6 +8,8 @@
     "testChat": "צ'אט בדיקה",
     "howItWorks": "איך זה עובד",
     "whatsapp": "וואטסאפ",
+    "liveLog": "לוג חי",
+    "menu": "תפריט",
     "main": "ניווט ראשי",
     "settings": "הגדרות",
     "appearance": "מראה",
@@ -318,6 +320,43 @@
     "flagging": "שומר…",
     "failedFlag": "עדכון הסימון נכשל",
     "failedLoad": "טעינת הפעילות נכשלה"
+  },
+  "liveLog": {
+    "title": "לוג חי",
+    "subtitle": "סטטוס סוכן בזמן אמת, תשובות בתהליך ופעילות אחרונה",
+    "refresh": "רענון",
+    "live": "חי",
+    "count": "אירוע אחד | {count} אירועים",
+    "kindFlow": "בתהליך",
+    "kindReply": "תשובה",
+    "unknownGroup": "קבוצה לא ידועה",
+    "flowBody": "{sender} — {status}: \"{preview}\"",
+    "flowBodyNoPreview": "{sender} — {status}",
+    "replyBodyWithTrigger": "תשובה ל-{trigger}: {text}",
+    "failedLoad": "טעינת הלוג החי נכשלה",
+    "empty": {
+      "title": "אין עדיין רשומות בלוג",
+      "body": "סטטוס הסוכן, תשובות פעילות ותגובות אחרונות יופיעו כאן כש-Wavi פועל."
+    },
+    "tone": {
+      "healthy": "מחובר",
+      "degraded": "מתאושש",
+      "connecting": "מתחבר",
+      "offline": "לא מחובר"
+    },
+    "status": {
+      "healthyTitle": "הסוכן מחובר",
+      "healthyBody": "WhatsApp מקושר ומאזין לתיוגים.",
+      "healthyWithPhone": "מקושר ל-+{phone} ומאזין לתיוגים.",
+      "healthyWithHealth": "מקושר ל-+{phone}. {cdp} כשלי CDP אחרונים — מתאושש אוטומטית במידת הצורך.",
+      "linked": "חשבון מקושר",
+      "degradedTitle": "הסשן מתאושש",
+      "degradedBody": "WhatsApp מחובר אך הדפדפן נתקל בבעיה. תשובות עלולות להתעכב.",
+      "connectingTitle": "מתחבר…",
+      "connectingBody": "סשן WhatsApp בתהליך אימות.",
+      "offlineTitle": "הסוכן לא מחובר",
+      "offlineBody": "WhatsApp לא מקושר. התחבר כדי להתחיל לראות פעילות חיה."
+    }
   },
   "character": {
     "title": "אישיות הקבוצה",
