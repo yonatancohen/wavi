@@ -11,8 +11,9 @@ export const overviewNavItems: NavItem[] = [
   { to: '/activity', icon: 'history', label: 'nav.activity' },
   { to: '/live-log', icon: 'terminal', label: 'nav.liveLog' },
   { to: '/test-chat', icon: 'science', label: 'nav.testChat' },
-  { to: '/how-it-works', icon: 'menu_book', label: 'nav.howItWorks' },
 ];
+
+export const bottomNavItems: NavItem[] = [{ to: '/how-it-works', icon: 'menu_book', label: 'nav.howItWorks' }];
 
 export const agentNavItems: NavItem[] = [{ to: '/connect', icon: 'link', label: 'nav.whatsapp' }];
 
