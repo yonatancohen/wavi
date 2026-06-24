@@ -1,5 +1,6 @@
 import { ref, onBeforeUnmount, watch, type Ref } from 'vue';
 import { API_BASE } from '../lib/api';
+import { useAuthStore } from '../stores/auth';
 import type { IngestionProgress } from '@wavi/shared';
 
 export const INGESTION_STAGES = ['parsing', 'embedding', 'profiling', 'relationships', 'context', 'synthesizing', 'done'] as const;
@@ -36,7 +37,10 @@ export function useIngestionProgress(groupId: Ref<string>) {
     if (!groupId.value) return;
 
     streaming.value = true;
-    eventSource = new EventSource(`${API_BASE}/ingest/${groupId.value}/progress`);
+    const auth = useAuthStore();
+    const url = new URL(`${API_BASE}/ingest/${groupId.value}/progress`, window.location.href);
+    if (auth.accessToken) url.searchParams.set('token', auth.accessToken);
+    eventSource = new EventSource(url.toString());
 
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data) as IngestionProgress;

@@ -76,7 +76,7 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   // ── GET /api/ingest/:groupId/progress — SSE progress stream ──
-  fastify.get<{ Params: { groupId: string } }>('/:groupId/progress', async (req, reply) => {
+  fastify.get<{ Params: { groupId: string }; Querystring: { token?: string } }>('/:groupId/progress', async (req, reply) => {
     const { groupId } = req.params;
 
     if (!(await verifyGroupOwnership(groupId))) {
