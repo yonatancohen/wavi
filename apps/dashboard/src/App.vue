@@ -133,6 +133,7 @@ const settingsOpen = ref(false);
 const mobileNavItems = [
   { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
   { to: '/groups', icon: 'group', label: 'nav.groups', showDot: false },
+  { to: '/how-it-works', icon: 'menu_book', label: 'nav.howItWorks', showDot: false },
   { to: '/test-chat', icon: 'science', label: 'nav.testChat', showDot: false },
   { to: '/connect', icon: 'link', label: 'nav.whatsapp', showDot: false },
 ] as const;
@@ -150,6 +151,7 @@ const mobilePageTitle = computed(() => {
   if (path === '/groups') return t('groups.title');
   if (path === '/activity') return t('activity.title');
   if (path === '/test-chat') return t('testChat.title');
+  if (path === '/how-it-works') return t('howItWorks.title');
   if (path === '/connect') return t('connect.title');
   if (showMobileBack.value) {
     const id = route.params.id as string;
@@ -165,6 +167,7 @@ const mobilePageSubtitle = computed(() => {
   if (path === '/groups') return t('groups.subtitle');
   if (path === '/activity') return t('activity.subtitle');
   if (path === '/test-chat') return t('testChat.subtitle');
+  if (path === '/how-it-works') return t('howItWorks.subtitle');
   if (path === '/connect') return t('connect.subtitle');
   return null;
 });

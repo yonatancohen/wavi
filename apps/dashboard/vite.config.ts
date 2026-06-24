@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      '@docs': resolve(__dirname, '../../docs'),
       '@wavi/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
     },
   },

@@ -56,7 +56,7 @@ bun run replay -- --fixtures
 bun run replay -- <groupId> --sender "Yoni Cohen" --message "@wavi מי זה Dan Cohen? וואו"
 ```
 
-See `apps/api/scripts/replay.ts` and `apps/api/scripts/replay-fixtures.json`.
+See `apps/api/scripts/replay.ts`, `apps/api/scripts/replay-fixtures.json`, and [HOW-WAVI-WORKS.md](./HOW-WAVI-WORKS.md) (also in the dashboard under **How It Works**).
 
 ---
 

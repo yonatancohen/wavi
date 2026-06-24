@@ -6,6 +6,7 @@
     "groups": "Groups",
     "activity": "Activity",
     "testChat": "Test Chat",
+    "howItWorks": "How It Works",
     "whatsapp": "WhatsApp",
     "main": "Main navigation",
     "settings": "Settings",
@@ -442,5 +443,17 @@
     "active": "Live",
     "paused": "Paused",
     "pending_setup": "Setup"
+  },
+  "howItWorks": {
+    "title": "How Wavi Works",
+    "subtitle": "Architecture, reply flow, replay harness, and what gets analyzed before each reply.",
+    "onThisPage": "On this page",
+    "tocLabel": "Table of contents",
+    "phases": {
+      "learn": "Learn",
+      "trigger": "Trigger",
+      "replay": "Replay",
+      "deepDive": "Deep dive"
+    }
   }
 }
