@@ -5,6 +5,32 @@ import { logApiAuthContext, logApiAuthFailure } from './auth-debug';
 export const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const BASE = API_BASE;
 
+function authHeaders(): Record<string, string> {
+  const auth = useAuthStore();
+  return auth.accessToken ? { Authorization: `Bearer ${auth.accessToken}` } : {};
+}
+
+/** EventSource URL with ?token= when auth is enabled (no custom headers supported). */
+export function buildEventSourceUrl(path: string): string {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(`${API_BASE}${normalized}`, window.location.href);
+  const auth = useAuthStore();
+  if (auth.accessToken) url.searchParams.set('token', auth.accessToken);
+  return url.toString();
+}
+
+/** Open an authenticated SSE stream (EventSource cannot send Authorization headers). */
+export async function openEventSource(path: string): Promise<EventSource> {
+  const auth = useAuthStore();
+  if (isAuthRequired) {
+    await auth.init();
+    if (!auth.accessToken) {
+      throw new Error('Session expired — sign in again');
+    }
+  }
+  return new EventSource(buildEventSourceUrl(path));
+}
+
 let handlingUnauthorized = false;
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -17,10 +43,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers['Content-Type'] = 'application/json';
   }
 
-  const auth = useAuthStore();
-  if (auth.accessToken) {
-    headers.Authorization = `Bearer ${auth.accessToken}`;
-  }
+  Object.assign(headers, authHeaders());
 
   const sentAuth = 'Authorization' in headers;
 

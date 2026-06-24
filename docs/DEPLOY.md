@@ -87,6 +87,8 @@ WhatsApp login must survive redeploys:
 | `UPSTASH_REDIS_REST_URL`    | yes      | Same Redis for dev + prod                  |
 | `UPSTASH_REDIS_REST_TOKEN`  | yes      |                                            |
 | `AGENT_ID`                  | yes      | UUID from `agents` table                   |
+| `AUTH_REQUIRED`             | prod     | Set `true` in production                   |
+| `ALLOWED_OWNER_EMAIL`       | prod     | Google account allowed to use the API      |
 | `WA_AGENT_NAME`             | yes      | Default `wavi`                             |
 | `DASHBOARD_URL`             | prod     | Set automatically after Vercel prod deploy |
 | `TWILIO_*`                  | optional | Only for Twilio DM path                    |
@@ -149,14 +151,15 @@ Then open the production dashboard → **WhatsApp** → scan QR.
 
 ## Troubleshooting
 
-| Issue                                     | Fix                                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------------------ |
-| CORS / QR stream blocked                  | Ensure `DASHBOARD_URL` on Railway matches your Vercel URL exactly              |
-| Groups page 500 `AGENT_ID not configured` | Run `./scripts/db-setup.sh`, then `bun run sync-secrets:api`                   |
-| WhatsApp disconnects after deploy         | Attach Railway volume at `/data`                                               |
-| Service OOM / restart loops               | Raise memory to 2 GB; keep 1 vCPU unless ingestion is constantly saturated     |
-| Dashboard calls localhost API             | Set `VITE_API_URL` in `apps/dashboard/.env` to Railway URL, re-sync + redeploy |
-| `railway login` / `vercel login` expired  | Re-authenticate and rerun deploy                                               |
+| Issue                                     | Fix                                                                                                                          |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| CORS / QR stream blocked                  | Ensure `DASHBOARD_URL` on Railway matches your Vercel URL exactly                                                            |
+| Ingest progress 401 / CORS on SSE         | Deploy latest API + dashboard; set `AUTH_REQUIRED` and `VITE_AUTH_REQUIRED` to `true` on both sides (`bun run sync-secrets`) |
+| Groups page 500 `AGENT_ID not configured` | Run `./scripts/db-setup.sh`, then `bun run sync-secrets:api`                                                                 |
+| WhatsApp disconnects after deploy         | Attach Railway volume at `/data`                                                                                             |
+| Service OOM / restart loops               | Raise memory to 2 GB; keep 1 vCPU unless ingestion is constantly saturated                                                   |
+| Dashboard calls localhost API             | Set `VITE_API_URL` in `apps/dashboard/.env` to Railway URL, re-sync + redeploy                                               |
+| `railway login` / `vercel login` expired  | Re-authenticate and rerun deploy                                                                                             |
 
 ---
 

@@ -91,6 +91,8 @@ sync_railway() {
   set_railway_var UPSTASH_REDIS_REST_TOKEN
   set_railway_var WA_AGENT_NAME
   set_railway_var AGENT_ID
+  set_railway_var AUTH_REQUIRED
+  set_railway_var ALLOWED_OWNER_EMAIL
   set_railway_var TWILIO_ACCOUNT_SID
   set_railway_var TWILIO_AUTH_TOKEN
   set_railway_var TWILIO_WHATSAPP_NUMBER
@@ -166,9 +168,13 @@ sync_vercel() {
   push_vercel_env VITE_API_URL production
   push_vercel_env VITE_SUPABASE_URL production
   push_vercel_env VITE_SUPABASE_ANON_KEY production
+  push_vercel_env VITE_AUTH_REQUIRED production
+  push_vercel_env VITE_ALLOWED_OWNER_EMAIL production
   push_vercel_env VITE_API_URL preview
   push_vercel_env VITE_SUPABASE_URL preview
   push_vercel_env VITE_SUPABASE_ANON_KEY preview
+  push_vercel_env VITE_AUTH_REQUIRED preview
+  push_vercel_env VITE_ALLOWED_OWNER_EMAIL preview
 
   cd "$ROOT"
 

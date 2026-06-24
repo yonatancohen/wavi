@@ -128,7 +128,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { apiFetch, API_BASE } from '../lib/api';
+import { apiFetch, openEventSource } from '../lib/api';
 import type { AgentStatusResponse } from '@wavi/shared';
 import { useAgentStore } from '../stores/agent';
 import LoadingState from '../components/LoadingState.vue';
@@ -211,15 +211,24 @@ function startQrStream() {
   processing.value = false;
   qrDataUrl.value = null;
 
-  eventSource = new EventSource(`${API_BASE}/agent/qr`);
+  void openEventSource('/agent/qr')
+    .then((source) => {
+      eventSource = source;
+      attachQrHandlers(source);
+    })
+    .catch(() => {
+      streamError.value = t('connect.errors.apiDown');
+    });
+}
 
+function attachQrHandlers(source: EventSource) {
   qrTimeout = setTimeout(() => {
     if (!qrDataUrl.value && !connected.value && !processing.value) {
       streamError.value = t('connect.errors.timeout');
     }
   }, 90_000);
 
-  eventSource.onmessage = (e) => {
+  source.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'qr') {
       qrDataUrl.value = msg.data;
@@ -233,7 +242,7 @@ function startQrStream() {
     }
   };
 
-  eventSource.onerror = () => {
+  source.onerror = () => {
     apiFetch<AgentStatusResponse>('/agent/status')
       .then((s) => {
         if (s.connected) setConnected(s);

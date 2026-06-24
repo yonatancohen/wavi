@@ -72,15 +72,6 @@ if (isAuthRequired()) {
   server.addHook('onRequest', async (request, reply) => {
     if (request.url.startsWith('/health')) return;
 
-    // EventSource can't send headers — accept ?token=<bearer> as a fallback
-    // for SSE endpoints. Promote it to the Authorization header so requireAuth
-    // works without any per-route special-casing.
-    if (!request.headers.authorization) {
-      const qs = new URL(request.url, 'http://localhost').searchParams;
-      const queryToken = qs.get('token');
-      if (queryToken) request.headers.authorization = `Bearer ${queryToken}`;
-    }
-
     const user = await requireAuth(request);
     if (!user) {
       const reject = getLastAuthReject();

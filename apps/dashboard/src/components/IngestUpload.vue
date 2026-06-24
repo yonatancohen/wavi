@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { ref, toRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { API_BASE } from '../lib/api';
+import { apiFetch } from '../lib/api';
 import { useIngestionProgress, INGESTION_STAGES } from '../composables/useIngestionProgress';
 
 const { t } = useI18n();
@@ -122,15 +122,11 @@ async function uploadFiles() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/ingest/${props.groupId}`, {
+    await apiFetch<{ ok: boolean; message: string }>(`/ingest/${props.groupId}`, {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      throw new Error(body?.error ?? body?.message ?? `Upload failed (${res.status})`);
-    }
-    startStream(() => emit('complete'));
+    await startStream(() => emit('complete'));
   } catch (e) {
     uploadError.value = e instanceof Error ? e.message : t('ingest.failedUpload');
   } finally {

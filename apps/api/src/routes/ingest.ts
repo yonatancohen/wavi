@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
+import { beginSseStream, endSseStream, writeSseData, writeSseHeartbeat } from '../lib/sse.js';
 import { runIngestionFromExport, runSupplementalExportAlignment, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
 
 function getAgentId(): string {
@@ -83,13 +84,11 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(404).send({ error: 'Group not found' });
     }
 
-    reply.raw.setHeader('Content-Type', 'text/event-stream');
-    reply.raw.setHeader('Cache-Control', 'no-cache');
-    reply.raw.setHeader('Connection', 'keep-alive');
-    reply.raw.flushHeaders();
+    // Raw SSE bypasses @fastify/cors — set headers manually for EventSource
+    beginSseStream(req, reply);
 
     const sendProgress = (progress: unknown) => {
-      reply.raw.write(`data: ${JSON.stringify(progress)}\n\n`);
+      writeSseData(reply, progress);
     };
 
     // Heartbeat counter — send a keepalive SSE comment every ~15 s when no
@@ -104,11 +103,11 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
         sendProgress(progress);
         if (progress.stage === 'done' || progress.stage === 'error') {
           clearInterval(interval);
-          reply.raw.end();
+          endSseStream(reply);
         }
       } else {
         pollsSinceData++;
-        if (pollsSinceData % 30 === 0) reply.raw.write(': heartbeat\n\n');
+        if (pollsSinceData % 30 === 0) writeSseHeartbeat(reply);
       }
     }, 500);
 

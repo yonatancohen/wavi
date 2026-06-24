@@ -1,6 +1,5 @@
 import { ref, onBeforeUnmount, watch, type Ref } from 'vue';
-import { API_BASE } from '../lib/api';
-import { useAuthStore } from '../stores/auth';
+import { openEventSource } from '../lib/api';
 import type { IngestionProgress } from '@wavi/shared';
 
 export const INGESTION_STAGES = ['parsing', 'embedding', 'profiling', 'relationships', 'context', 'synthesizing', 'done'] as const;
@@ -30,17 +29,21 @@ export function useIngestionProgress(groupId: Ref<string>) {
     streaming.value = false;
   }
 
-  function startStream(onComplete?: () => void) {
+  async function startStream(onComplete?: () => void) {
     closeStream();
     progress.value = null;
     streamError.value = null;
     if (!groupId.value) return;
 
     streaming.value = true;
-    const auth = useAuthStore();
-    const url = new URL(`${API_BASE}/ingest/${groupId.value}/progress`, window.location.href);
-    if (auth.accessToken) url.searchParams.set('token', auth.accessToken);
-    eventSource = new EventSource(url.toString());
+
+    try {
+      eventSource = await openEventSource(`/ingest/${groupId.value}/progress`);
+    } catch (e) {
+      streamError.value = e instanceof Error ? e.message : 'Failed to connect to progress stream';
+      streaming.value = false;
+      return;
+    }
 
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data) as IngestionProgress;

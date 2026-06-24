@@ -94,7 +94,7 @@ async function startRebuild() {
   rebuildError.value = null;
   try {
     await store.rebuildGroup(props.groupId);
-    startStream(() => emit('complete'));
+    await startStream(() => emit('complete'));
   } catch (e) {
     rebuildError.value = e instanceof Error ? e.message : t('rebuild.failed');
   } finally {

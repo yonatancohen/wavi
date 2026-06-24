@@ -48,6 +48,22 @@ export function isAuthRequired(): boolean {
   return process.env.AUTH_REQUIRED === 'true';
 }
 
+/** Bearer from Authorization header or ?token= (EventSource cannot send headers). */
+export function resolveBearerHeader(request: FastifyRequest): string | undefined {
+  const header = request.headers.authorization;
+  if (header?.startsWith('Bearer ')) return header;
+
+  const rawUrl = request.raw.url ?? request.url;
+  try {
+    const token = new URL(rawUrl, 'http://localhost').searchParams.get('token');
+    if (token) return `Bearer ${token}`;
+  } catch {
+    // Malformed URL — fall through to missing bearer.
+  }
+
+  return undefined;
+}
+
 export async function verifyBearerToken(authHeader: string | undefined): Promise<AuthUser | null> {
   lastAuthReject = null;
 
@@ -79,5 +95,7 @@ export async function verifyBearerToken(authHeader: string | undefined): Promise
 }
 
 export async function requireAuth(request: FastifyRequest): Promise<AuthUser | null> {
-  return verifyBearerToken(request.headers.authorization);
+  const bearer = resolveBearerHeader(request);
+  if (bearer) request.headers.authorization = bearer;
+  return verifyBearerToken(bearer);
 }
