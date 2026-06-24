@@ -230,7 +230,7 @@
 
   /* ── Page header (desktop only — mobile uses app top bar) ── */
   .page-header {
-    @apply border-b border-outline-variant px-margin-mobile py-4 lg:px-margin-desktop;
+    @apply sticky top-0 z-10 border-b border-outline-variant px-margin-mobile py-4 lg:px-margin-desktop;
     background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent);
     backdrop-filter: blur(8px);
   }
