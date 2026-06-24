@@ -39,6 +39,8 @@ bun install
 
 ```sql
 ALTER TABLE groups ADD COLUMN IF NOT EXISTS web_search_enabled boolean DEFAULT false;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS image_generation_enabled boolean NOT NULL DEFAULT false;
+NOTIFY pgrst, 'reload schema';
 ```
 
 ### 3. Environment variables

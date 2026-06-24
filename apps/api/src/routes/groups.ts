@@ -23,6 +23,7 @@ import { generateReplyText } from '../ai/generate.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
+import { friendlyDbError } from '../lib/db-errors.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -261,6 +262,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'web_search_enabled', 'image_generation_enabled', 'name'];
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
 
+    if (Object.keys(update).length === 0) {
+      return reply.code(400).send({ error: 'No valid fields to update' });
+    }
+
     if (update.status === 'active') {
       const { data: current } = await db.from('groups').select('wa_group_id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
       if (!current) return reply.code(404).send({ error: 'Group not found' });
@@ -269,8 +274,18 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single().throwOnError();
-    return fetchGroupWithStats(req.params.id);
+    const { error } = await db.from('groups').update(update).eq('id', req.params.id).eq('agent_id', getAgentId()).select().single();
+
+    if (error) {
+      return reply.code(500).send({ error: friendlyDbError(error) });
+    }
+
+    try {
+      return await fetchGroupWithStats(req.params.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load updated group';
+      return reply.code(500).send({ error: friendlyDbError({ message }) });
+    }
   });
 
   // ── POST /:id/rebuild — regenerate intelligence from stored messages ──
