@@ -9,7 +9,7 @@ import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedM
 // We read the status code to decide whether to reconnect.
 import { Boom } from '@hapi/boom';
 
-function resolveBaileysQuoted(contextInfo: unknown, fallbackPushName?: string | null): QuotedMessage | undefined {
+function resolveBaileysQuoted(contextInfo: unknown): QuotedMessage | undefined {
   const ctx = contextInfo as {
     quotedMessage?: { conversation?: string; extendedTextMessage?: { text?: string } } | null;
     participant?: string;
@@ -21,7 +21,7 @@ function resolveBaileysQuoted(contextInfo: unknown, fallbackPushName?: string | 
   return {
     body,
     senderWaId,
-    senderName: fallbackPushName ?? senderWaId,
+    senderName: senderWaId,
   };
 }
 
@@ -261,7 +261,7 @@ export function createBaileysProvider(): WhatsAppProvider {
           timestampMs: Number(msg.messageTimestamp ?? 0) * 1000,
           waMsgId: msg.key.id ?? '',
           mentionedIds,
-          quotedMessage: resolveBaileysQuoted(contextInfo, msg.pushName),
+          quotedMessage: resolveBaileysQuoted(contextInfo),
           resolvePushName: async () => msg.pushName ?? msg.key.participant ?? '',
         };
 

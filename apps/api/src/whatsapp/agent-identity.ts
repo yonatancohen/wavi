@@ -1,3 +1,5 @@
+import type { QuotedMessage } from './provider.js';
+
 let widStr: string | null = null;
 let phoneUser: string | null = null;
 let lidUser: string | null = null;
@@ -35,8 +37,25 @@ export function getAgentWaJid(): string | null {
   return null;
 }
 
-/** True when the message tags the agent by name or native WA @ mention. */
-export function isAgentTagged(msg: { mentionedIds?: string[] }, body: string, agentName = process.env.WA_AGENT_NAME ?? 'wavi'): boolean {
+function isAgentSender(senderWaId: string, senderName?: string, agentName = process.env.WA_AGENT_NAME ?? 'wavi'): boolean {
+  if (senderWaId === 'agent') return true;
+  const agentIds = getAgentUserIds();
+  if (agentIds.length > 0 && agentIds.includes(waUserId(senderWaId))) return true;
+  if (senderName && senderName.toLowerCase() === agentName.toLowerCase()) return true;
+  return false;
+}
+
+/** True when the user quote-replied to a message Wavi sent. */
+export function isQuotedAgent(quoted?: QuotedMessage): boolean {
+  if (!quoted) return false;
+  if (quoted.fromMe) return true;
+  return isAgentSender(quoted.senderWaId, quoted.senderName);
+}
+
+/** True when the message tags the agent by name, native WA @ mention, or quote-reply to Wavi. */
+export function isAgentTagged(msg: { mentionedIds?: string[]; quotedMessage?: QuotedMessage }, body: string, agentName = process.env.WA_AGENT_NAME ?? 'wavi'): boolean {
+  if (isQuotedAgent(msg.quotedMessage)) return true;
+
   if (body.toLowerCase().includes(`@${agentName.toLowerCase()}`)) return true;
 
   const agentIds = getAgentUserIds();

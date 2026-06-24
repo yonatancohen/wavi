@@ -16,10 +16,14 @@ const WA_CACHE_PATH = process.env.WA_CACHE_PATH ?? path.join(API_ROOT, '.wwebjs_
 
 const GET_CONTACT_TIMEOUT_MS = 15_000;
 
-async function resolveQuotedMessage(msg: { hasQuotedMsg?: boolean; getQuotedMessage?: () => Promise<{ body?: string; author?: string; from?: string }> }): Promise<QuotedMessage | undefined> {
+async function resolveQuotedMessage(msg: {
+  hasQuotedMsg?: boolean;
+  getQuotedMessage?: () => Promise<{ body?: string; author?: string; from?: string; fromMe?: boolean }>;
+}): Promise<QuotedMessage | undefined> {
   if (!msg.hasQuotedMsg || !msg.getQuotedMessage) return undefined;
   try {
     const quoted = await msg.getQuotedMessage();
+    const fromMe = quoted.fromMe === true;
     const senderWaId = quoted.author ?? quoted.from ?? '';
     let senderName = senderWaId;
     try {
@@ -32,6 +36,7 @@ async function resolveQuotedMessage(msg: { hasQuotedMsg?: boolean; getQuotedMess
       body: quoted.body ?? '',
       senderWaId,
       senderName,
+      fromMe,
     };
   } catch {
     return undefined;

@@ -12,6 +12,8 @@ export type QuotedMessage = {
   body: string;
   senderWaId: string;
   senderName: string;
+  /** True when the quoted message was sent by the linked WhatsApp account (Wavi). */
+  fromMe?: boolean;
 };
 
 export type InboundMessage = {

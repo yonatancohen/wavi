@@ -1,4 +1,5 @@
 import type { PromptContext, LanguageMode } from '@wavi/shared';
+import { isQuotedAgent } from '../whatsapp/agent-identity.js';
 import { effectiveReplyLanguage, getLanguageName } from './language.js';
 
 const GROUP_TIMEZONE = process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem';
@@ -183,6 +184,15 @@ function formatAliasesLine(aliases: string[] | undefined): string {
 
 function buildQuotedReplyBlock(ctx: PromptContext): string {
   if (!ctx.quoted_message) return '';
+  const quoted = {
+    body: ctx.quoted_message.body,
+    senderWaId: ctx.quoted_message.sender_wa_id,
+    senderName: ctx.quoted_message.sender_name,
+  };
+  if (isQuotedAgent(quoted)) {
+    return `BLOCK — REPLYING TO YOUR PREVIOUS MESSAGE
+You said: "${ctx.quoted_message.body}"`;
+  }
   return `BLOCK — REPLYING TO
 ${ctx.quoted_message.sender_name} said: "${ctx.quoted_message.body}"`;
 }
