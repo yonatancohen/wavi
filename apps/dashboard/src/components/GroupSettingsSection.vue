@@ -28,17 +28,28 @@
       <option value="auto">{{ t('groupSettings.languageAuto') }}</option>
     </select>
 
-    <div class="mb-6 rounded-xl border border-outline-variant/70 bg-surface-variant/15 px-4 py-4">
-      <label class="flex cursor-pointer items-start gap-3">
-        <input v-model="webSearchEnabled" type="checkbox" class="mt-0.5 rounded border-outline-variant" :disabled="saving" @change="saveWebSearch" />
-        <span>
-          <span class="block text-[13px] font-medium text-on-surface">{{ t('groupSettings.webSearch') }}</span>
-          <span class="mt-1 block text-[12px] leading-relaxed text-on-surface-variant">{{ t('groupSettings.webSearchHint') }}</span>
-        </span>
-      </label>
+    <div class="mb-6">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.webSearch') }}</p>
+          <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+            {{ t('groupSettings.webSearchHint') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="webSearchEnabled"
+          class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors"
+          :class="webSearchEnabled ? 'bg-primary' : 'bg-outline-variant'"
+          :disabled="savingWebSearch"
+          @click="toggleWebSearch"
+        >
+          <span class="absolute top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="webSearchEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
+        </button>
+      </div>
+      <p v-if="savingWebSearch" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
     </div>
-
-    <p v-if="saving" class="text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
 
     <div class="mb-6 border-t border-outline-variant pt-5">
       <div class="flex items-start justify-between gap-4">
@@ -86,6 +97,7 @@ const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');
 const webSearchEnabled = ref(props.group.web_search_enabled ?? false);
 const imageGenerationEnabled = ref(props.group.image_generation_enabled ?? false);
 const saving = ref(false);
+const savingWebSearch = ref(false);
 const savingImage = ref(false);
 const saveError = ref<string | null>(null);
 
@@ -125,18 +137,19 @@ async function saveLanguage() {
   }
 }
 
-async function saveWebSearch() {
-  if (webSearchEnabled.value === (props.group.web_search_enabled ?? false)) return;
-  saving.value = true;
+async function toggleWebSearch() {
+  const next = !webSearchEnabled.value;
+  webSearchEnabled.value = next;
+  savingWebSearch.value = true;
   saveError.value = null;
   try {
-    const updated = await store.patchGroup(props.group.id, { web_search_enabled: webSearchEnabled.value });
+    const updated = await store.patchGroup(props.group.id, { web_search_enabled: next });
     emit('updated', updated);
   } catch (e) {
     saveError.value = e instanceof Error ? e.message : t('groupSettings.failedSave');
     webSearchEnabled.value = props.group.web_search_enabled ?? false;
   } finally {
-    saving.value = false;
+    savingWebSearch.value = false;
   }
 }
 
