@@ -204,6 +204,11 @@
       "profiles": "פרופילים",
       "status": "סטטוס"
     },
+    "overview": {
+      "title": "סקירת קבוצה",
+      "membersDraft": "חבר לוואטסאפ כדי לראות מספר חברים",
+      "membersUnavailable": "חבר וואטסאפ כדי לטעון מספר חברים"
+    },
     "tabs": {
       "setup": "הגדרה",
       "character": "אישיות",

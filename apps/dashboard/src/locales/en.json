@@ -204,6 +204,11 @@
       "profiles": "Profiles",
       "status": "Status"
     },
+    "overview": {
+      "title": "Group overview",
+      "membersDraft": "Link WhatsApp to see member count",
+      "membersUnavailable": "Connect WhatsApp to load member count"
+    },
     "tabs": {
       "setup": "Setup",
       "character": "Character",

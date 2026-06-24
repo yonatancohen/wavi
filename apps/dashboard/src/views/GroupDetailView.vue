@@ -164,6 +164,8 @@
       </div>
 
       <template v-else-if="group">
+        <GroupStatsCard class="mb-4" :group="group" />
+
         <div v-show="activeTab === 'setup'" class="bento-grid items-stretch">
           <div class="col-span-12">
             <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
@@ -236,6 +238,7 @@ import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
+import GroupStatsCard from '../components/GroupStatsCard.vue';
 import type { GroupWithStats } from '@wavi/shared';
 
 type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat';

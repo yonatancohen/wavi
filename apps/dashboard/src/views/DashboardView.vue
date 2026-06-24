@@ -99,9 +99,10 @@
                       {{ t('dashboard.activeGroups.msgCount', { count: group.message_count_today }) }}
                     </span>
                   </div>
-                  <h4 class="mb-0.5 truncate font-sora text-[15px] font-semibold text-on-surface">
+                  <h4 class="mb-2 truncate font-sora text-[15px] font-semibold text-on-surface">
                     {{ group.name }}
                   </h4>
+                  <GroupStatsCard :group="group" variant="inline" class="mb-2" />
                   <p class="text-[12px] text-on-surface-variant">
                     {{ group.reply_count_today }}
                     {{ group.reply_count_today === 1 ? t('dashboard.activeGroups.replies', 1) : t('dashboard.activeGroups.replies', 2) }}
@@ -225,6 +226,7 @@ import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from '../components/AgentStatusBadge.vue';
 import AgentHealthPanel from '../components/AgentHealthPanel.vue';
 import CostBanner from '../components/CostBanner.vue';
+import GroupStatsCard from '../components/GroupStatsCard.vue';
 
 const { t } = useI18n();
 const store = useGroupsStore();
