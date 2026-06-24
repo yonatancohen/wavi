@@ -251,23 +251,23 @@ The **embedding query** is not the raw `@wavi` tag — it's the semantic intent 
 
 ### B2. System prompt blocks (`prompt-build.ts`)
 
-| Block               | Content                                               |
-| ------------------- | ----------------------------------------------------- |
-| 1 — Identity        | Agent name + group name                               |
-| 2 — Role boundary   | "Group member, not dev assistant" + jailbreak refusal |
-| 3 — Character       | `voice`, `opinions`, `signature_behavior`             |
-| 4 — Personality     | 5 sliders with interpreted labels                     |
-| 5 — Group context   | `group_context_summary`                               |
-| 6 — Sender profile  | Display name, aliases, `behavioral_summary`           |
-| 7 — Relationships   | Top 3 narratives for sender                           |
-| — Mentioned people  | Extra block if names detected in message              |
-| — Memories          | Up to 10 `group_memories`                             |
-| 8 — RAG history     | Chunk summaries + episode summaries                   |
-| — Quoted reply      | If user replied to a specific message                 |
-| — Sensitivity       | Flags for sender + mentioned people                   |
-| — Datetime          | Current time in `GROUP_TIMEZONE`                      |
-| 9 — WhatsApp format | Short, no markdown, ~280 chars default                |
-| 10 — Language       | Hebrew/English/auto rules                             |
+| Block               | Content                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1 — Identity        | Agent name + group name                                                                              |
+| 2 — Role boundary   | "Group member, not dev assistant" + jailbreak refusal                                                |
+| 3 — Character       | `voice`, `opinions`, `signature_behavior`                                                            |
+| 4 — Personality     | 6 sliders with interpreted labels (formality, humor, verbosity, assertiveness, empathy, emoji usage) |
+| 5 — Group context   | `group_context_summary`                                                                              |
+| 6 — Sender profile  | Display name, aliases, `behavioral_summary`                                                          |
+| 7 — Relationships   | Top 3 narratives for sender                                                                          |
+| — Mentioned people  | Extra block if names detected in message                                                             |
+| — Memories          | Up to 10 `group_memories`                                                                            |
+| 8 — RAG history     | Chunk summaries + episode summaries                                                                  |
+| — Quoted reply      | If user replied to a specific message                                                                |
+| — Sensitivity       | Flags for sender + mentioned people                                                                  |
+| — Datetime          | Current time in `GROUP_TIMEZONE`                                                                     |
+| 9 — WhatsApp format | Short, no markdown, ~280 chars default                                                               |
+| 10 — Language       | Hebrew/English/auto rules                                                                            |
 
 ### B3. Claude API call (`generate.ts`)
 

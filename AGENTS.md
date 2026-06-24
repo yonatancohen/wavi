@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repo. Keep this file in sync when 
 
 ## What Wavi is
 
-Wavi is a configurable AI agent that lives inside WhatsApp group chats. It ingests a group's history, synthesizes a "character" that fits the group, and replies in-character when tagged. The architecture is RAG-based: history is chunked + embedded into pgvector, and each reply is built from an 8-block context prompt. See `docs/SPEC.md` for the full product spec and `README.md` for setup.
+Wavi is a configurable AI agent that lives inside WhatsApp group chats. It ingests a group's history, synthesizes a "character" that fits the group, and replies in-character when tagged. The architecture is RAG-based: history is chunked + embedded into pgvector, and each reply is built from a 10-block context prompt. See `docs/SPEC.md` for the full product spec and `README.md` for setup.
 
 ## Tech stack
 
