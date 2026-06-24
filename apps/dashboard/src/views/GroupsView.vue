@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header hidden lg:flex lg:min-h-14 lg:items-center lg:justify-between lg:gap-4">
-      <div class="min-w-0">
+    <header class="page-header flex min-h-14 flex-wrap items-center justify-between gap-3">
+      <div class="hidden min-w-0 lg:block">
         <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">
           {{ t('groups.title') }}
         </h1>
@@ -22,17 +22,6 @@
     </header>
 
     <div class="page-content py-7">
-      <div class="mb-4 flex flex-wrap gap-2">
-        <button class="btn btn-secondary flex items-center justify-center gap-2" :disabled="creatingDraft" @click="openCreateDraft">
-          <span class="material-symbols-outlined text-[16px]">edit_note</span>
-          {{ creatingDraft ? t('groups.loading') : t('groups.createDraft') }}
-        </button>
-        <button class="btn btn-primary flex items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
-          <span class="material-symbols-outlined text-[16px]">group_add</span>
-          {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
-        </button>
-      </div>
-
       <div v-if="error" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
         {{ error }}
       </div>
