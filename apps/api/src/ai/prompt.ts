@@ -5,8 +5,9 @@ import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
+import { normalizeRagQuery } from './rag-query.js';
 
-const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
+export { normalizeRagQuery } from './rag-query.js';
 
 // ── Main context assembler ────────────────────────────────────
 
@@ -96,28 +97,6 @@ async function fetchRAGContext(groupId: string, query: string) {
     rag_chunks: (chunksResult.data ?? []).map((r: { summary?: string; content?: string }) => r.summary ?? r.content),
     rag_episode_summaries: (episodesResult.data ?? []).map((r: { summary: string }) => r.summary),
   };
-}
-
-/** Strip agent tag and filler before embedding. */
-export function normalizeRagQuery(message: string, recentMessages: { sender_name: string; body: string }[]): string {
-  let q = message
-    .replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '')
-    .replace(/@\d{5,}/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const filler = /^(וואו|wow|היי|hey|please|pls|תגיד|say)\b[!.?\s]*/i;
-  q = q.replace(filler, '').trim();
-
-  if (recentMessages.length >= 2) {
-    const context = recentMessages
-      .slice(-3)
-      .map((m) => `${m.sender_name}: ${m.body}`)
-      .join(' | ');
-    q = `${context} | ${q}`;
-  }
-
-  return q || message;
 }
 
 /** Map wa_user_id → display_name for conversation turns. */

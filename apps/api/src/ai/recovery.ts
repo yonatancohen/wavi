@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { CharacterConfig } from '@wavi/shared';
-import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -67,6 +66,7 @@ Do NOT be overly formal. Stay in character. No quotes.`,
         ],
       });
 
+      const { recordAnthropicCall } = await import('../lib/usage-record.js');
       await recordAnthropicCall({ type: 'recovery', groupId, usage: response.usage });
 
       return response.content[0].type === 'text' ? response.content[0].text.trim() : fallbackApology(humor);

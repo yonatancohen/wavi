@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { normalizeRagQuery } from '../prompt.js';
+import { normalizeRagQuery } from '../rag-query.js';
 
 describe('normalizeRagQuery', () => {
   it('strips agent tag and filler', () => {

@@ -5,7 +5,6 @@ import { buildMinimalProfileData, filterCrossMemberAliases, MIN_LLM_PROFILE_MESS
 import { upsertUserProfile } from '../lib/profile-store.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
-import { recordAnthropicCall } from '../lib/usage.js';
 
 interface ProfileMessage {
   body: string;
@@ -51,6 +50,7 @@ ${addressedSamples.slice(0, 40).join('\n').slice(0, 1200)}`,
     ],
   });
 
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
@@ -137,6 +137,7 @@ ${sample.slice(0, 2000)}`,
     ],
   });
 
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text : '{}';

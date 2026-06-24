@@ -1,21 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from 'bun:test';
-
-process.env.SUPABASE_URL = 'http://test.local';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
-
-const mockCreateSignedUrl = mock((_path: string, _ttl: number) => Promise.resolve({ data: { signedUrl: 'https://example.com/signed.png' }, error: null }));
-const mockUpload = mock(() => Promise.resolve({ error: null }));
-
-mock.module('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    storage: {
-      from: () => ({
-        upload: mockUpload,
-        createSignedUrl: mockCreateSignedUrl,
-      }),
-    },
-  }),
-}));
+import { describe, expect, it, beforeEach } from 'bun:test';
+import { mockCreateSignedUrl, mockUpload } from '../../test-preload.js';
 
 const { getReplyImageSignedUrl, resolveReplyImageUrls, REPLY_IMAGES_BUCKET } = await import('../image-storage.js');
 

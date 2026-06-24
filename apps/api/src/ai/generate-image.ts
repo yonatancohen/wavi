@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { recordImageGenerationCall } from '../lib/usage.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -14,6 +13,7 @@ export async function generateImage(prompt: string, groupId?: string): Promise<{
     response_format: 'b64_json',
   });
 
+  const { recordImageGenerationCall } = await import('../lib/usage-record.js');
   await recordImageGenerationCall({ groupId });
 
   const b64 = response.data?.[0]?.b64_json;

@@ -1,7 +1,13 @@
 import OpenAI from 'openai';
-import { recordEmbeddingCall } from './usage.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
 
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIMENSIONS = 1536;
@@ -13,11 +19,12 @@ export interface EmbedOptions {
 // ── Single embedding ──────────────────────────────────────────
 
 export async function embed(text: string, options?: EmbedOptions): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: EMBEDDING_MODEL,
     input: text.slice(0, 8000), // safety trim
     dimensions: EMBEDDING_DIMENSIONS,
   });
+  const { recordEmbeddingCall } = await import('./usage-record.js');
   await recordEmbeddingCall({
     groupId: options?.groupId,
     totalTokens: response.usage?.total_tokens ?? 0,
@@ -31,12 +38,13 @@ export async function embed(text: string, options?: EmbedOptions): Promise<numbe
 export async function embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts.map((t) => t.slice(0, 8000)),
     dimensions: EMBEDDING_DIMENSIONS,
   });
 
+  const { recordEmbeddingCall } = await import('./usage-record.js');
   await recordEmbeddingCall({
     groupId: options?.groupId,
     totalTokens: response.usage?.total_tokens ?? 0,

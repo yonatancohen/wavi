@@ -4,7 +4,6 @@ import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
 import { extractMentionLabels, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
-import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -281,6 +280,7 @@ Respond with JSON only: ["sentence 1", "sentence 2", ...]`,
     ],
   });
 
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId, usage: response.usage });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '[]';

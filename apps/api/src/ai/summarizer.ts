@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { LanguageMode, EmojiUsageLevel, VoiceExample } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
-import { recordAnthropicCall } from '../lib/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -95,6 +94,7 @@ async function callCharacterSynthesis(prompt: string, usageContext?: SynthesisUs
     max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }],
   });
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
   return response.content[0].type === 'text' ? response.content[0].text : '{}';
 }
@@ -118,6 +118,7 @@ export async function generateEpisodeSummary(content: string, languageMode: Lang
       },
     ],
   });
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group activity.';
@@ -154,6 +155,7 @@ Write a SHORT context summary (max 150 words) covering:
       },
     ],
   });
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: params.usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : '';
@@ -198,6 +200,7 @@ export async function generateChunkSummary(content: string, languageMode: Langua
       },
     ],
   });
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
   return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group conversation.';

@@ -2,7 +2,7 @@ import type { CostStats, TestChatCostStats } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { redis } from './redis.js';
 import { estimateCostUsd } from './pricing.js';
-import { recordTrackedUsage } from './usage.js';
+import { recordTrackedUsage } from './usage-record.js';
 
 const TEST_CHAT_COST_TTL_SEC = 60 * 60 * 24 * 45;
 
