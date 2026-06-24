@@ -23,8 +23,8 @@
           />
 
           <div class="p-3">
-            <p class="mb-1.5 font-sora text-[12px] font-semibold text-on-surface">{{ title }}</p>
-            <p class="text-[11px] leading-relaxed text-on-surface-variant">{{ body }}</p>
+            <p class="font-sora text-[12px] font-semibold text-on-surface" :class="body ? 'mb-1.5' : ''">{{ title }}</p>
+            <p v-if="body" class="text-[11px] leading-relaxed text-on-surface-variant">{{ body }}</p>
           </div>
         </div>
       </Transition>
@@ -35,10 +35,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue';
 
-defineProps<{
-  title: string;
-  body: string;
-}>();
+withDefaults(defineProps<{ title: string; body?: string }>(), { body: '' });
 
 const show = ref(false);
 const showBelow = ref(false);
