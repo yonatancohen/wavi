@@ -6,20 +6,52 @@ import type { Reply } from '@wavi/shared';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
+const PAGE_SIZE = 20;
+
+type FetchFilters = { groupId?: string; flagged?: boolean };
+
 export const useRepliesStore = defineStore('replies', () => {
   const replies = ref<Reply[]>([]);
   const loading = ref(false);
+  const loadingMore = ref(false);
+  const hasMore = ref(false);
 
-  async function fetchReplies(filters?: { groupId?: string; flagged?: boolean }) {
+  let _currentOffset = 0;
+  let _lastFilters: FetchFilters = {};
+
+  function buildParams(filters: FetchFilters, offset: number): URLSearchParams {
+    const params = new URLSearchParams();
+    if (filters.groupId) params.set('group_id', filters.groupId);
+    if (filters.flagged) params.set('flagged', 'true');
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(offset));
+    return params;
+  }
+
+  async function fetchReplies(filters?: FetchFilters) {
+    _lastFilters = filters ?? {};
+    _currentOffset = 0;
     loading.value = true;
     try {
-      const params = new URLSearchParams();
-      if (filters?.groupId) params.set('group_id', filters.groupId);
-      if (filters?.flagged) params.set('flagged', 'true');
-      const qs = params.toString();
-      replies.value = await apiFetch<Reply[]>(qs ? `/replies?${qs}` : '/replies');
+      const data = await apiFetch<Reply[]>(`/replies?${buildParams(_lastFilters, 0)}`);
+      replies.value = data;
+      hasMore.value = data.length === PAGE_SIZE;
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function loadMore() {
+    if (loadingMore.value || !hasMore.value) return;
+    loadingMore.value = true;
+    const nextOffset = _currentOffset + PAGE_SIZE;
+    try {
+      const data = await apiFetch<Reply[]>(`/replies?${buildParams(_lastFilters, nextOffset)}`);
+      replies.value.push(...data);
+      _currentOffset = nextOffset;
+      hasMore.value = data.length === PAGE_SIZE;
+    } finally {
+      loadingMore.value = false;
     }
   }
 
@@ -42,5 +74,5 @@ export const useRepliesStore = defineStore('replies', () => {
       .subscribe();
   }
 
-  return { replies, loading, fetchReplies, flagMiss, subscribeRealtime };
+  return { replies, loading, loadingMore, hasMore, fetchReplies, loadMore, flagMiss, subscribeRealtime };
 });

@@ -134,13 +134,28 @@
             </div>
           </div>
         </div>
+
+        <!-- load-more sentinel + inline skeleton rows -->
+        <template v-if="store.hasMore">
+          <div v-if="store.loadingMore" class="divide-y divide-on-surface/[0.04]">
+            <div v-for="i in 3" :key="i" class="flex items-start gap-4 px-5 py-4 opacity-60">
+              <div class="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-lg bg-on-surface/10" />
+              <div class="min-w-0 flex-1 space-y-2 pt-1">
+                <div class="h-3 w-1/3 animate-pulse rounded bg-on-surface/10" />
+                <div class="h-3 w-full animate-pulse rounded bg-on-surface/10" />
+                <div class="h-3 w-4/5 animate-pulse rounded bg-on-surface/10" />
+              </div>
+            </div>
+          </div>
+          <div ref="sentinel" class="h-1" aria-hidden="true" />
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
@@ -169,9 +184,10 @@ const error = ref<string | null>(null);
 const selectedGroupId = ref('');
 const flaggedOnly = ref(false);
 const flaggingId = ref<string | null>(null);
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
 
 const loading = computed(() => store.loading);
-
 const hasActiveFilters = computed(() => selectedGroupId.value !== '' || flaggedOnly.value);
 
 const items = computed(() =>
@@ -194,6 +210,18 @@ const items = computed(() =>
     };
   }),
 );
+
+function attachObserver() {
+  observer?.disconnect();
+  if (!sentinel.value) return;
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) store.loadMore();
+    },
+    { rootMargin: '300px' },
+  );
+  observer.observe(sentinel.value);
+}
 
 async function toggleFlag(item: { id: string; flagged: boolean }) {
   flaggingId.value = item.id;
@@ -227,6 +255,12 @@ function clearFilters() {
   flaggedOnly.value = false;
 }
 
+// Re-attach observer whenever sentinel mounts/unmounts (toggled by hasMore)
+watch(sentinel, (el) => {
+  if (el) attachObserver();
+  else observer?.disconnect();
+});
+
 watch([selectedGroupId, flaggedOnly], loadActivity);
 
 onMounted(async () => {
@@ -234,5 +268,9 @@ onMounted(async () => {
     await groupsStore.fetchGroups();
   }
   await loadActivity();
+});
+
+onUnmounted(() => {
+  observer?.disconnect();
 });
 </script>

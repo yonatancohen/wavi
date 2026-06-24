@@ -8,7 +8,14 @@ export const healthRoute: FastifyPluginAsync = async (fastify) => {
 export const repliesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (req) => {
     const query = req.query as Record<string, string>;
-    let q = db.from('replies').select(`*, messages!replies_message_id_fkey(sender_name, body), groups!replies_group_id_fkey(name)`).order('created_at', { ascending: false }).limit(50);
+    const limit = Math.min(parseInt(query.limit ?? '20', 10), 100);
+    const offset = Math.max(parseInt(query.offset ?? '0', 10), 0);
+
+    let q = db
+      .from('replies')
+      .select(`*, messages!replies_message_id_fkey(sender_name, body), groups!replies_group_id_fkey(name)`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (query.group_id) q = q.eq('group_id', query.group_id);
     if (query.flagged) q = q.eq('flagged_miss', true);

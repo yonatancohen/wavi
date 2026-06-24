@@ -34,20 +34,26 @@
 
     <!-- Activity feed -->
     <template v-else-if="variant === 'activity-list'">
-      <div class="rounded-xl border border-outline-variant bg-surface-container p-2">
-        <div v-for="i in count" :key="i" class="skeleton-card flex items-start gap-4 border-b border-outline-variant/30 p-4 last:border-0" :style="{ animationDelay: `${i * 60}ms` }">
-          <Skeleton circle class="h-10 w-10 shrink-0" />
-          <div class="min-w-0 flex-1 pt-0.5">
-            <div class="mb-3 flex items-center justify-between gap-3">
-              <Skeleton class="h-3.5 w-[108px] rounded-sm" />
-              <Skeleton class="h-2.5 w-10 rounded-sm" />
-            </div>
-            <Skeleton class="mb-2 h-3 w-[58%] rounded-sm" />
-            <Skeleton class="mb-1.5 h-3.5 w-full rounded-sm" />
-            <Skeleton class="mb-3 h-3.5 w-[92%] rounded-sm" />
-            <div class="flex gap-4">
-              <Skeleton class="h-2.5 w-11 rounded-sm" />
-              <Skeleton class="h-2.5 w-14 rounded-sm" />
+      <div class="rounded-xl border border-outline-variant bg-surface-container">
+        <div class="border-b border-outline-variant px-5 py-3">
+          <Skeleton class="h-3 w-16 rounded-sm" />
+        </div>
+        <div class="divide-y divide-on-surface/[0.04]">
+          <div v-for="i in count" :key="i" class="skeleton-card flex items-start gap-4 px-5 py-4" :style="{ animationDelay: `${i * 60}ms` }">
+            <Skeleton class="mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
+            <div class="min-w-0 flex-1 pt-0.5">
+              <div class="mb-2 flex items-center justify-between gap-3">
+                <Skeleton class="h-3.5 w-[96px] rounded-sm" />
+                <Skeleton class="h-2.5 w-10 rounded-sm" />
+              </div>
+              <Skeleton class="mb-2 h-3 w-[48%] rounded-sm" />
+              <Skeleton class="mb-1.5 h-3.5 w-full rounded-sm" />
+              <Skeleton class="mb-3 h-3.5 w-[88%] rounded-sm" />
+              <div class="flex gap-4">
+                <Skeleton class="h-2.5 w-12 rounded-sm" />
+                <Skeleton class="h-2.5 w-16 rounded-sm" />
+                <Skeleton class="h-5 w-20 rounded-full" />
+              </div>
             </div>
           </div>
         </div>
@@ -131,7 +137,7 @@ const rootClass = computed(() => {
     case 'dashboard-groups':
       return 'grid grid-cols-1 gap-4';
     case 'activity-list':
-      return 'space-y-6';
+      return '';
     case 'group-detail':
       return 'space-y-4';
     case 'discover-list':
