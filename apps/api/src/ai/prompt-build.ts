@@ -214,8 +214,16 @@ ${lines.join('\n')}`;
 }
 
 function buildWebSearchBlock(ctx: PromptContext): string {
+  if (!ctx.web_search_enabled) return '';
+
   const search = ctx.web_search;
-  if (!search?.results?.length && !search?.answer) return '';
+
+  const capability = `BLOCK — WEB SEARCH (enabled for this group)
+You can search the web for factual or current-information questions — current events, prices, weather, scores, news, etc.
+When someone asks a factual or time-sensitive question, you perform a live search and answer using the results.
+If asked whether you can search the web, say yes and offer to look something specific up.`;
+
+  if (!search?.results?.length && !search?.answer) return capability;
 
   const lines: string[] = [];
   if (search.answer) lines.push(`Summary: ${search.answer}`);
@@ -223,8 +231,9 @@ function buildWebSearchBlock(ctx: PromptContext): string {
     lines.push(`- ${r.title}: ${r.snippet} (${r.url})`);
   }
 
-  return `BLOCK — WEB SEARCH (live results for: "${search.query}")
-Use these for factual or current-info questions. Prefer this over guessing. Group history and memories still win for in-group context.
+  return `${capability}
+
+Live results for: "${search.query}"
 ${lines.join('\n')}`;
 }
 

@@ -1,25 +1,25 @@
 <template>
-  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-    <div class="mb-3 flex items-center gap-2">
+  <section class="rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+    <div class="mb-2 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-primary">link</span>
       <h2 class="font-sora text-[15px] font-semibold text-on-surface">
         {{ t('groupLink.title') }}
       </h2>
     </div>
 
-    <p class="mb-4 text-[13px] leading-relaxed text-on-surface-variant">
+    <p class="mb-3 text-[13px] leading-snug text-on-surface-variant">
       {{ group.is_draft ? t('groupLink.draftBody') : t('groupLink.linkedBody') }}
     </p>
 
-    <div v-if="actionError" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
+    <div v-if="actionError" class="mb-3 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-2.5 text-[13px] text-error">
       {{ actionError }}
     </div>
 
-    <div v-if="!group.is_draft" class="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+    <div v-if="!group.is_draft" class="mb-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
       <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
         {{ t('groupLink.linkedChat') }}
       </div>
-      <div class="mt-1 break-all font-mono text-[12px] text-on-surface">{{ group.wa_group_id }}</div>
+      <div class="mt-0.5 break-all font-mono text-[12px] text-on-surface">{{ group.wa_group_id }}</div>
     </div>
 
     <div v-if="group.is_draft" class="space-y-3">

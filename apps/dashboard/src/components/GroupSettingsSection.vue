@@ -45,7 +45,7 @@
           :disabled="savingWebSearch"
           @click="toggleWebSearch"
         >
-          <span class="absolute top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="webSearchEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
+          <span class="absolute left-0 top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="webSearchEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
         </button>
       </div>
       <p v-if="savingWebSearch" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
@@ -68,7 +68,7 @@
           :disabled="savingImage"
           @click="toggleImageGeneration"
         >
-          <span class="absolute top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="imageGenerationEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
+          <span class="absolute left-0 top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="imageGenerationEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
         </button>
       </div>
       <p v-if="savingImage" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>

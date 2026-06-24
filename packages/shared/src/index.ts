@@ -442,6 +442,7 @@ export interface PromptContext {
   resolved_display_names: Record<string, string>;
   quoted_message?: QuotedMessageContext | null;
   current_message: string;
+  web_search_enabled: boolean;
   web_search?: WebSearchContext | null;
   image_generation_enabled: boolean;
 }

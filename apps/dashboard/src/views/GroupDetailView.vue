@@ -82,21 +82,7 @@
           <div class="col-span-12">
             <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
           </div>
-          <div class="col-span-12">
-            <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-              <p class="text-[13px] leading-relaxed text-on-surface-variant">
-                {{
-                  t('groupDetail.setup.body', {
-                    live: t('groupDetail.setup.live'),
-                    mention: t('groupDetail.setup.mention'),
-                  })
-                }}
-              </p>
-              <p v-if="group.is_draft" class="mt-3 text-[13px] text-tertiary">
-                {{ t('groupDetail.setup.draftNotice') }}
-              </p>
-            </section>
-          </div>
+
           <div class="col-span-12 h-full lg:col-span-4">
             <GroupSettingsSection :group="group" @updated="onGroupUpdated" @rebuild-complete="onRebuildComplete" />
           </div>

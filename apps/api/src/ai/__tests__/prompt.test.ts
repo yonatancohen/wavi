@@ -33,6 +33,7 @@ function makeContext(overrides: Partial<PromptContext> = {}): PromptContext {
     recent_messages: [],
     resolved_display_names: {},
     current_message: 'hello',
+    web_search_enabled: false,
     image_generation_enabled: false,
     ...overrides,
   };
@@ -201,6 +202,7 @@ describe('buildSystemPrompt', () => {
         preset: 'custom',
         version: 1,
       },
+      web_search_enabled: true,
       web_search: {
         query: 'weather Tel Aviv',
         answer: 'Sunny and warm.',

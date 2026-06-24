@@ -111,7 +111,7 @@
               </p>
               <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
             </div>
-            <div class="sm:col-span-2">
+            <div>
               <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
                 <span class="text-on-surface">{{ t('character.slider.emoji_usage') }}</span>
                 <span class="shrink-0 font-medium text-on-surface-variant">
