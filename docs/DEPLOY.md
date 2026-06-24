@@ -32,7 +32,7 @@ cp apps/dashboard/.env.example apps/dashboard/.env
 ### 3. Create DB rows (includes `AGENT_ID`)
 
 ```bash
-./scripts/db-setup.sh
+bun run db:setup
 ```
 
 This writes `AGENT_ID` into `apps/api/.env`.
@@ -95,11 +95,13 @@ WhatsApp login must survive redeploys:
 
 ### Dashboard (`apps/dashboard/.env` → Vercel)
 
-| Variable                 | Required | Notes                                  |
-| ------------------------ | -------- | -------------------------------------- |
-| `VITE_API_URL`           | yes      | `https://<railway-domain>/api` in prod |
-| `VITE_SUPABASE_URL`      | yes      | Same as API                            |
-| `VITE_SUPABASE_ANON_KEY` | yes      | Public anon key only                   |
+| Variable                   | Required | Notes                                                           |
+| -------------------------- | -------- | --------------------------------------------------------------- |
+| `VITE_API_URL`             | yes      | `https://<railway-domain>/api` in prod                          |
+| `VITE_SUPABASE_URL`        | yes      | Same as API                                                     |
+| `VITE_SUPABASE_ANON_KEY`   | yes      | Public anon key only                                            |
+| `VITE_ALLOWED_OWNER_EMAIL` | yes      | Google email allowed to sign in (matches `ALLOWED_OWNER_EMAIL`) |
+| `VITE_AUTH_REQUIRED`       | prod     | Set `true` in production; `false` skips login for local dev     |
 
 ---
 
