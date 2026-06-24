@@ -10,6 +10,11 @@
       {{ t('rebuild.body') }}
     </p>
 
+    <label class="mb-4 flex cursor-pointer items-start gap-2 rounded-xl border border-outline-variant/60 bg-surface-variant/20 p-3">
+      <input v-model="fullReset" type="checkbox" class="mt-0.5" :disabled="rebuilding || streaming" />
+      <span class="text-[12px] leading-relaxed text-on-surface-variant">{{ t('rebuild.fullResetHint') }}</span>
+    </label>
+
     <button type="button" class="btn btn-primary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="rebuilding || streaming" @click="onRebuildClick">
       <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': rebuilding || streaming }">autorenew</span>
       {{ rebuilding || streaming ? t('rebuild.running') : t('rebuild.button') }}
@@ -75,6 +80,7 @@ const emit = defineEmits<{ complete: [] }>();
 const store = useGroupsStore();
 const rebuilding = ref(false);
 const rebuildError = ref<string | null>(null);
+const fullReset = ref(false);
 const { confirm } = useConfirm();
 
 const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
@@ -93,7 +99,7 @@ async function startRebuild() {
   rebuilding.value = true;
   rebuildError.value = null;
   try {
-    await store.rebuildGroup(props.groupId);
+    await store.rebuildGroup(props.groupId, fullReset.value);
     await startStream(() => emit('complete'));
   } catch (e) {
     rebuildError.value = e instanceof Error ? e.message : t('rebuild.failed');

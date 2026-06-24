@@ -28,14 +28,23 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
     const parts = req.files();
     let primaryRaw: string | null = null;
     let supplementalRaw: string | undefined;
+    let fullReset = false;
 
     for await (const part of parts) {
-      const buffer = await part.toBuffer();
-      const text = buffer.toString('utf-8');
-      if (part.fieldname === 'supplemental') {
-        supplementalRaw = text;
-      } else {
-        primaryRaw = text;
+      if (part.type === 'file') {
+        const buffer = await part.toBuffer();
+        const text = buffer.toString('utf-8');
+        if (part.fieldname === 'supplemental') {
+          supplementalRaw = text;
+        } else {
+          primaryRaw = text;
+        }
+        continue;
+      }
+
+      const value = (await part.toBuffer()).toString('utf-8').trim();
+      if (part.fieldname === 'full_reset') {
+        fullReset = value === 'true' || value === '1';
       }
     }
 
@@ -48,7 +57,7 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
       message: supplementalRaw ? 'Ingestion started with supplemental export alignment' : 'Ingestion started',
     });
 
-    runIngestionFromExport(groupId, primaryRaw, supplementalRaw).catch((err) => {
+    runIngestionFromExport(groupId, primaryRaw, supplementalRaw, { mode: fullReset ? 'full_reset' : 'merge' }).catch((err) => {
       console.error('[Ingest] Failed:', err);
     });
   });

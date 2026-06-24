@@ -275,7 +275,8 @@
     "body": "Regenerate member profiles, relationships, summaries, and character from stored messages — no new upload needed.",
     "button": "Rebuild / re-sync",
     "confirmTitle": "Rebuild intelligence?",
-    "confirm": "This will regenerate all member profiles, relationships, and character from stored messages. It may take a while.",
+    "confirm": "This will regenerate member profiles, relationships, and character from stored messages. Your manual name and summary edits are kept unless you choose full reset below.",
+    "fullResetHint": "Full reset — delete all members and relationships first, then rebuild from scratch (removes manual edits and merges).",
     "running": "Rebuilding…",
     "starting": "Starting rebuild…",
     "failed": "Rebuild failed"
@@ -445,7 +446,8 @@
     "chunks": "{count} chunks",
     "upload": "Start ingestion",
     "supplementalHint": "Optional: also upload an export from another group member's phone — overlapping messages will align names (e.g. \"Alon Arroyo\" = \"אלון\").",
-    "supplementalBrowse": "Choose second export…"
+    "supplementalBrowse": "Choose second export…",
+    "fullResetHint": "Full reset — wipe all members and relationships before ingesting (removes manual edits and merges). Leave unchecked to refresh while keeping your curation."
   },
   "members": {
     "title": "Member profiles",

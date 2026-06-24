@@ -41,6 +41,13 @@
       </div>
     </div>
 
+    <div class="mt-4 rounded-xl border border-outline-variant/60 bg-surface-variant/20 p-3">
+      <label class="flex cursor-pointer items-start gap-2">
+        <input v-model="fullReset" type="checkbox" class="mt-0.5" :disabled="uploading || streaming" />
+        <span class="text-[12px] leading-relaxed text-on-surface-variant">{{ t('ingest.fullResetHint') }}</span>
+      </label>
+    </div>
+
     <div class="mt-3 flex justify-end">
       <button type="button" class="btn btn-primary px-4 py-2 text-[12px]" :disabled="!primaryFile || uploading || streaming" @click="startUpload">
         {{ uploading ? t('ingest.starting') : t('ingest.upload') }}
@@ -106,6 +113,7 @@ const uploadError = ref<string | null>(null);
 const primaryFile = ref<File | null>(null);
 const supplementalFile = ref<File | null>(null);
 const includeSupplemental = ref(false);
+const fullReset = ref(false);
 
 const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
 
@@ -119,6 +127,9 @@ async function uploadFiles() {
   formData.append('file', primaryFile.value);
   if (includeSupplemental.value && supplementalFile.value) {
     formData.append('supplemental', supplementalFile.value);
+  }
+  if (fullReset.value) {
+    formData.append('full_reset', 'true');
   }
 
   try {

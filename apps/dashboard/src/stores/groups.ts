@@ -139,9 +139,10 @@ export const useGroupsStore = defineStore('groups', () => {
     return updated;
   }
 
-  async function rebuildGroup(groupId: string) {
+  async function rebuildGroup(groupId: string, fullReset = false) {
     return apiFetch<{ ok: boolean; message: string; total_messages: number }>(`/groups/${groupId}/rebuild`, {
       method: 'POST',
+      body: JSON.stringify({ full_reset: fullReset }),
     });
   }
 

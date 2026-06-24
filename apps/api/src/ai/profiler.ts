@@ -80,6 +80,7 @@ export async function profileUser(
   messages: ProfileMessage[],
   languageMode: LanguageMode = 'auto',
   preloadedAliases: string[] = [],
+  options?: { merge?: boolean },
 ): Promise<void> {
   if (messages.length < 5) return;
 
@@ -129,20 +130,29 @@ ${sample.slice(0, 2000)}`,
     const parsed = JSON.parse(clean) as UserProfileData & { behavioral_summary?: string };
     const aliases = mergeAliases(preloadedAliases, ...(parsed.aliases ?? []));
 
-    await upsertUserProfile({
-      group_id: groupId,
-      wa_user_id: waUserId,
-      display_name: displayName,
-      profile_data: { ...parsed, aliases },
-      behavioral_summary: parsed.behavioral_summary ?? '',
-      msg_count: messages.length,
-    });
+    await upsertUserProfile(
+      {
+        group_id: groupId,
+        wa_user_id: waUserId,
+        display_name: displayName,
+        profile_data: { ...parsed, aliases },
+        behavioral_summary: parsed.behavioral_summary ?? '',
+        msg_count: messages.length,
+      },
+      { merge: options?.merge },
+    );
   } catch {
     // Skip malformed profile
   }
 }
 
-export async function buildUserProfilesFromHistory(groupId: string, messages: ResolvedExportMessage[], languageMode: LanguageMode = 'auto', observedAliasesByPerson?: Map<string, string[]>) {
+export async function buildUserProfilesFromHistory(
+  groupId: string,
+  messages: ResolvedExportMessage[],
+  languageMode: LanguageMode = 'auto',
+  observedAliasesByPerson?: Map<string, string[]>,
+  options?: { merge?: boolean },
+) {
   const byUser: Record<string, { displayName: string; bodies: string[] }> = {};
   for (const msg of messages) {
     if (msg.is_system_message) continue;
@@ -164,6 +174,7 @@ export async function buildUserProfilesFromHistory(groupId: string, messages: Re
       bodies.map((body) => ({ body })),
       languageMode,
       allAliases,
+      options,
     );
   }
 }

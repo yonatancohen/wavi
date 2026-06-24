@@ -87,6 +87,7 @@ export async function buildRelationshipMap(
   messages: ResolvedExportMessage[] | HistoryMessage[],
   languageMode: LanguageMode = 'auto',
   aliasMap?: Map<string, string[]>,
+  options?: { merge?: boolean; pruneStale?: boolean },
 ): Promise<void> {
   const history: HistoryMessage[] = messages.length > 0 && 'observed_labels' in messages[0] ? toHistoryMessages(messages as ResolvedExportMessage[]) : (messages as HistoryMessage[]);
 
@@ -210,9 +211,40 @@ export async function buildRelationshipMap(
 
   if (rows.length === 0) return;
 
-  await db.from('relationship_map').upsert(rows, {
+  const lockedNarratives = new Map<string, { narrative: string; signals: RelationshipSignals }>();
+  if (options?.merge) {
+    const { data: existingRows } = await db.from('relationship_map').select('user_a_wa_id, user_b_wa_id, narrative, signals').eq('group_id', groupId);
+    for (const row of existingRows ?? []) {
+      const signals = (row.signals as RelationshipSignals | null) ?? ({} as RelationshipSignals);
+      if (signals.curation?.narrative_locked && row.narrative) {
+        lockedNarratives.set(pairKey(row.user_a_wa_id, row.user_b_wa_id), { narrative: row.narrative, signals });
+      }
+    }
+  }
+
+  const upsertRows = rows.map((pair) => {
+    const key = pairKey(pair.user_a_wa_id, pair.user_b_wa_id);
+    const locked = lockedNarratives.get(key);
+    if (!locked) return pair;
+    return {
+      ...pair,
+      narrative: locked.narrative,
+      signals: { ...pair.signals, curation: locked.signals.curation },
+    };
+  });
+
+  await db.from('relationship_map').upsert(upsertRows, {
     onConflict: 'group_id,user_a_wa_id,user_b_wa_id',
   });
+
+  if (options?.merge && options.pruneStale) {
+    const activeKeys = new Set(upsertRows.map((r) => pairKey(r.user_a_wa_id, r.user_b_wa_id)));
+    const { data: existing } = await db.from('relationship_map').select('id, user_a_wa_id, user_b_wa_id').eq('group_id', groupId);
+    const staleIds = (existing ?? []).filter((r) => !activeKeys.has(pairKey(r.user_a_wa_id, r.user_b_wa_id))).map((r) => r.id);
+    if (staleIds.length > 0) {
+      await db.from('relationship_map').delete().in('id', staleIds);
+    }
+  }
 }
 
 async function generateNarrativesBatch(

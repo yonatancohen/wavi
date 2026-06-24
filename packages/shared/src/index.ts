@@ -228,6 +228,12 @@ export interface MessagesPage {
 
 // ── User Profiles ────────────────────────────────────────────
 
+/** Dashboard edits preserved across merge-mode re-ingest. */
+export interface ProfileCuration {
+  display_name_locked?: boolean;
+  summary_locked?: boolean;
+}
+
 export interface UserProfileData {
   humor_type: HumorType;
   humor_score: number; // 0–100 how humorous they are
@@ -238,6 +244,7 @@ export interface UserProfileData {
   emoji_usage: 'heavy' | 'moderate' | 'rare' | 'none';
   avg_message_length: 'long' | 'medium' | 'short' | 'terse';
   aliases?: string[];
+  curation?: ProfileCuration;
 }
 
 export interface UserProfile {
@@ -253,12 +260,17 @@ export interface UserProfile {
 
 // ── Relationship Map ─────────────────────────────────────────
 
+export interface RelationshipCuration {
+  narrative_locked?: boolean;
+}
+
 export interface RelationshipSignals {
   reply_count_a_to_b: number;
   reply_count_b_to_a: number;
   agreement_count: number;
   disagreement_count: number;
   defense_count: number; // times one defended the other
+  curation?: RelationshipCuration;
 }
 
 export interface RelationshipPair {

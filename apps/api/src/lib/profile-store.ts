@@ -1,28 +1,32 @@
 import { db } from '../db/client.js';
-import type { UserProfileData } from '@wavi/shared';
+import { mergeProfileFromIngest, type UserProfileUpsertRow } from './profile-merge.js';
 
-export type UserProfileUpsertRow = {
-  group_id: string;
-  wa_user_id: string;
-  display_name: string;
-  profile_data: UserProfileData;
-  behavioral_summary: string;
-  msg_count: number;
+export type { UserProfileUpsertRow } from './profile-merge.js';
+
+export type UpsertUserProfileOptions = {
+  /** When true, merge aliases and preserve dashboard-locked fields instead of replacing. */
+  merge?: boolean;
 };
 
 /** Insert or update a profile for one group. Never reassigns rows across groups. */
-export async function upsertUserProfile(row: UserProfileUpsertRow): Promise<void> {
+export async function upsertUserProfile(row: UserProfileUpsertRow, options: UpsertUserProfileOptions = {}): Promise<void> {
   const now = new Date().toISOString();
-  const { data: existing } = await db.from('user_profiles').select('id').eq('group_id', row.group_id).eq('wa_user_id', row.wa_user_id).maybeSingle();
+  const { data: existing } = await db
+    .from('user_profiles')
+    .select('id, display_name, behavioral_summary, profile_data, msg_count')
+    .eq('group_id', row.group_id)
+    .eq('wa_user_id', row.wa_user_id)
+    .maybeSingle();
 
   if (existing) {
+    const merged = options.merge ? mergeProfileFromIngest(existing, row) : row;
     await db
       .from('user_profiles')
       .update({
-        display_name: row.display_name,
-        profile_data: row.profile_data,
-        behavioral_summary: row.behavioral_summary,
-        msg_count: row.msg_count,
+        display_name: merged.display_name,
+        profile_data: merged.profile_data,
+        behavioral_summary: merged.behavioral_summary,
+        msg_count: merged.msg_count,
         last_updated: now,
       })
       .eq('id', existing.id)
@@ -35,3 +39,5 @@ export async function upsertUserProfile(row: UserProfileUpsertRow): Promise<void
     last_updated: now,
   });
 }
+
+export { mergeProfileFromIngest } from './profile-merge.js';

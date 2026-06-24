@@ -10,6 +10,13 @@ import { resolveExportMessages, collectObservedAliasesByPerson, type ResolvedExp
 import { mergeAliases } from '../lib/identity.js';
 import type { IngestionProgress, LanguageMode, ParsedWAMessage } from '@wavi/shared';
 
+export type IngestionMode = 'merge' | 'full_reset';
+
+export type IngestionOptions = {
+  /** merge (default): keep members/relationships, refresh derived data. full_reset: wipe everything first. */
+  mode?: IngestionMode;
+};
+
 export async function setIngestionProgress(groupId: string, progress: Partial<IngestionProgress>) {
   const progressKey = `ingestion_progress:${groupId}`;
   await redis.setex(
@@ -37,6 +44,23 @@ async function purgeDerivedIntelligence(groupId: string, includeChunks: boolean)
     deletes.unshift(db.from('message_chunks').delete().eq('group_id', groupId));
   }
   await Promise.all(deletes);
+}
+
+/** Merge mode: rebuild RAG + summaries; keep curated member/relationship rows. */
+async function purgeMergeDerivedData(groupId: string) {
+  await Promise.all([
+    db.from('message_chunks').delete().eq('group_id', groupId),
+    db.from('episode_summaries').delete().eq('group_id', groupId),
+    db.from('group_contexts').delete().eq('group_id', groupId),
+  ]);
+}
+
+async function purgeForIngestion(groupId: string, mode: IngestionMode) {
+  if (mode === 'full_reset') {
+    await purgeDerivedIntelligence(groupId, true);
+    return;
+  }
+  await purgeMergeDerivedData(groupId);
 }
 
 function prepareResolvedMessages(
@@ -99,16 +123,17 @@ async function embedMessageChunks(groupId: string, realMessages: ResolvedExportM
   return chunksEmbedded;
 }
 
-async function runIntelligenceStages(groupId: string, realMessages: ResolvedExportMessage[], languageMode: LanguageMode, chunksEmbedded: number) {
+async function runIntelligenceStages(groupId: string, realMessages: ResolvedExportMessage[], languageMode: LanguageMode, chunksEmbedded: number, mode: IngestionMode) {
   const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
   const observedAliases = collectObservedAliasesByPerson(realMessages);
+  const merge = mode === 'merge';
 
   await setProgress({
     stage: 'profiling',
     processed_messages: realMessages.length,
     chunks_embedded: chunksEmbedded,
   });
-  await buildUserProfilesFromHistory(groupId, realMessages, languageMode, observedAliases);
+  await buildUserProfilesFromHistory(groupId, realMessages, languageMode, observedAliases, { merge });
 
   const episodeSummaries: string[] = [];
   for (let i = 0; i < realMessages.length; i += 100) {
@@ -128,7 +153,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   }
 
   await setProgress({ stage: 'relationships' });
-  await buildRelationshipMap(groupId, realMessages, languageMode, observedAliases);
+  await buildRelationshipMap(groupId, realMessages, languageMode, observedAliases, { merge, pruneStale: merge });
 
   await setProgress({ stage: 'context' });
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
@@ -176,9 +201,14 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   await setProgress({ stage: 'done' });
 }
 
-export async function runIngestionFromExport(groupId: string, raw: string, supplementalRaw?: string) {
+function resolveIngestionMode(options?: IngestionOptions): IngestionMode {
+  return options?.mode === 'full_reset' ? 'full_reset' : 'merge';
+}
+
+export async function runIngestionFromExport(groupId: string, raw: string, supplementalRaw?: string, options?: IngestionOptions) {
+  const mode = resolveIngestionMode(options);
   try {
-    await purgeDerivedIntelligence(groupId, true);
+    await purgeForIngestion(groupId, mode);
     await setIngestionProgress(groupId, { stage: 'parsing' });
 
     const { resolved, realCount } = prepareResolvedMessages(raw, supplementalRaw);
@@ -191,7 +221,7 @@ export async function runIngestionFromExport(groupId: string, raw: string, suppl
     const { data: groupMeta } = await db.from('groups').select('language_mode').eq('id', groupId).single();
     const languageMode = (groupMeta?.language_mode ?? 'he') as LanguageMode;
 
-    await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded);
+    await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded, mode);
   } catch (err: unknown) {
     console.error('[Ingest] Error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -248,7 +278,8 @@ export async function runSupplementalExportAlignment(groupId: string, supplement
   }
 }
 
-export async function runRebuildFromStoredMessages(groupId: string) {
+export async function runRebuildFromStoredMessages(groupId: string, options?: IngestionOptions) {
+  const mode = resolveIngestionMode(options);
   try {
     const { data: rows } = await db.from('messages').select('sender_name, sender_wa_id, body, timestamp').eq('group_id', groupId).eq('is_agent_reply', false).order('timestamp', { ascending: true });
 
@@ -268,7 +299,7 @@ export async function runRebuildFromStoredMessages(groupId: string) {
 
     const realMessages = resolveExportMessages(parsed).filter((m) => !m.is_system_message);
 
-    await purgeDerivedIntelligence(groupId, true);
+    await purgeForIngestion(groupId, mode);
     await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realMessages.length });
 
     const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
@@ -277,7 +308,7 @@ export async function runRebuildFromStoredMessages(groupId: string) {
     const { data: groupMeta } = await db.from('groups').select('language_mode').eq('id', groupId).single();
     const languageMode = (groupMeta?.language_mode ?? 'he') as LanguageMode;
 
-    await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded);
+    await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded, mode);
   } catch (err: unknown) {
     console.error('[Rebuild] Error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';

@@ -337,7 +337,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   // ── POST /:id/rebuild — regenerate intelligence from stored messages ──
   // Reuses the ingestion SSE progress stream (GET /api/ingest/:id/progress)
   // since rebuild writes to the same Redis progress key.
-  fastify.post<{ Params: { id: string } }>('/:id/rebuild', async (req, reply) => {
+  fastify.post<{ Params: { id: string }; Body: { full_reset?: boolean } }>('/:id/rebuild', async (req, reply) => {
     const { id } = req.params;
 
     const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
@@ -355,7 +355,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     reply.send({ ok: true, message: 'Rebuild started', total_messages: count });
 
-    runRebuildFromStoredMessages(id).catch((err) => {
+    runRebuildFromStoredMessages(id, { mode: req.body?.full_reset ? 'full_reset' : 'merge' }).catch((err) => {
       console.error('[Rebuild] Failed:', err);
     });
   });
@@ -471,6 +471,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       if (newName !== profile.display_name) {
         // Keep the previous label as an alias so Wavi still recognizes old references
         profileData.aliases = mergeAliases(getProfileAliases(profileData), profile.display_name ?? '').filter((a) => normalizeNameForMatch(a) !== normalizeNameForMatch(newName));
+        profileData.curation = { ...profileData.curation, display_name_locked: true };
         updates.profile_data = profileData;
       }
       updates.display_name = newName;
@@ -496,6 +497,8 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     if (body.behavioral_summary !== undefined) {
       updates.behavioral_summary = body.behavioral_summary.trim();
+      profileData.curation = { ...profileData.curation, summary_locked: true };
+      updates.profile_data = profileData;
     }
 
     const { data, error } = await db.from('user_profiles').update(updates).eq('id', req.params.profileId).select().single();
@@ -596,6 +599,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       .from('relationship_map')
       .update({
         narrative: req.body.narrative.trim(),
+        signals: {
+          ...((relationship.signals as Record<string, unknown>) ?? {}),
+          curation: { narrative_locked: true },
+        },
         last_updated: new Date().toISOString(),
       })
       .eq('id', req.params.relationshipId)
