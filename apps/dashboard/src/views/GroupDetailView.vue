@@ -1,7 +1,13 @@
 <template>
   <div class="flex flex-col bg-background">
     <template v-if="group && !loading && !error">
-      <GroupDetailOverview :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
+      <div class="border-b border-outline-variant bg-surface/95 px-margin-mobile py-3 backdrop-blur-md lg:hidden">
+        <GroupDetailStatusBar :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
+      </div>
+
+      <div class="border-b border-outline-variant px-margin-mobile py-4 lg:hidden">
+        <GroupDetailStatsGrid :group="group" />
+      </div>
 
       <nav class="group-tabs-mobile" role="tablist" :aria-label="group.name">
         <div class="group-tabs">
@@ -27,17 +33,24 @@
         {{ t('groupDetail.back') }}
       </RouterLink>
 
-      <div v-if="group" class="min-w-0">
-        <h1 class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
-          {{ group.name }}
-        </h1>
-        <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">
-          {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
-        </p>
+      <div v-if="group" class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h1 class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
+            {{ group.name }}
+          </h1>
+          <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">
+            {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
+          </p>
+        </div>
+        <GroupDetailStatusBar class="shrink-0" :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
       </div>
       <h1 v-else class="font-sora text-[18px] font-bold tracking-tight text-on-surface">
         {{ t('groupDetail.group') }}
       </h1>
+
+      <div v-if="group && !loading && !error" class="mt-4">
+        <GroupDetailStatsGrid :group="group" />
+      </div>
 
       <div v-if="group && !loading && !error" class="group-tabs-bar">
         <nav class="group-tabs" role="tablist" :aria-label="group.name">
@@ -136,7 +149,8 @@ import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
-import GroupDetailOverview from '../components/GroupDetailOverview.vue';
+import GroupDetailStatusBar from '../components/GroupDetailStatusBar.vue';
+import GroupDetailStatsGrid from '../components/GroupDetailStatsGrid.vue';
 import type { GroupWithStats } from '@wavi/shared';
 
 type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat';
