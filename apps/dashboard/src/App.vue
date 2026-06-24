@@ -5,7 +5,7 @@
   <!-- Login page renders without app chrome -->
   <RouterView v-else-if="isLoginRoute" />
 
-  <div v-else-if="isAuthenticated" class="flex h-screen overflow-hidden bg-background">
+  <div v-else-if="isAuthenticated" class="flex h-dvh overflow-hidden bg-background">
     <!-- Desktop sidebar -->
     <nav class="hidden h-full w-[240px] shrink-0 flex-col overflow-y-auto border-e border-outline-variant bg-surface-container-low lg:flex" :aria-label="t('nav.main')">
       <AppBrand />
