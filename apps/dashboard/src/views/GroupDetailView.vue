@@ -52,7 +52,7 @@
         <GroupDetailStatsGrid :group="group" />
       </div>
 
-      <div v-if="group && !loading && !error" class="group-tabs-bar">
+      <div v-if="group && !loading && !error" class="group-tabs-bar group-tabs-scroll">
         <nav class="group-tabs" role="tablist" :aria-label="group.name">
           <RouterLink
             v-for="tab in tabs"
