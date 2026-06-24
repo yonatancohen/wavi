@@ -9,41 +9,39 @@
       </p>
     </header>
 
+    <!-- Sticky filter bar -->
+    <div
+      v-if="!loading && !error"
+      class="sticky top-0 z-[5] flex flex-wrap items-center gap-3 border-b border-outline-variant px-margin-mobile py-2.5 lg:top-14 lg:px-margin-desktop"
+      style="background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent); backdrop-filter: blur(8px)"
+    >
+      <select
+        v-model="selectedGroupId"
+        class="h-9 rounded-xl border border-outline-variant bg-surface-variant/20 px-3 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+      >
+        <option value="">{{ t('activity.allGroups') }}</option>
+        <option v-for="group in groups" :key="group.id" :value="group.id">
+          {{ group.name }}
+        </option>
+      </select>
+
+      <label class="flex cursor-pointer items-center gap-2">
+        <input v-model="flaggedOnly" type="checkbox" class="rounded border-outline-variant" />
+        <span class="text-[13px] text-on-surface-variant">{{ t('activity.flaggedOnly') }}</span>
+      </label>
+      <HelpTooltip :title="t('activity.flaggedOnlyTooltipTitle')" :body="t('activity.flaggedOnlyTooltipBody')">
+        <button type="button" class="icon-btn !min-h-0 p-0.5 text-on-surface-variant/60" :aria-label="t('activity.flaggedOnlyTooltipTitle')">
+          <span class="material-symbols-outlined text-[16px]">help</span>
+        </button>
+      </HelpTooltip>
+
+      <button v-if="hasActiveFilters" type="button" class="btn btn-secondary !min-h-0 px-3 py-2 text-[12px]" @click="clearFilters">
+        {{ t('activity.clearFilters') }}
+      </button>
+    </div>
+
     <div class="page-content py-7">
       <ActiveFlowsIndicator v-if="activeFlowTotal > 0" class="mb-5" :total="activeFlowTotal" :flows="activeFlows" />
-
-      <div v-if="!loading && !error" class="mb-4 flex flex-wrap items-end gap-4 rounded-xl border border-outline-variant bg-surface-container p-4">
-        <div class="min-w-[12rem] flex-1 sm:max-w-xs">
-          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            {{ t('activity.filterGroup') }}
-          </label>
-          <select
-            v-model="selectedGroupId"
-            class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-          >
-            <option value="">{{ t('activity.allGroups') }}</option>
-            <option v-for="group in groups" :key="group.id" :value="group.id">
-              {{ group.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="flex items-center gap-1.5 pb-2.5">
-          <label class="flex cursor-pointer items-center gap-2">
-            <input v-model="flaggedOnly" type="checkbox" class="rounded border-outline-variant" />
-            <span class="text-[13px] text-on-surface-variant">{{ t('activity.flaggedOnly') }}</span>
-          </label>
-          <HelpTooltip :title="t('activity.flaggedOnlyTooltipTitle')" :body="t('activity.flaggedOnlyTooltipBody')">
-            <button type="button" class="icon-btn !min-h-0 p-0.5 text-on-surface-variant/60" :aria-label="t('activity.flaggedOnlyTooltipTitle')">
-              <span class="material-symbols-outlined text-[16px]">help</span>
-            </button>
-          </HelpTooltip>
-        </div>
-
-        <button v-if="hasActiveFilters" type="button" class="btn btn-secondary !min-h-0 px-3 py-2 text-[12px]" @click="clearFilters">
-          {{ t('activity.clearFilters') }}
-        </button>
-      </div>
 
       <LoadingSkeletons v-if="loading" variant="activity-list" :count="4" />
 
