@@ -18,6 +18,38 @@
       </div>
     </nav>
 
+    <!-- Mobile status + go live (desktop actions live in page-header below) -->
+    <div v-if="group && !loading && !error" class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface/95 px-margin-mobile py-3 lg:hidden">
+      <div class="flex flex-wrap items-center gap-2">
+        <span v-if="group.is_draft" class="badge shrink-0 px-2.5 py-1" :class="draftBadgeClass()">
+          {{ draftLabel(t) }}
+        </span>
+        <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
+          {{ statusLabel(group.status, t) }}
+        </span>
+      </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          v-if="group.status !== 'active'"
+          class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
+          :disabled="saving || group.is_draft"
+          :title="group.is_draft ? t('groupDetail.setup.linkBeforeLive') : undefined"
+          @click="goLive"
+        >
+          <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+          {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
+        </button>
+        <button v-if="group.status === 'active'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="pause">
+          <span class="material-symbols-outlined text-[16px]">pause</span>
+          {{ t('groupDetail.setup.pause') }}
+        </button>
+        <button v-if="group.status === 'paused'" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="goLive">
+          <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+          {{ t('groupDetail.setup.resume') }}
+        </button>
+      </div>
+    </div>
+
     <header class="page-header page-header--group sticky top-0 z-10 hidden lg:block">
       <RouterLink to="/groups" class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary">
         <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
