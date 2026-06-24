@@ -218,12 +218,11 @@ function buildWebSearchBlock(ctx: PromptContext): string {
 
   const search = ctx.web_search;
 
-  const capability = `BLOCK — WEB SEARCH (enabled for this group)
-You can search the web for factual or current-information questions — current events, prices, weather, scores, news, etc.
-When someone asks a factual or time-sensitive question, you perform a live search and answer using the results.
-If asked whether you can search the web, say yes and offer to look something specific up.`;
+  const noResultsBlock = `BLOCK — WEB SEARCH (enabled for this group)
+Searches are pre-fetched before you generate your reply — you cannot initiate a new search.
+No live results were retrieved for this message. Do NOT say you will "check", "search", or "look it up". Either answer from your own knowledge or say you don't have current data.`;
 
-  if (!search?.results?.length && !search?.answer) return capability;
+  if (!search?.results?.length && !search?.answer) return noResultsBlock;
 
   const lines: string[] = [];
   if (search.answer) lines.push(`Summary: ${search.answer}`);
@@ -231,9 +230,8 @@ If asked whether you can search the web, say yes and offer to look something spe
     lines.push(`- ${r.title}: ${r.snippet} (${r.url})`);
   }
 
-  return `${capability}
-
-Live results for: "${search.query}"
+  return `BLOCK — WEB SEARCH (live results already fetched — answer directly from these now)
+Query: "${search.query}"
 ${lines.join('\n')}`;
 }
 
