@@ -347,7 +347,8 @@
     "revertFlagTooltipBody": "Remove the miss mark if this reply was actually fine. It will no longer count as flagged.",
     "flagging": "Saving…",
     "failedFlag": "Failed to update flag",
-    "failedLoad": "Failed to load activity"
+    "failedLoad": "Failed to load activity",
+    "replyImageAlt": "Generated reply image"
   },
   "liveLog": {
     "title": "Live Log",
@@ -533,7 +534,13 @@
     "emptyReply": "(empty reply)",
     "failedLoadGroups": "Failed to load groups",
     "failedLoadMembers": "Failed to load members",
-    "failedSend": "Failed to generate reply"
+    "failedSend": "Failed to generate reply",
+    "imageRequested": "Image reply",
+    "previewImage": "Preview image",
+    "previewAgain": "Regenerate preview",
+    "previewLoading": "Generating…",
+    "previewFailed": "Image preview failed",
+    "previewAlt": "Generated image preview"
   },
   "loading": {
     "default": "Loading…",

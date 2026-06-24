@@ -108,6 +108,10 @@
 
               <p class="text-[13px] leading-relaxed text-on-surface">{{ item.body }}</p>
 
+              <div v-if="item.imageUrl" class="mt-2.5 overflow-hidden rounded-lg border border-outline-variant/60 bg-surface-variant/10">
+                <img :src="item.imageUrl" :alt="t('activity.replyImageAlt')" class="max-h-40 w-auto max-w-full object-contain" loading="lazy" />
+              </div>
+
               <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div class="flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
                   <span>{{ item.latency }}ms</span>
@@ -199,6 +203,7 @@ const items = computed(() =>
       id: reply.id,
       groupName,
       body: reply.body,
+      imageUrl: reply.image_url ?? null,
       trigger,
       triggerMessage: triggerMessage && triggerMessage.length > 120 ? `${triggerMessage.slice(0, 120)}…` : triggerMessage,
       time: formatRelativeTime(reply.created_at, locale.value),

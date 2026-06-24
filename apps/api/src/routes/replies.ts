@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/client.js';
+import { resolveReplyImageUrls } from '../lib/image-storage.js';
 
 export const healthRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async () => ({ ok: true, ts: new Date().toISOString() }));
@@ -21,11 +22,12 @@ export const repliesRoute: FastifyPluginAsync = async (fastify) => {
     if (query.flagged) q = q.eq('flagged_miss', true);
 
     const { data } = await q.throwOnError();
-    return data;
+    return resolveReplyImageUrls(data ?? []);
   });
 
   fastify.patch<{ Params: { id: string }; Body: { flagged_miss: boolean } }>('/:id/flag', async (req) => {
     const { data } = await db.from('replies').update({ flagged_miss: req.body.flagged_miss }).eq('id', req.params.id).select().single().throwOnError();
-    return data;
+    const [resolved] = await resolveReplyImageUrls([data]);
+    return resolved;
   });
 };

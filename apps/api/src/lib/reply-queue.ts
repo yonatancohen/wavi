@@ -24,6 +24,8 @@ export interface ReplyJob {
   reply_image_base64?: string;
   reply_image_mimetype?: string;
   reply_image_caption?: string;
+  /** Supabase Storage path after upload — reused on delivery retry. */
+  reply_image_storage_path?: string;
 }
 
 export async function queueReplyJob(params: {

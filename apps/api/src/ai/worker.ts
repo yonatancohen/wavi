@@ -6,6 +6,7 @@ import { formatImageMessageBody } from './image-reply.js';
 import { detectNegativeReaction, generateApology } from './recovery.js';
 import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.js';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
+import { uploadReplyImage } from '../lib/image-storage.js';
 import { isGroupReplyEnabled, type GroupStatus } from '@wavi/shared';
 import type { ReplyJob } from '../lib/reply-queue.js';
 import type { ReplyMedia } from '../whatsapp/provider.js';
@@ -81,6 +82,7 @@ async function processReplyJob(job: ReplyJob) {
     let replyText = job.reply_text?.trim() ?? '';
     let imageCaption = job.reply_image_caption ?? '';
     let media: ReplyMedia | undefined;
+    let imageStoragePath = job.reply_image_storage_path;
     let inputTokens = job.prompt_tokens ?? 0;
     let outputTokens = job.completion_tokens ?? 0;
 
@@ -124,6 +126,14 @@ async function processReplyJob(job: ReplyJob) {
       return;
     }
 
+    if (media && !imageStoragePath) {
+      try {
+        imageStoragePath = await uploadReplyImage(job.group_id, media.data, media.mimetype);
+      } catch (err) {
+        console.error('[ReplyWorker] Failed to persist reply image:', err);
+      }
+    }
+
     const latencyMs = Date.now() - startTime;
 
     try {
@@ -142,6 +152,7 @@ async function processReplyJob(job: ReplyJob) {
             reply_image_base64: media?.data.toString('base64'),
             reply_image_mimetype: media?.mimetype,
             reply_image_caption: imageCaption,
+            reply_image_storage_path: imageStoragePath,
             delivery_attempts: attempt,
           }),
         );
@@ -169,6 +180,7 @@ async function processReplyJob(job: ReplyJob) {
         prompt_tokens: inputTokens,
         completion_tokens: outputTokens,
         latency_ms: latencyMs,
+        ...(imageStoragePath ? { image_url: imageStoragePath } : {}),
       })
       .select('id')
       .single();

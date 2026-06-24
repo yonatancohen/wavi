@@ -327,6 +327,8 @@ export interface Reply {
   completion_tokens: number;
   latency_ms: number;
   flagged_miss: boolean;
+  /** Storage path in DB; API returns a signed URL when present. */
+  image_url?: string | null;
   created_at: string;
   // joined
   group_name?: string;
@@ -498,4 +500,13 @@ export interface TestReplyResponse {
   completion_tokens: number;
   image_prompt?: string;
   image_caption?: string;
+}
+
+export interface TestImagePreviewRequest {
+  prompt: string;
+}
+
+export interface TestImagePreviewResponse {
+  image_base64: string;
+  mimetype: string;
 }

@@ -8,6 +8,8 @@ import type {
   CostStats,
   TestReplyRequest,
   TestReplyResponse,
+  TestImagePreviewRequest,
+  TestImagePreviewResponse,
   UpdateMemberRequest,
   UpdateRelationshipRequest,
   MergeMembersRequest,
@@ -20,6 +22,7 @@ import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { generateReplyText } from '../ai/generate.js';
+import { generateImage } from '../ai/generate-image.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
@@ -389,6 +392,26 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     await recordTestChatUsage(inputTokens, outputTokens);
 
+    return result;
+  });
+
+  // On-demand DALL-E preview for test chat (no DB writes, no WhatsApp delivery)
+  fastify.post<{ Params: { id: string }; Body: TestImagePreviewRequest }>('/:id/preview-image', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id, image_generation_enabled').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+    if (!group.image_generation_enabled) {
+      return reply.code(403).send({ error: 'Image generation is not enabled for this group' });
+    }
+
+    const prompt = req.body?.prompt?.trim();
+    if (!prompt) return reply.code(400).send({ error: 'prompt is required' });
+
+    const image = await generateImage(prompt);
+    const result: TestImagePreviewResponse = {
+      image_base64: image.buffer.toString('base64'),
+      mimetype: image.mimetype,
+    };
     return result;
   });
 

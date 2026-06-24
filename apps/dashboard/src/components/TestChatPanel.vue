@@ -92,6 +92,33 @@
             >
               {{ turn.content }}
             </div>
+
+            <div v-if="turn.role === 'assistant' && turn.image_prompt" class="mt-1 w-full max-w-[min(100%,280px)] rounded-xl border border-outline-variant/70 bg-surface-variant/20 p-3">
+              <div class="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+                <span class="material-symbols-outlined text-[14px]">image</span>
+                {{ t('testChat.imageRequested') }}
+              </div>
+              <p v-if="turn.image_caption" class="mb-1.5 text-[12px] font-medium text-on-surface">{{ turn.image_caption }}</p>
+              <p class="mb-2.5 text-[11px] leading-relaxed text-on-surface-variant/80">{{ truncatePrompt(turn.image_prompt) }}</p>
+              <div v-if="turn.image_preview_base64" class="mb-2 overflow-hidden rounded-lg border border-outline-variant/60">
+                <img
+                  :src="`data:${turn.image_preview_mimetype ?? 'image/png'};base64,${turn.image_preview_base64}`"
+                  :alt="turn.image_caption || t('testChat.previewAlt')"
+                  class="max-h-48 w-full object-cover"
+                />
+              </div>
+              <p v-if="turn.image_preview_error" class="mb-2 text-[11px] text-error">{{ turn.image_preview_error }}</p>
+              <button type="button" class="btn btn-secondary !min-h-0 px-3 py-1.5 text-[11px]" :disabled="turn.image_preview_loading || !selectedGroupId" @click="previewImage(turn)">
+                <span v-if="turn.image_preview_loading" class="inline-flex items-center gap-1.5">
+                  <span class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                  {{ t('testChat.previewLoading') }}
+                </span>
+                <span v-else class="inline-flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[14px]">visibility</span>
+                  {{ turn.image_preview_base64 ? t('testChat.previewAgain') : t('testChat.previewImage') }}
+                </span>
+              </button>
+            </div>
           </div>
         </article>
 
@@ -130,7 +157,7 @@ import { storeToRefs } from 'pinia';
 import { useGroupsStore } from '../stores/groups';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
-import type { TestReplyHistoryTurn, TestReplyRequest, TestReplyResponse, UserProfile } from '@wavi/shared';
+import type { TestImagePreviewRequest, TestImagePreviewResponse, TestReplyHistoryTurn, TestReplyRequest, TestReplyResponse, UserProfile } from '@wavi/shared';
 
 interface TestChatTurn {
   id: string;
@@ -140,6 +167,12 @@ interface TestChatTurn {
   latency_ms?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
+  image_prompt?: string;
+  image_caption?: string;
+  image_preview_base64?: string;
+  image_preview_mimetype?: string;
+  image_preview_loading?: boolean;
+  image_preview_error?: string;
 }
 
 const props = withDefaults(
@@ -219,6 +252,32 @@ const activeSender = computed(() => {
 
 function turnId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function truncatePrompt(prompt: string, max = 120) {
+  return prompt.length > max ? `${prompt.slice(0, max)}…` : prompt;
+}
+
+async function previewImage(turn: TestChatTurn) {
+  if (!selectedGroupId.value || !turn.image_prompt || turn.image_preview_loading) return;
+
+  turn.image_preview_loading = true;
+  turn.image_preview_error = undefined;
+
+  try {
+    const body: TestImagePreviewRequest = { prompt: turn.image_prompt };
+    const result = await apiFetch<TestImagePreviewResponse>(`/groups/${selectedGroupId.value}/preview-image`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    turn.image_preview_base64 = result.image_base64;
+    turn.image_preview_mimetype = result.mimetype;
+  } catch (e) {
+    turn.image_preview_error = e instanceof Error ? e.message : t('testChat.previewFailed');
+  } finally {
+    turn.image_preview_loading = false;
+    scrollToBottom();
+  }
 }
 
 function scrollToBottom() {
@@ -327,6 +386,7 @@ async function sendMessage() {
       latency_ms: result.latency_ms,
       prompt_tokens: result.prompt_tokens,
       completion_tokens: result.completion_tokens,
+      ...(result.image_prompt ? { image_prompt: result.image_prompt, image_caption: result.image_caption } : {}),
     });
   } catch (e) {
     sendError.value = e instanceof Error ? e.message : t('testChat.failedSend');

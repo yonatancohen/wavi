@@ -142,6 +142,7 @@ CREATE TABLE replies (
   completion_tokens int,
   latency_ms        int,
   flagged_miss      boolean DEFAULT false,
+  image_url         text,
   created_at        timestamptz DEFAULT now()
 );
 CREATE INDEX idx_replies_group ON replies (group_id, created_at DESC);

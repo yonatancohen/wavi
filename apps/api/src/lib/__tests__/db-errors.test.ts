@@ -10,6 +10,14 @@ describe('friendlyDbError', () => {
     expect(msg).toContain('ALTER TABLE groups');
   });
 
+  it('explains missing image_url column', () => {
+    const msg = friendlyDbError({
+      message: "Could not find the 'image_url' column of 'replies' in the schema cache",
+    });
+    expect(msg).toContain('image_url');
+    expect(msg).toContain('20250624_reply_image_url.sql');
+  });
+
   it('explains agent/group mismatch', () => {
     const msg = friendlyDbError({ message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' });
     expect(msg).toContain('AGENT_ID');

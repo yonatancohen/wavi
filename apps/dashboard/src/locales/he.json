@@ -347,7 +347,8 @@
     "revertFlagTooltipBody": "הסר את סימון ההחמצה אם התשובה הייתה בסדר. היא לא תיספר עוד כמסומנת.",
     "flagging": "שומר…",
     "failedFlag": "עדכון הסימון נכשל",
-    "failedLoad": "טעינת הפעילות נכשלה"
+    "failedLoad": "טעינת הפעילות נכשלה",
+    "replyImageAlt": "תמונה שנוצרה בתשובה"
   },
   "liveLog": {
     "title": "לוג חי",
@@ -533,7 +534,13 @@
     "emptyReply": "(תשובה ריקה)",
     "failedLoadGroups": "טעינת קבוצות נכשלה",
     "failedLoadMembers": "טעינת חברים נכשלה",
-    "failedSend": "יצירת תשובה נכשלה"
+    "failedSend": "יצירת תשובה נכשלה",
+    "imageRequested": "תשובת תמונה",
+    "previewImage": "תצוגה מקדימה",
+    "previewAgain": "יצירה מחדש",
+    "previewLoading": "יוצר…",
+    "previewFailed": "תצוגה מקדימה נכשלה",
+    "previewAlt": "תצוגה מקדימה של תמונה שנוצרה"
   },
   "loading": {
     "default": "טוען…",

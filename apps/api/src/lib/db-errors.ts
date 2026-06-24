@@ -3,13 +3,18 @@ export function friendlyDbError(error: { message?: string; code?: string }): str
   const msg = error.message ?? 'Database error';
   const code = error.code ?? '';
 
-  if (msg.includes('image_generation_enabled') || code === 'PGRST204') {
+  if (msg.includes('image_generation_enabled') || msg.includes('image_url') || code === 'PGRST204') {
     if (msg.includes('image_generation_enabled')) {
       return (
         'Database schema missing groups.image_generation_enabled (or API cache is stale). ' +
         'In Supabase SQL editor run: ALTER TABLE groups ADD COLUMN IF NOT EXISTS image_generation_enabled boolean NOT NULL DEFAULT false; ' +
         "NOTIFY pgrst, 'reload schema'; " +
         'Then in Supabase Dashboard → Project Settings → API → Reload schema.'
+      );
+    }
+    if (msg.includes('image_url')) {
+      return (
+        'Database schema missing replies.image_url (or API cache is stale). ' + 'Run migration supabase/migrations/20250624_reply_image_url.sql in Supabase SQL editor, then reload the API schema.'
       );
     }
   }
