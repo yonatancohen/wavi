@@ -11,6 +11,7 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
       meta: { public: true },
     },
+    { path: '/dashboard', redirect: { name: 'dashboard' } },
     { path: '/', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
     { path: '/groups', name: 'groups', component: () => import('../views/GroupsView.vue') },
     { path: '/groups/:id', name: 'group', component: () => import('../views/GroupDetailView.vue') },

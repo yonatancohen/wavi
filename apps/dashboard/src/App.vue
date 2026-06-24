@@ -3,7 +3,7 @@
   <div v-if="!authReady" class="min-h-screen bg-background" />
 
   <!-- Login page renders without app chrome -->
-  <RouterView v-else-if="isLoginRoute" />
+  <RouterView v-else-if="showLoginPage" />
 
   <div v-else-if="isAuthenticated" class="flex h-svh overflow-hidden bg-background lg:h-dvh">
     <!-- Desktop sidebar -->
@@ -191,6 +191,7 @@ import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from './components/AgentStatusBadge.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import { agentNavItems, isNavActive, mobileQuickNavItems, overviewNavItems } from './lib/nav-items';
+import { loginRedirectTarget } from './lib/login-redirect';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -211,6 +212,16 @@ const settingsOpen = ref(false);
 const navMenuOpen = ref(false);
 
 const isLoginRoute = computed(() => route.path === '/login');
+const showLoginPage = computed(() => isLoginRoute.value && !isAuthenticated.value);
+
+watch(
+  () => [authReady.value, isAuthenticated.value, route.path, route.query.redirect] as const,
+  ([ready, authed, path, redirect]) => {
+    if (!ready || !authed || path !== '/login') return;
+    void router.replace(loginRedirectTarget(redirect));
+  },
+  { immediate: true },
+);
 
 async function handleSignOut() {
   settingsOpen.value = false;
