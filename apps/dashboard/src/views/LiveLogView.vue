@@ -9,7 +9,7 @@
           {{ t('liveLog.subtitle') }}
         </p>
       </div>
-      <button type="button" class="btn btn-secondary !min-h-0 ms-auto shrink-0 px-3 py-2 text-[12px]" :disabled="loading" @click="refresh">
+      <button type="button" class="btn btn-secondary ms-auto flex shrink-0 items-center gap-2" :disabled="loading" @click="refresh">
         <span class="material-symbols-outlined text-[16px]" :class="loading ? 'animate-spin' : ''">refresh</span>
         {{ t('liveLog.refresh') }}
       </button>
