@@ -1,5 +1,6 @@
 import type { FastifyRequest } from 'fastify';
 import { db } from '../db/client.js';
+import { isOwnerEmail } from './allowed-owner.js';
 
 export type AuthUser = {
   id: string;
@@ -16,6 +17,7 @@ export async function verifyBearerToken(authHeader: string | undefined): Promise
   const token = authHeader.slice(7);
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) return null;
+  if (!isOwnerEmail(data.user.email)) return null;
 
   return { id: data.user.id, email: data.user.email };
 }

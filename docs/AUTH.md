@@ -61,6 +61,24 @@ Open [http://localhost:5173](http://localhost:5173) — you should be redirected
 
 ---
 
+## Restrict to your Google account only
+
+Wavi is single-owner. Set your Google email in both env files:
+
+```env
+# apps/api/.env
+ALLOWED_OWNER_EMAIL=you@gmail.com
+
+# apps/dashboard/.env
+VITE_ALLOWED_OWNER_EMAIL=you@gmail.com
+```
+
+Anyone else who completes Google OAuth is signed out immediately and sees "Access denied." When `AUTH_REQUIRED=true`, the API also rejects their JWT.
+
+Use the **exact email** on your Google account (check at [myaccount.google.com](https://myaccount.google.com)).
+
+---
+
 ## Production hardening
 
 After OAuth works end-to-end:

@@ -28,7 +28,8 @@
     "signingIn": "Signing in…",
     "signOut": "Sign out",
     "privacyNote": "Only you can access your dashboard. We never share your data.",
-    "sessionExpired": "Your session expired. Please sign in again."
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "accessDenied": "Access denied. This dashboard is restricted to the owner account."
   },
   "status": {
     "connected": "Connected",

@@ -16,8 +16,8 @@
             </p>
           </div>
 
-          <div v-if="error" class="mb-5 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
-            {{ error }}
+          <div v-if="errorMessage" class="mb-5 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
+            {{ errorMessage }}
           </div>
 
           <button type="button" class="btn-google w-full" :disabled="signingIn" @click="signInWithGoogle">
@@ -54,7 +54,7 @@
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useTheme } from '../composables/useTheme';
 import { useLocale } from '../composables/useLocale';
 import { useAuthStore } from '../stores/auth';
@@ -63,10 +63,15 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const { signingIn, error, isAuthenticated } = storeToRefs(authStore);
+const { signingIn, error, errorCode, isAuthenticated } = storeToRefs(authStore);
 const { signInWithGoogle } = authStore;
 const { mode, cycleMode } = useTheme();
 const { locale, toggleLocale } = useLocale();
+
+const errorMessage = computed(() => {
+  if (errorCode.value === 'accessDenied') return t('auth.accessDenied');
+  return error.value;
+});
 
 watch(
   isAuthenticated,
