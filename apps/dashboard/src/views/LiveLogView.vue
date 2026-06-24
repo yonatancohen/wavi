@@ -1,30 +1,21 @@
 <template>
   <div class="flex min-h-screen flex-col bg-background">
-    <header class="page-header hidden lg:block">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">
-            {{ t('liveLog.title') }}
-          </h1>
-          <p class="mt-0.5 text-[12px] text-on-surface-variant">
-            {{ t('liveLog.subtitle') }}
-          </p>
-        </div>
-        <button type="button" class="btn btn-secondary !min-h-0 shrink-0 px-3 py-2 text-[12px]" :disabled="loading" @click="refresh">
-          <span class="material-symbols-outlined text-[16px]" :class="loading ? 'animate-spin' : ''">refresh</span>
-          {{ t('liveLog.refresh') }}
-        </button>
+    <header class="page-header flex min-h-14 items-center justify-between gap-4">
+      <div class="hidden min-w-0 lg:block">
+        <h1 class="font-sora text-[15px] font-bold tracking-tight text-on-surface">
+          {{ t('liveLog.title') }}
+        </h1>
+        <p class="mt-0.5 text-[12px] text-on-surface-variant">
+          {{ t('liveLog.subtitle') }}
+        </p>
       </div>
+      <button type="button" class="btn btn-secondary !min-h-0 ms-auto shrink-0 px-3 py-2 text-[12px]" :disabled="loading" @click="refresh">
+        <span class="material-symbols-outlined text-[16px]" :class="loading ? 'animate-spin' : ''">refresh</span>
+        {{ t('liveLog.refresh') }}
+      </button>
     </header>
 
     <div class="page-content py-7">
-      <div class="mb-4 flex items-center justify-end lg:hidden">
-        <button type="button" class="btn btn-secondary !min-h-0 px-3 py-2 text-[12px]" :disabled="loading" @click="refresh">
-          <span class="material-symbols-outlined text-[16px]" :class="loading ? 'animate-spin' : ''">refresh</span>
-          {{ t('liveLog.refresh') }}
-        </button>
-      </div>
-
       <div class="mb-5 rounded-xl border border-outline-variant bg-surface-container p-4">
         <div class="flex items-start gap-3">
           <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" :class="status.iconBg">
