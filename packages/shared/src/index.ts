@@ -11,6 +11,17 @@ export function isGroupReplyEnabled(status: GroupStatus): boolean {
   return status === 'active';
 }
 
+export const DRAFT_GROUP_PREFIX = 'draft:';
+
+/** Placeholder wa_group_id for groups prepared before Wavi joins WhatsApp. */
+export function isDraftGroup(waGroupId: string): boolean {
+  return waGroupId.startsWith(DRAFT_GROUP_PREFIX);
+}
+
+export function createDraftWaGroupId(): string {
+  return `${DRAFT_GROUP_PREFIX}${crypto.randomUUID()}`;
+}
+
 export type LanguageMode = 'auto' | 'he' | 'en' | 'ar' | 'es' | 'fr' | 'ru';
 
 export type HumorType = 'sarcastic' | 'absurdist' | 'self-deprecating' | 'dad-jokes' | 'dry' | 'none';
@@ -109,6 +120,7 @@ export interface Group {
 }
 
 export interface GroupWithStats extends Group {
+  is_draft: boolean;
   member_count: number;
   message_count_today: number;
   reply_count_today: number;
@@ -116,6 +128,15 @@ export interface GroupWithStats extends Group {
 }
 
 export interface CreateGroupRequest {
+  wa_group_id: string;
+  name?: string;
+}
+
+export interface CreateDraftGroupRequest {
+  name: string;
+}
+
+export interface LinkGroupRequest {
   wa_group_id: string;
   name?: string;
 }

@@ -30,14 +30,23 @@
             {{ group.name }}
           </h1>
           <p class="mt-1 truncate font-mono text-[10px] text-on-surface-variant/50">
-            {{ group.wa_group_id }}
+            {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <span v-if="group.is_draft" class="badge shrink-0 px-2.5 py-1" :class="draftBadgeClass()">
+            {{ draftLabel(t) }}
+          </span>
           <span class="badge shrink-0 px-2.5 py-1" :class="statusBadgeClass(group.status)">
             {{ statusLabel(group.status, t) }}
           </span>
-          <button v-if="group.status !== 'active'" class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="goLive">
+          <button
+            v-if="group.status !== 'active'"
+            class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
+            :disabled="saving || group.is_draft"
+            :title="group.is_draft ? t('groupDetail.setup.linkBeforeLive') : undefined"
+            @click="goLive"
+          >
             <span class="material-symbols-outlined text-[16px]">play_arrow</span>
             {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
           </button>
@@ -98,6 +107,9 @@
       <template v-else-if="group">
         <div v-show="activeTab === 'setup'" class="bento-grid items-stretch">
           <div class="col-span-12">
+            <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
+          </div>
+          <div class="col-span-12">
             <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
               <p class="text-[13px] leading-relaxed text-on-surface-variant">
                 {{
@@ -106,6 +118,9 @@
                     mention: t('groupDetail.setup.mention'),
                   })
                 }}
+              </p>
+              <p v-if="group.is_draft" class="mt-3 text-[13px] text-tertiary">
+                {{ t('groupDetail.setup.draftNotice') }}
               </p>
             </section>
           </div>
@@ -152,7 +167,8 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
-import { statusBadgeClass, statusLabel } from '../lib/ui';
+import { statusBadgeClass, statusLabel, draftBadgeClass, draftLabel } from '../lib/ui';
+import GroupWhatsAppLink from '../components/GroupWhatsAppLink.vue';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import IngestUpload from '../components/IngestUpload.vue';
 import GroupSettingsSection from '../components/GroupSettingsSection.vue';

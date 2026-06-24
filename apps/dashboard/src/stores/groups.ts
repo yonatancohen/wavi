@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { apiFetch } from '../lib/api';
-import type { GroupWithStats, CharacterConfig, DiscoveredWaGroup, CreateGroupRequest } from '@wavi/shared';
+import type { GroupWithStats, CharacterConfig, DiscoveredWaGroup, CreateGroupRequest, CreateDraftGroupRequest, LinkGroupRequest } from '@wavi/shared';
 
 export const useGroupsStore = defineStore('groups', () => {
   const groups = ref<GroupWithStats[]>([]);
@@ -73,6 +73,38 @@ export const useGroupsStore = defineStore('groups', () => {
     }
   }
 
+  async function createDraftGroup(payload: CreateDraftGroupRequest) {
+    error.value = null;
+    const group = await apiFetch<GroupWithStats>('/groups/draft', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    groups.value.unshift(group);
+    return group;
+  }
+
+  async function linkGroup(groupId: string, payload: LinkGroupRequest) {
+    const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}/link`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    replaceGroup(updated);
+    return updated;
+  }
+
+  async function unlinkGroup(groupId: string) {
+    const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}/unlink`, {
+      method: 'POST',
+    });
+    replaceGroup(updated);
+    return updated;
+  }
+
+  function replaceGroup(updated: GroupWithStats) {
+    const idx = groups.value.findIndex((g) => g.id === updated.id);
+    if (idx !== -1) groups.value[idx] = updated;
+  }
+
   async function updateCharacter(groupId: string, config: CharacterConfig) {
     const updated = await apiFetch<GroupWithStats>(`/groups/${groupId}`, {
       method: 'PATCH',
@@ -116,6 +148,9 @@ export const useGroupsStore = defineStore('groups', () => {
     fetchGroup,
     discoverGroups,
     registerGroup,
+    createDraftGroup,
+    linkGroup,
+    unlinkGroup,
     updateCharacter,
     setStatus,
     patchGroup,

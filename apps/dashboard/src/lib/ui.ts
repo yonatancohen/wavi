@@ -7,6 +7,10 @@ export function statusLabel(status: GroupStatus, t?: (key: string) => string): s
   return 'Setup';
 }
 
+export function draftLabel(t?: (key: string) => string): string {
+  return t ? t('status_label.draft') : 'Draft';
+}
+
 export function statusBadgeClass(status: GroupStatus) {
   const map: Record<GroupStatus, string> = {
     active: 'bg-primary/10 text-primary border border-primary/20',
@@ -14,6 +18,10 @@ export function statusBadgeClass(status: GroupStatus) {
     paused: 'bg-error/10 text-error border border-error/20',
   };
   return map[status];
+}
+
+export function draftBadgeClass() {
+  return 'bg-tertiary/10 text-tertiary border border-tertiary/20';
 }
 
 export function formatRelativeTime(iso: string, locale = 'en'): string {

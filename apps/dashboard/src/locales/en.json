@@ -140,10 +140,20 @@
     "title": "Groups",
     "subtitle": "Register WhatsApp groups where Wavi should listen and reply",
     "addFromWhatsapp": "Add from WhatsApp",
+    "createDraft": "Create draft",
+    "createDraftTitle": "Create draft group",
+    "createDraftSubtitle": "Prepare history and character before Wavi joins the WhatsApp chat.",
+    "createDraftName": "Group name",
+    "createDraftPlaceholder": "e.g. Friday Night Crew",
+    "createDraftConfirm": "Create draft",
+    "createDraftSaving": "Creating…",
+    "cancel": "Cancel",
+    "draftHint": "Draft — not linked to WhatsApp yet",
     "loading": "Loading…",
     "empty": {
       "title": "No groups registered yet",
-      "body": "Connect WhatsApp, then add a group you're already in so Wavi knows where to show up.",
+      "body": "Create a draft to prepare from chat history, or add a group from WhatsApp when Wavi is already in the chat.",
+      "createDraft": "Create draft",
       "cta": "Add from WhatsApp"
     },
     "discover": {
@@ -160,7 +170,26 @@
     },
     "failedLoad": "Failed to load groups",
     "failedDiscover": "Failed to load groups",
-    "failedRegister": "Failed to register group"
+    "failedRegister": "Failed to register group",
+    "failedCreateDraft": "Failed to create draft group"
+  },
+  "groupLink": {
+    "title": "WhatsApp connection",
+    "draftBody": "This group is a draft. Upload history and tune the character now, then link it when Wavi joins the real WhatsApp chat.",
+    "linkedBody": "Wavi listens and replies in this WhatsApp group. Live messages flow in after you go live.",
+    "linkedChat": "Linked chat",
+    "connect": "Connect to WhatsApp",
+    "loadingChats": "Loading chats…",
+    "unlink": "Unlink from WhatsApp",
+    "unlinking": "Unlinking…",
+    "unlinkBlocked": "Unlink is only available while the group is still in setup.",
+    "pickerTitle": "Connect to WhatsApp group",
+    "pickerSubtitle": "Pick the chat where Wavi is already a member",
+    "pickerEmpty": "No unlinked group chats found. Add Wavi to the group first.",
+    "link": "Link",
+    "linking": "Linking…",
+    "failedLink": "Failed to link group",
+    "failedUnlink": "Failed to unlink group"
   },
   "groupDetail": {
     "back": "Groups",
@@ -186,7 +215,9 @@
       "goLive": "Go Live",
       "pause": "Pause",
       "resume": "Resume",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "linkBeforeLive": "Connect this group to WhatsApp before going live.",
+      "draftNotice": "Go Live is disabled until you connect this draft to a WhatsApp group."
     },
     "nextSteps": {
       "title": "Next steps",
@@ -441,6 +472,7 @@
   "status_label": {
     "active": "Live",
     "paused": "Paused",
-    "pending_setup": "Setup"
+    "pending_setup": "Setup",
+    "draft": "Draft"
   }
 }
