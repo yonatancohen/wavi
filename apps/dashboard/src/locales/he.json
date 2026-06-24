@@ -200,6 +200,8 @@
     "stats": {
       "messagesToday": "הודעות היום",
       "repliesToday": "תשובות היום",
+      "members": "חברים",
+      "profiles": "פרופילים",
       "status": "סטטוס"
     },
     "tabs": {
@@ -405,6 +407,7 @@
   },
   "members": {
     "title": "פרופילי חברים",
+    "profileCount": "{count} פרופילים נוצרו",
     "empty": "פרופילי חברים יופיעו לאחר העלאת היסטוריית הצ'אט",
     "failedLoad": "טעינת החברים נכשלה",
     "failedSave": "שמירת החבר נכשלה",

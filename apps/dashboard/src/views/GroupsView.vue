@@ -89,7 +89,15 @@
               {{ group.is_draft ? t('groups.draftHint') : group.wa_group_id }}
             </div>
 
-            <div class="flex gap-4 font-mono text-[11px] text-on-surface-variant">
+            <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-on-surface-variant">
+              <span v-if="group.member_count != null" class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[12px]">group</span>
+                {{ t('groups.discover.members', { count: group.member_count }) }}
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[12px]">person</span>
+                {{ t('members.profileCount', { count: group.profile_count }) }}
+              </span>
               <span class="flex items-center gap-1">
                 <span class="material-symbols-outlined text-[12px]">chat</span>
                 {{ group.message_count_today }}

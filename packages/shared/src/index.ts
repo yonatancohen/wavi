@@ -121,7 +121,10 @@ export interface Group {
 
 export interface GroupWithStats extends Group {
   is_draft: boolean;
-  member_count: number;
+  /** WhatsApp group participants when linked; null for drafts or when WA is unavailable. */
+  member_count: number | null;
+  /** Member profiles Wavi has built for this group. */
+  profile_count: number;
   message_count_today: number;
   reply_count_today: number;
   last_activity: string | null;

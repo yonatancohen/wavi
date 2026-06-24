@@ -30,15 +30,36 @@ function getAgentId(): string {
   return id;
 }
 
-function mapGroupRow(row: Record<string, unknown>): GroupWithStats {
+const GROUP_STATS_SELECT = `
+  *,
+  message_count_today:messages(count),
+  reply_count_today:replies(count),
+  profile_count:user_profiles(count)
+`;
+
+async function getParticipantCountMap(): Promise<Map<string, number | null>> {
+  try {
+    const waGroups = await listGroupChats();
+    return new Map(waGroups.map((g) => [g.wa_group_id, g.participant_count]));
+  } catch {
+    return new Map();
+  }
+}
+
+function mapGroupRow(row: Record<string, unknown>, participantCounts?: Map<string, number | null>): GroupWithStats {
   const msgCount = row.message_count_today as { count: number }[] | undefined;
   const replyCount = row.reply_count_today as { count: number }[] | undefined;
-  const { message_count_today: _m, reply_count_today: _r, ...rest } = row;
+  const profileCount = row.profile_count as { count: number }[] | undefined;
+  const { message_count_today: _m, reply_count_today: _r, profile_count: _p, ...rest } = row;
   const waGroupId = String(rest.wa_group_id ?? '');
+  const isDraft = isDraftGroup(waGroupId);
+  const memberCount = isDraft ? null : (participantCounts?.get(waGroupId) ?? null);
+
   return {
     ...(rest as unknown as Group),
-    is_draft: isDraftGroup(waGroupId),
-    member_count: 0,
+    is_draft: isDraft,
+    member_count: memberCount,
+    profile_count: profileCount?.[0]?.count ?? 0,
     message_count_today: msgCount?.[0]?.count ?? 0,
     reply_count_today: replyCount?.[0]?.count ?? 0,
     last_activity: null,
@@ -58,19 +79,11 @@ function mapTestHistoryToExtraTurns(history: TestReplyRequest['history']) {
 // ── Groups route ─────────────────────────────────────────────
 export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async () => {
-    const { data } = await db
-      .from('groups')
-      .select(
-        `
-        *,
-        message_count_today:messages(count),
-        reply_count_today:replies(count)
-      `,
-      )
-      .eq('agent_id', getAgentId())
-      .order('created_at', { ascending: false })
-      .throwOnError();
-    return (data ?? []).map(mapGroupRow);
+    const [{ data }, participantCounts] = await Promise.all([
+      db.from('groups').select(GROUP_STATS_SELECT).eq('agent_id', getAgentId()).order('created_at', { ascending: false }).throwOnError(),
+      getParticipantCountMap(),
+    ]);
+    return (data ?? []).map((row) => mapGroupRow(row, participantCounts));
   });
 
   // Must be registered before /:id
@@ -230,8 +243,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req) => {
-    const { data } = await db.from('groups').select('*').eq('id', req.params.id).eq('agent_id', getAgentId()).single().throwOnError();
-    return mapGroupRow(data);
+    const [{ data }, participantCounts] = await Promise.all([
+      db.from('groups').select(GROUP_STATS_SELECT).eq('id', req.params.id).eq('agent_id', getAgentId()).single().throwOnError(),
+      getParticipantCountMap(),
+    ]);
+    return mapGroupRow(data, participantCounts);
   });
 
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req, reply) => {

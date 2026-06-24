@@ -200,6 +200,8 @@
     "stats": {
       "messagesToday": "Messages today",
       "repliesToday": "Replies today",
+      "members": "Members",
+      "profiles": "Profiles",
       "status": "Status"
     },
     "tabs": {
@@ -405,6 +407,7 @@
   },
   "members": {
     "title": "Member profiles",
+    "profileCount": "{count} profiles created",
     "empty": "Member profiles will appear after uploading chat history",
     "failedLoad": "Failed to load members",
     "failedSave": "Failed to save member",

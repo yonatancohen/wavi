@@ -50,6 +50,25 @@
       </div>
     </div>
 
+    <div v-if="group && !loading && !error" class="group-stats border-b border-outline-variant px-margin-mobile py-3 lg:hidden">
+      <span v-if="group.member_count != null" class="group-stat">
+        <span class="text-on-surface-variant">{{ t('groupDetail.stats.members') }}</span>
+        <span class="font-semibold text-on-surface">{{ group.member_count }}</span>
+      </span>
+      <span class="group-stat">
+        <span class="text-on-surface-variant">{{ t('groupDetail.stats.profiles') }}</span>
+        <span class="font-semibold text-tertiary">{{ group.profile_count }}</span>
+      </span>
+      <span class="group-stat">
+        <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
+        <span class="font-semibold text-primary">{{ group.message_count_today }}</span>
+      </span>
+      <span class="group-stat">
+        <span class="text-on-surface-variant">{{ t('groupDetail.stats.repliesToday') }}</span>
+        <span class="font-semibold text-secondary">{{ group.reply_count_today }}</span>
+      </span>
+    </div>
+
     <header class="page-header page-header--group sticky top-0 z-10 hidden lg:block">
       <RouterLink to="/groups" class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary">
         <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
@@ -97,6 +116,14 @@
       </h1>
 
       <div v-if="group && !loading" class="group-stats">
+        <span v-if="group.member_count != null" class="group-stat">
+          <span class="text-on-surface-variant">{{ t('groupDetail.stats.members') }}</span>
+          <span class="font-semibold text-on-surface">{{ group.member_count }}</span>
+        </span>
+        <span class="group-stat">
+          <span class="text-on-surface-variant">{{ t('groupDetail.stats.profiles') }}</span>
+          <span class="font-semibold text-tertiary">{{ group.profile_count }}</span>
+        </span>
         <span class="group-stat">
           <span class="text-on-surface-variant">{{ t('groupDetail.stats.messagesToday') }}</span>
           <span class="font-semibold text-primary">{{ group.message_count_today }}</span>

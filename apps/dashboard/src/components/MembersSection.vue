@@ -1,8 +1,13 @@
 <template>
   <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-    <div class="mb-4 flex items-center gap-2">
-      <span class="material-symbols-outlined text-[18px] text-secondary">groups</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('members.title') }}</h2>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-secondary">groups</span>
+        <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('members.title') }}</h2>
+      </div>
+      <span v-if="!loading && !error && members.length > 0" class="font-mono text-[11px] text-on-surface-variant">
+        {{ t('members.profileCount', { count: members.length }) }}
+      </span>
     </div>
 
     <LoadingState v-if="loading" variant="compact" :message="t('loading.members')" />
