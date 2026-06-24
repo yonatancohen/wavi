@@ -26,10 +26,22 @@ export function containsHebrew(text: string): boolean {
   return /[\u0590-\u05FF]/.test(text);
 }
 
-/** Effective reply language for auto mode. */
-export function effectiveReplyLanguage(languageMode: LanguageMode, currentMessage: string): 'he' | 'en' | LanguageMode {
+/**
+ * Effective reply language for auto mode.
+ * Checks the current message first; if it has no Hebrew (e.g. a short English tag like "wavi?"),
+ * falls back to the last 5 messages so we don't flip language mid-conversation.
+ */
+export function effectiveReplyLanguage(languageMode: LanguageMode, currentMessage: string, recentMessages?: Array<{ body: string }>): 'he' | 'en' | LanguageMode {
   if (languageMode === 'auto') {
-    return containsHebrew(currentMessage) ? 'he' : 'en';
+    if (containsHebrew(currentMessage)) return 'he';
+    if (recentMessages?.length) {
+      const sample = recentMessages
+        .slice(-5)
+        .map((m) => m.body)
+        .join(' ');
+      return containsHebrew(sample) ? 'he' : 'en';
+    }
+    return 'en';
   }
   return languageMode;
 }

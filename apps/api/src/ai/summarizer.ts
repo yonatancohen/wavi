@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LanguageMode, EmojiUsageLevel } from '@wavi/shared';
+import type { LanguageMode, EmojiUsageLevel, VoiceExample } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -65,11 +65,12 @@ export async function synthesizeCharacter(params: { groupName: string; episodeSu
     empathy: number;
     emoji_usage: EmojiUsageLevel;
   };
+  examples: VoiceExample[];
 }> {
   const lang = synthesisLanguageInstruction(params.languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 800,
+    max_tokens: 1000,
     messages: [
       {
         role: 'user',
@@ -95,7 +96,12 @@ Respond in valid JSON only (no markdown, no explanation):
     "assertiveness": <0-100>,
     "empathy": <0-100>,
     "emoji_usage": "none|low|medium|high"
-  }
+  },
+  "examples": [
+    { "user": "<a message a group member might send>", "agent": "<how this character would reply — natural length, correct language, in character>" },
+    { "user": "<another realistic message>", "agent": "<reply>" },
+    { "user": "<a third message>", "agent": "<reply>" }
+  ]
 }`,
       },
     ],
@@ -112,6 +118,7 @@ Respond in valid JSON only (no markdown, no explanation):
       opinions: ['Pineapple does not belong on pizza', 'Sleep is underrated', 'Group chats are better with AI'],
       signature_behavior: 'Ends longer replies with a dry one-liner.',
       sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65, emoji_usage: 'medium' },
+      examples: [],
     };
   }
 }

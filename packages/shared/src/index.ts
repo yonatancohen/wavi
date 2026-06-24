@@ -103,6 +103,12 @@ export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
 
 export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-haiku-4-5';
 
+/** A single few-shot exchange that shows how Wavi sounds in this group. */
+export interface VoiceExample {
+  user: string; // what a group member says
+  agent: string; // how Wavi replies — in character, correct length, right language
+}
+
 export interface CharacterConfig {
   voice: string; // 2-3 sentence voice description
   opinions: string[]; // 3-5 opinions on group-relevant topics
@@ -111,6 +117,7 @@ export interface CharacterConfig {
   preset: 'custom' | 'professional' | 'casual' | 'comedian' | 'warm';
   version: number;
   reply_model?: ReplyModel;
+  examples?: VoiceExample[]; // 2-3 few-shot exchanges synthesized from group history
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
