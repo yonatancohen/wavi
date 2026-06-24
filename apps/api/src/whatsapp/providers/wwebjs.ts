@@ -9,6 +9,7 @@ import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
+import { participantCountFromWa } from '../../lib/participant-count.js';
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth');
@@ -741,17 +742,37 @@ export function createWwebjsProvider(): WhatsAppProvider {
       }
 
       const chats = await waClient.getChats();
-      return chats
-        .filter((chat) => chat.isGroup)
-        .map((chat) => {
-          const participants = (chat as { participants?: unknown[] }).participants;
+      const groupChats = chats.filter((chat) => chat.isGroup);
+
+      return Promise.all(
+        groupChats.map(async (chat) => {
+          type GroupChatLike = {
+            id: { _serialized: string };
+            name?: string;
+            timestamp?: number;
+            getParticipants?: () => Promise<unknown[]>;
+            participants?: unknown[];
+          };
+          const groupChat = chat as GroupChatLike;
+          let participant_count: number | null = null;
+          try {
+            if (typeof groupChat.getParticipants === 'function') {
+              participant_count = participantCountFromWa(await groupChat.getParticipants());
+            } else {
+              participant_count = participantCountFromWa(groupChat.participants);
+            }
+          } catch {
+            participant_count = null;
+          }
+
           return {
             wa_group_id: chat.id._serialized,
             name: chat.name ?? 'Unnamed group',
-            participant_count: Array.isArray(participants) ? participants.length : null,
+            participant_count,
             last_activity: chat.timestamp ? new Date(chat.timestamp * 1000).toISOString() : null,
           };
-        });
+        }),
+      );
     },
 
     sendReply(waGroupId: string, replyBody: string, quotedMsgId?: string, media?: ReplyMedia) {

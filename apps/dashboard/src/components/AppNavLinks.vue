@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-1 flex-col py-4">
+  <div class="flex flex-1 flex-col pt-4">
     <div class="space-y-0.5">
       <span class="block px-5 pb-2 pt-1 text-[9px] font-bold uppercase tracking-[0.15em] text-on-surface-variant/60">
         {{ t('nav.overview') }}
@@ -35,7 +35,7 @@
       </RouterLink>
     </div>
 
-    <div class="mt-auto space-y-0.5 border-t border-outline-variant pt-3">
+    <div class="mt-auto space-y-0.5 border-t border-outline-variant">
       <RouterLink
         v-for="item in bottomNavItems"
         :key="item.to"

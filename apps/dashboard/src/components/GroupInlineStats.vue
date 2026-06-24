@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-on-surface-variant">
+  <div class="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-on-surface-variant" @click.stop>
     <HelpTooltip :title="t('groupDetail.stats.members')">
       <span class="flex cursor-default items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface">
         <span class="material-symbols-outlined text-[13px]">group</span>

@@ -47,6 +47,24 @@ async function getParticipantCountMap(): Promise<Map<string, number | null>> {
   }
 }
 
+function cachedMemberCount(row: Record<string, unknown>): number | null {
+  const v = row.member_count;
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function resolveMemberCount(waGroupId: string, isDraft: boolean, row: Record<string, unknown>, participantCounts?: Map<string, number | null>): number | null {
+  if (isDraft) return null;
+  const live = participantCounts?.get(waGroupId);
+  if (live != null) return live;
+  return cachedMemberCount(row);
+}
+
+function persistMemberCounts(groups: GroupWithStats[]) {
+  const updates = groups.filter((g) => !g.is_draft && g.member_count != null);
+  if (updates.length === 0) return;
+  void Promise.all(updates.map((g) => db.from('groups').update({ member_count: g.member_count }).eq('id', g.id).eq('agent_id', getAgentId()))).catch(() => {});
+}
+
 async function fetchGroupRowWithStats(id: string): Promise<GroupWithStats> {
   const { data, error } = await db.from('groups').select(GROUP_STATS_SELECT).eq('id', id).eq('agent_id', getAgentId()).single();
   if (error) throw error;
@@ -54,11 +72,11 @@ async function fetchGroupRowWithStats(id: string): Promise<GroupWithStats> {
 }
 
 async function fetchGroupWithStats(id: string): Promise<GroupWithStats> {
-  const [group, participantCounts] = await Promise.all([fetchGroupRowWithStats(id), getParticipantCountMap()]);
-  if (group.is_draft) return group;
-  const memberCount = participantCounts.get(group.wa_group_id);
-  if (memberCount == null) return group;
-  return { ...group, member_count: memberCount };
+  const [{ data, error }, participantCounts] = await Promise.all([db.from('groups').select(GROUP_STATS_SELECT).eq('id', id).eq('agent_id', getAgentId()).single(), getParticipantCountMap()]);
+  if (error) throw error;
+  const group = mapGroupRow(data, participantCounts);
+  persistMemberCounts([group]);
+  return group;
 }
 
 function mapGroupRowFromUpdate(updated: Record<string, unknown>): GroupWithStats {
@@ -77,7 +95,7 @@ function mapGroupRow(row: Record<string, unknown>, participantCounts?: Map<strin
   const { message_count_today: _m, reply_count_today: _r, profile_count: _p, ...rest } = row;
   const waGroupId = String(rest.wa_group_id ?? '');
   const isDraft = isDraftGroup(waGroupId);
-  const memberCount = isDraft ? null : (participantCounts?.get(waGroupId) ?? null);
+  const memberCount = resolveMemberCount(waGroupId, isDraft, rest, participantCounts);
 
   return {
     ...(rest as unknown as Group),
@@ -109,7 +127,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       db.from('groups').select(GROUP_STATS_SELECT).eq('agent_id', getAgentId()).order('created_at', { ascending: false }).throwOnError(),
       getParticipantCountMap(),
     ]);
-    return (data ?? []).map((row) => mapGroupRow(row, participantCounts));
+    const mapped = (data ?? []).map((row) => mapGroupRow(row, participantCounts));
+    persistMemberCounts(mapped);
+    return mapped;
   });
 
   // Must be registered before /:id

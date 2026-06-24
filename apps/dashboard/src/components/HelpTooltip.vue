@@ -4,16 +4,18 @@
 
     <Teleport to="body">
       <Transition
-        enter-active-class="transition-all duration-150 ease-out"
+        enter-active-class="transition-[opacity,transform] duration-150 ease-out"
         :enter-from-class="showBelow ? 'opacity-0 -translate-y-1 scale-95' : 'opacity-0 translate-y-1 scale-95'"
         enter-to-class="opacity-100 translate-y-0 scale-100"
-        leave-active-class="transition-all duration-100 ease-in"
+        leave-active-class="transition-[opacity,transform] duration-100 ease-in"
         leave-from-class="opacity-100 translate-y-0 scale-100"
         :leave-to-class="showBelow ? 'opacity-0 -translate-y-1 scale-95' : 'opacity-0 translate-y-1 scale-95'"
       >
         <div
-          v-if="show"
-          class="pointer-events-none fixed z-[200] w-56 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+          v-if="show && positioned"
+          ref="tooltipRef"
+          class="pointer-events-none fixed z-[200] min-w-[60px] w-max max-w-56 rounded-xl border border-outline-variant bg-surface-container-highest shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+          :class="body ? '' : 'whitespace-nowrap'"
           :style="floatingStyle"
         >
           <div
@@ -33,39 +35,55 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onUnmounted, ref } from 'vue';
 
-withDefaults(defineProps<{ title: string; body?: string }>(), { body: '' });
+const props = withDefaults(defineProps<{ title: string; body?: string }>(), { body: '' });
 
 const show = ref(false);
+const positioned = ref(false);
 const showBelow = ref(false);
 const wrapperRef = ref<HTMLElement | null>(null);
+const tooltipRef = ref<HTMLElement | null>(null);
 
-const TOOLTIP_WIDTH = 224;
+const MAX_TOOLTIP_WIDTH = 224;
 const VIEWPORT_MARGIN = 8;
 const GAP = 8;
 const ESTIMATED_TOOLTIP_HEIGHT = 120;
+const COMPACT_TOOLTIP_HEIGHT = 44;
+const MIN_TOOLTIP_WIDTH = 60;
 
 const tooltipLeft = ref(0);
 const tooltipTop = ref(0);
 const arrowLeft = ref(0);
 
+function tooltipWidth(): number {
+  if (tooltipRef.value) return tooltipRef.value.offsetWidth;
+  if (props.body) return MAX_TOOLTIP_WIDTH;
+  return Math.min(MAX_TOOLTIP_WIDTH, Math.max(MIN_TOOLTIP_WIDTH, props.title.length * 7 + 24));
+}
+
+function tooltipHeight(): number {
+  return tooltipRef.value?.offsetHeight ?? (props.body ? ESTIMATED_TOOLTIP_HEIGHT : COMPACT_TOOLTIP_HEIGHT);
+}
+
 function updatePosition() {
   if (!wrapperRef.value) return;
 
   const rect = wrapperRef.value.getBoundingClientRect();
-  showBelow.value = rect.top < ESTIMATED_TOOLTIP_HEIGHT + VIEWPORT_MARGIN + GAP;
+  const height = tooltipHeight();
+  showBelow.value = rect.top < height + VIEWPORT_MARGIN + GAP;
 
   const triggerCenterX = rect.left + rect.width / 2;
-  const idealLeft = triggerCenterX - TOOLTIP_WIDTH / 2;
-  const clampedLeft = Math.max(VIEWPORT_MARGIN, Math.min(idealLeft, window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN));
+  const width = tooltipWidth();
+  const idealLeft = triggerCenterX - width / 2;
+  const clampedLeft = Math.max(VIEWPORT_MARGIN, Math.min(idealLeft, window.innerWidth - width - VIEWPORT_MARGIN));
   tooltipLeft.value = clampedLeft;
   arrowLeft.value = triggerCenterX - clampedLeft;
 
   if (showBelow.value) {
     tooltipTop.value = rect.bottom + GAP;
   } else {
-    tooltipTop.value = Math.max(VIEWPORT_MARGIN, rect.top - ESTIMATED_TOOLTIP_HEIGHT - GAP);
+    tooltipTop.value = Math.max(VIEWPORT_MARGIN, rect.top - height - GAP);
   }
 }
 
@@ -74,15 +92,20 @@ function onScrollOrResize() {
   updatePosition();
 }
 
-function onEnter() {
+async function onEnter() {
+  if (!wrapperRef.value) return;
   updatePosition();
+  positioned.value = true;
   show.value = true;
+  await nextTick();
+  updatePosition();
   window.addEventListener('scroll', onScrollOrResize, true);
   window.addEventListener('resize', onScrollOrResize);
 }
 
 function onLeave() {
   show.value = false;
+  positioned.value = false;
   window.removeEventListener('scroll', onScrollOrResize, true);
   window.removeEventListener('resize', onScrollOrResize);
 }

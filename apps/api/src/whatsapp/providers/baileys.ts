@@ -1,5 +1,6 @@
 import qrcode from 'qrcode';
 import { rm } from 'node:fs/promises';
+import { participantCountFromWa } from '../../lib/participant-count.js';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
@@ -387,7 +388,7 @@ export function createBaileysProvider(): WhatsAppProvider {
       return Object.values(groups).map((g) => ({
         wa_group_id: g.id,
         name: g.subject ?? 'Unnamed group',
-        participant_count: g.participants?.length ?? null,
+        participant_count: participantCountFromWa(g.participants),
         last_activity: null,
       }));
     },

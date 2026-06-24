@@ -32,14 +32,16 @@
         </div>
         <div>
           <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('cost.testChatTitle') }}</p>
-          <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ stats.test_chat.replies.toLocaleString() }}</p>
-          <p class="mt-0.5 text-[11px] leading-snug text-on-surface-variant">
-            {{
-              t('cost.testChatSubline', {
-                tokens: (stats.test_chat.input_tokens + stats.test_chat.output_tokens).toLocaleString(),
-                amount: stats.test_chat.spent_usd_estimate.toFixed(2),
-              })
-            }}
+          <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">
+            {{ stats.test_chat.replies.toLocaleString() }}
+            <span class="mt-0.5 text-[11px] leading-snug text-on-surface-variant">
+              {{
+                t('cost.testChatSubline', {
+                  tokens: (stats.test_chat.input_tokens + stats.test_chat.output_tokens).toLocaleString(),
+                  amount: stats.test_chat.spent_usd_estimate.toFixed(2),
+                })
+              }}
+            </span>
           </p>
         </div>
       </div>

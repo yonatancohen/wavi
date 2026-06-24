@@ -35,6 +35,7 @@ CREATE TABLE groups (
   language_mode             text DEFAULT 'he', -- actively-tuned default; 'en'/'auto' also supported
   web_search_enabled        boolean DEFAULT false, -- Tavily web search for factual / current-info questions
   image_generation_enabled  boolean NOT NULL DEFAULT false,
+  member_count              integer, -- last known WA participant count
   created_at                timestamptz DEFAULT now()
 );
 
