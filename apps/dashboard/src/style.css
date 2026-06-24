@@ -478,4 +478,106 @@
       transform: none;
     }
   }
+
+  /* ── Docs prose (How It Works) ───────────────── */
+  .doc-prose {
+    @apply text-[14px] leading-relaxed text-on-surface;
+  }
+
+  .doc-prose .doc-h1 {
+    @apply mb-4 font-sora text-[26px] font-bold tracking-tight text-on-surface;
+  }
+
+  .doc-prose .doc-h2 {
+    @apply mb-3 mt-10 scroll-mt-24 border-t border-outline-variant pt-8 font-sora text-[18px] font-semibold text-on-surface first:mt-0 first:border-t-0 first:pt-0;
+  }
+
+  .doc-prose .doc-h3 {
+    @apply mb-2 mt-6 scroll-mt-24 font-sora text-[15px] font-semibold text-on-surface;
+  }
+
+  .doc-prose p {
+    @apply mb-4 text-on-surface-variant;
+  }
+
+  .doc-prose strong {
+    @apply font-semibold text-on-surface;
+  }
+
+  .doc-prose a {
+    @apply text-primary underline decoration-primary/30 underline-offset-2 transition-colors hover:decoration-primary;
+  }
+
+  .doc-prose .doc-hr {
+    @apply my-8 border-outline-variant;
+  }
+
+  .doc-prose .doc-blockquote {
+    @apply my-4 border-s-2 border-primary/40 ps-4 text-[13px] italic text-on-surface-variant;
+  }
+
+  .doc-prose .doc-pre {
+    @apply my-4 overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-high p-4 font-mono text-[12px] leading-relaxed text-on-surface;
+  }
+
+  .doc-prose .doc-pre code {
+    @apply whitespace-pre-wrap break-words;
+  }
+
+  .doc-prose :not(.doc-pre) > code {
+    @apply rounded-md bg-surface-container-high px-1.5 py-0.5 font-mono text-[12px] text-primary;
+  }
+
+  .doc-prose ul,
+  .doc-prose ol {
+    @apply mb-4 ms-5 list-outside space-y-1.5 text-on-surface-variant;
+  }
+
+  .doc-prose ul {
+    @apply list-disc;
+  }
+
+  .doc-prose ol {
+    @apply list-decimal;
+  }
+
+  .doc-prose li {
+    @apply ps-1;
+  }
+
+  .doc-table-wrap {
+    @apply my-5 overflow-x-auto rounded-xl border border-outline-variant;
+  }
+
+  .doc-table {
+    @apply w-full min-w-[32rem] border-collapse text-left text-[12px];
+  }
+
+  .doc-table th {
+    @apply border-b border-outline-variant bg-surface-container-high px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant;
+  }
+
+  .doc-table td {
+    @apply border-b border-outline-variant/60 px-4 py-2.5 text-on-surface-variant;
+  }
+
+  .doc-table tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .doc-table tbody tr:hover td {
+    @apply bg-surface-container-high/50;
+  }
+
+  .doc-toc-link {
+    @apply block rounded-lg px-2 py-1.5 text-[12px] leading-snug text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface;
+  }
+
+  .doc-toc-link--active {
+    @apply bg-primary/10 font-medium text-primary;
+  }
+
+  .doc-prose .mermaid {
+    @apply flex justify-center overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-high p-4;
+  }
 }

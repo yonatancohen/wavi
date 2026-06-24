@@ -6,6 +6,7 @@
     "groups": "קבוצות",
     "activity": "פעילות",
     "testChat": "צ'אט בדיקה",
+    "howItWorks": "איך זה עובד",
     "whatsapp": "וואטסאפ",
     "main": "ניווט ראשי",
     "settings": "הגדרות",
@@ -442,5 +443,17 @@
     "active": "פעיל",
     "paused": "מושהה",
     "pending_setup": "הגדרה"
+  },
+  "howItWorks": {
+    "title": "איך Wavi עובד",
+    "subtitle": "ארכיטקטורה, זרימת תשובה, replay, ומה מנותח לפני כל תשובה.",
+    "onThisPage": "בעמוד זה",
+    "tocLabel": "תוכן עניינים",
+    "phases": {
+      "learn": "למידה",
+      "trigger": "טריגר",
+      "replay": "Replay",
+      "deepDive": "עומק"
+    }
   }
 }
