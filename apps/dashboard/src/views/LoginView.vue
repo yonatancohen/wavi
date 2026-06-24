@@ -1,8 +1,10 @@
 <template>
-  <div class="flex min-h-svh flex-col bg-background">
-    <div class="flex flex-1 items-center justify-center px-5 py-10">
+  <div class="relative flex min-h-svh flex-col overflow-hidden">
+    <LoginWaveBackground />
+
+    <div class="relative z-10 flex flex-1 items-center justify-center px-5 py-10">
       <div class="w-full max-w-md animate-slide-up">
-        <div class="rounded-2xl border border-outline-variant bg-surface-container p-8 shadow-wavi-ring sm:p-10">
+        <div class="rounded-2xl border border-outline-variant/80 bg-surface-container/90 p-8 shadow-wavi-ring backdrop-blur-md sm:p-10">
           <div class="mb-8 text-center">
             <div class="relative mx-auto mb-6 inline-block">
               <div class="absolute inset-0 animate-neon-pulse rounded-2xl bg-primary opacity-20 blur-xl" />
@@ -37,7 +39,7 @@
       </div>
     </div>
 
-    <footer class="flex items-center justify-center gap-3 px-5 pb-6">
+    <footer class="relative z-10 flex items-center justify-center gap-3 px-5 pb-6">
       <button type="button" class="icon-btn min-h-0 px-2 py-1 text-[10px] font-semibold" :title="locale === 'he' ? 'Switch to English' : 'עבור לעברית'" @click="toggleLocale">
         {{ locale === 'he' ? 'EN' : 'עב' }}
       </button>
@@ -57,6 +59,7 @@ import { computed } from 'vue';
 import { useTheme } from '../composables/useTheme';
 import { useLocale } from '../composables/useLocale';
 import { useAuthStore } from '../stores/auth';
+import LoginWaveBackground from '../components/LoginWaveBackground.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
