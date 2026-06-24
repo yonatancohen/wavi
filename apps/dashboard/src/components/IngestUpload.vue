@@ -58,7 +58,7 @@
       {{ uploadError ?? streamError }}
     </div>
 
-    <div v-if="streaming || progress" class="mt-5">
+    <div v-if="showProgress" class="mt-5">
       <div class="mb-3 flex items-center justify-between gap-3">
         <span class="text-[12px] font-semibold text-on-surface">
           {{ progress ? (t(`stages.${progress.stage}`) ?? progress.stage) : t('ingest.starting') }}
@@ -103,7 +103,6 @@ import { useIngestionProgress, INGESTION_STAGES } from '../composables/useIngest
 const { t } = useI18n();
 
 const props = defineProps<{ groupId: string }>();
-const emit = defineEmits<{ complete: [] }>();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const supplementalInput = ref<HTMLInputElement | null>(null);
@@ -115,7 +114,11 @@ const supplementalFile = ref<File | null>(null);
 const includeSupplemental = ref(false);
 const fullReset = ref(false);
 
-const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
+const emit = defineEmits<{ complete: [] }>();
+
+const { progress, streaming, streamError, showProgress, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'), {
+  onComplete: () => emit('complete'),
+});
 
 async function uploadFiles() {
   if (!primaryFile.value) return;

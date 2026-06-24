@@ -77,13 +77,26 @@
     <div class="mt-auto border-t border-outline-variant pt-5">
       <RebuildIntelligence embedded :group-id="group.id" @complete="emit('rebuildComplete')" />
     </div>
+
+    <div class="mt-6 border-t border-error/20 pt-5">
+      <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.deleteTitle') }}</p>
+      <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+        {{ t('groupSettings.deleteHint') }}
+      </p>
+      <button type="button" class="btn btn-danger mt-3 flex items-center gap-2" :disabled="deleting" @click="onDeleteClick">
+        <span class="material-symbols-outlined text-[16px]">delete</span>
+        {{ deleting ? t('groupSettings.deleting') : t('groupSettings.delete') }}
+      </button>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
+import { useConfirm } from '../composables/useConfirm';
 import RebuildIntelligence from './RebuildIntelligence.vue';
 import type { GroupWithStats, LanguageMode } from '@wavi/shared';
 
@@ -92,13 +105,16 @@ const { t } = useI18n();
 const props = defineProps<{ group: GroupWithStats }>();
 const emit = defineEmits<{ updated: [group: GroupWithStats]; rebuildComplete: [] }>();
 
+const router = useRouter();
 const store = useGroupsStore();
+const { confirm } = useConfirm();
 const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');
 const webSearchEnabled = ref(props.group.web_search_enabled ?? false);
 const imageGenerationEnabled = ref(props.group.image_generation_enabled ?? false);
 const saving = ref(false);
 const savingWebSearch = ref(false);
 const savingImage = ref(false);
+const deleting = ref(false);
 const saveError = ref<string | null>(null);
 
 watch(
@@ -166,6 +182,27 @@ async function toggleImageGeneration() {
     imageGenerationEnabled.value = props.group.image_generation_enabled ?? false;
   } finally {
     savingImage.value = false;
+  }
+}
+
+async function onDeleteClick() {
+  const ok = await confirm({
+    title: t('groupSettings.deleteConfirmTitle'),
+    message: t('groupSettings.deleteConfirm', { name: props.group.name }),
+    confirmLabel: t('groupSettings.delete'),
+    variant: 'destructive',
+  });
+  if (!ok) return;
+
+  deleting.value = true;
+  saveError.value = null;
+  try {
+    await store.deleteGroup(props.group.id);
+    await router.push('/groups');
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : t('groupSettings.failedDelete');
+  } finally {
+    deleting.value = false;
   }
 }
 </script>

@@ -19,7 +19,7 @@ import type {
 import { isDraftGroup } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
-import { runRebuildFromStoredMessages, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
+import { runRebuildFromStoredMessages, setIngestionProgress, clearIngestionProgress } from '../jobs/ingestion-pipeline.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { generateReplyText } from '../ai/generate.js';
 import { generateImage } from '../ai/generate-image.js';
@@ -299,6 +299,24 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return mapGroupRow(data, participantCounts);
   });
 
+  fastify.delete<{ Params: { id: string } }>('/:id', async (req, reply) => {
+    const { id } = req.params;
+
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    // replies.group_id has no ON DELETE CASCADE — clear before deleting the group row.
+    const { error: repliesError } = await db.from('replies').delete().eq('group_id', id);
+    if (repliesError) return reply.code(500).send({ error: repliesError.message });
+
+    const { error } = await db.from('groups').delete().eq('id', id).eq('agent_id', getAgentId());
+    if (error) return reply.code(500).send({ error: error.message });
+
+    await clearIngestionProgress(id).catch(() => {});
+
+    return { ok: true };
+  });
+
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req, reply) => {
     const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'web_search_enabled', 'image_generation_enabled', 'name'];
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
@@ -504,6 +522,22 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data, error } = await db.from('user_profiles').update(updates).eq('id', req.params.profileId).select().single();
     if (error) return reply.code(500).send({ error: error.message });
     return data;
+  });
+
+  fastify.delete<{ Params: { id: string; profileId: string } }>('/:id/members/:profileId', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: profile } = await db.from('user_profiles').select('id, wa_user_id').eq('id', req.params.profileId).eq('group_id', req.params.id).maybeSingle();
+    if (!profile) return reply.code(404).send({ error: 'Member not found' });
+
+    const waUserId = profile.wa_user_id;
+    const { error: relError } = await db.from('relationship_map').delete().eq('group_id', req.params.id).or(`user_a_wa_id.eq.${waUserId},user_b_wa_id.eq.${waUserId}`);
+    if (relError) return reply.code(500).send({ error: relError.message });
+
+    const { error } = await db.from('user_profiles').delete().eq('id', profile.id).eq('group_id', req.params.id);
+    if (error) return reply.code(500).send({ error: error.message });
+    return { ok: true };
   });
 
   fastify.post<{ Params: { id: string }; Body: MergeMembersRequest }>('/:id/members/merge', async (req, reply) => {

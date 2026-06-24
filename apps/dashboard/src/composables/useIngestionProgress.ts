@@ -1,5 +1,5 @@
-import { ref, onBeforeUnmount, watch, type Ref } from 'vue';
-import { openEventSource } from '../lib/api';
+import { ref, computed, onMounted, onBeforeUnmount, watch, type Ref } from 'vue';
+import { apiFetch, openEventSource } from '../lib/api';
 import type { IngestionProgress } from '@wavi/shared';
 
 export const INGESTION_STAGES = ['parsing', 'embedding', 'profiling', 'relationships', 'context', 'synthesizing', 'done'] as const;
@@ -17,11 +17,21 @@ export const STAGE_LABELS: Record<string, string> = {
   error: 'Error',
 };
 
-export function useIngestionProgress(groupId: Ref<string>) {
+export function isActiveIngestionStage(stage: IngestionProgress['stage'] | undefined): boolean {
+  return !!stage && stage !== 'done' && stage !== 'error';
+}
+
+type UseIngestionProgressOptions = {
+  onComplete?: () => void;
+};
+
+export function useIngestionProgress(groupId: Ref<string>, options: UseIngestionProgressOptions = {}) {
   const progress = ref<IngestionProgress | null>(null);
   const streaming = ref(false);
   const streamError = ref<string | null>(null);
   let eventSource: EventSource | null = null;
+
+  const showProgress = computed(() => streaming.value || (progress.value != null && isActiveIngestionStage(progress.value.stage)));
 
   function closeStream() {
     eventSource?.close();
@@ -29,9 +39,11 @@ export function useIngestionProgress(groupId: Ref<string>) {
     streaming.value = false;
   }
 
-  async function startStream(onComplete?: () => void) {
+  async function startStream(onComplete?: () => void, streamOptions?: { preserveProgress?: boolean }) {
     closeStream();
-    progress.value = null;
+    if (!streamOptions?.preserveProgress) {
+      progress.value = null;
+    }
     streamError.value = null;
     if (!groupId.value) return;
 
@@ -45,13 +57,15 @@ export function useIngestionProgress(groupId: Ref<string>) {
       return;
     }
 
+    const complete = onComplete ?? options.onComplete;
+
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data) as IngestionProgress;
       progress.value = data;
 
       if (data.stage === 'done') {
         closeStream();
-        onComplete?.();
+        complete?.();
       } else if (data.stage === 'error') {
         streamError.value = data.error ?? 'Ingestion failed';
         closeStream();
@@ -68,6 +82,20 @@ export function useIngestionProgress(groupId: Ref<string>) {
         }
       }
     };
+  }
+
+  async function resumeIfInProgress() {
+    if (!groupId.value || streaming.value) return;
+
+    try {
+      const { progress: current } = await apiFetch<{ progress: IngestionProgress | null }>(`/ingest/${groupId.value}/progress/status`);
+      if (!isActiveIngestionStage(current?.stage)) return;
+
+      progress.value = current;
+      await startStream(undefined, { preserveProgress: true });
+    } catch {
+      // No active job or auth not ready yet — ignore.
+    }
   }
 
   function stageIndex(stage: string): number {
@@ -97,15 +125,27 @@ export function useIngestionProgress(groupId: Ref<string>) {
     return progress.value?.stage === stage;
   }
 
-  watch(groupId, closeStream);
+  onMounted(() => {
+    void resumeIfInProgress();
+  });
+
+  watch(groupId, () => {
+    closeStream();
+    progress.value = null;
+    streamError.value = null;
+    void resumeIfInProgress();
+  });
+
   onBeforeUnmount(closeStream);
 
   return {
     progress,
     streaming,
     streamError,
+    showProgress,
     startStream,
     closeStream,
+    resumeIfInProgress,
     stageProgressPercent,
     isStageComplete,
     isStageActive,

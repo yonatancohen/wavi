@@ -268,7 +268,14 @@
     "imageGeneration": "Image generation",
     "imageGenerationHint": "When enabled, Wavi can generate and send images when members ask for drawings or pictures. Off by default.",
     "saving": "Saving…",
-    "failedSave": "Failed to save settings"
+    "failedSave": "Failed to save settings",
+    "deleteTitle": "Delete group",
+    "deleteHint": "Permanently removes this group and all stored messages, profiles, and intelligence. This cannot be undone.",
+    "delete": "Delete group",
+    "deleting": "Deleting…",
+    "deleteConfirmTitle": "Delete group?",
+    "deleteConfirm": "Delete \"{name}\" and all its data? This cannot be undone.",
+    "failedDelete": "Failed to delete group"
   },
   "rebuild": {
     "title": "Rebuild intelligence",
@@ -486,7 +493,11 @@
     "removeAlias": "Remove",
     "advancedMerge": "Merge duplicate profile…",
     "mergeWith": "Merge into…",
-    "merge": "Merge"
+    "merge": "Merge",
+    "remove": "Delete profile",
+    "confirmRemoveTitle": "Delete profile?",
+    "confirmRemove": "Remove {name} from this group? Dynamics involving them will be deleted. This cannot be undone.",
+    "failedRemove": "Failed to delete profile"
   },
   "dynamics": {
     "title": "Group dynamics",

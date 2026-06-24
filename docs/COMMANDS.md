@@ -45,11 +45,42 @@ cd apps/api && bun test src/ai/__tests__/recovery.test.ts   # one test file
 
 ## AI / debugging
 
-| Command          | What it does                                                                                                                                              |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun run replay` | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic). |
+| Command                          | What it does                                                                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run ingest:status`          | Explain current **upload / rebuild** progress (Redis + DB), with a short poll to detect if the worker is still alive. Uses `apps/api/.env`.               |
+| `bun run resynthesize:character` | Rebuild **character config** (voice, opinions, signature, examples, sliders) from stored episode summaries + member profiles. Uses `apps/api/.env`.       |
+| `bun run replay`                 | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic). |
 
-Examples:
+### Ingest / rebuild status
+
+Use when upload or **Rebuild intelligence** seems stuck, or after a page refresh to see if a job is still running.
+
+```bash
+bun run ingest:status                              # any active job in Redis
+bun run ingest:status -- --group-id <uuid>
+bun run ingest:status -- --name "אדיר"             # partial group name match
+bun run ingest:status -- --poll 0                  # skip 6s alive check (instant snapshot)
+```
+
+Prints a **verdict** (`ALIVE`, `COMPLETE`, `FAILED`, `POSSIBLY STUCK`, `IDLE`), Redis stage with explanation, DB counts (chunks, episodes, profiles, relationships), and profile list.
+
+Implementation: `apps/api/scripts/ingest-status.ts` (wrapper: `scripts/ingest-status.sh`).
+
+### Re-synthesize character
+
+Use when **Character** tab content looks wrong (e.g. generic English opinions on a Hebrew group). Does **not** re-run full ingest — only updates `groups.character_config` from existing summaries.
+
+```bash
+bun run resynthesize:character                     # only group if exactly one exists
+bun run resynthesize:character -- --group-id <uuid>
+bun run resynthesize:character -- --name "אדיר"    # partial group name match
+```
+
+Respects `language_mode` on the group (Hebrew groups get Hebrew voice/opinions). Preserves the existing `reply_model` setting.
+
+Implementation: `apps/api/scripts/resynthesize-character.ts` (wrapper: `scripts/resynthesize-character.sh`).
+
+### Replay harness
 
 ```bash
 bun run replay -- --fixtures
@@ -116,6 +147,13 @@ See [DEPLOY.md](./DEPLOY.md) before using these in production.
 | `test:watch` | `bun test --watch`.                               |
 | `replay`     | Same as root `bun run replay`.                    |
 | `build`      | No-op placeholder (Bun runs TS natively).         |
+
+CLI scripts (also exposed at repo root):
+
+| Script                  | Root command                     | File                                         |
+| ----------------------- | -------------------------------- | -------------------------------------------- |
+| Ingest status           | `bun run ingest:status`          | `apps/api/scripts/ingest-status.ts`          |
+| Re-synthesize character | `bun run resynthesize:character` | `apps/api/scripts/resynthesize-character.ts` |
 
 ### `@wavi/dashboard` (`apps/dashboard`)
 

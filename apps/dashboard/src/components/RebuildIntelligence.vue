@@ -24,7 +24,7 @@
       {{ rebuildError ?? streamError }}
     </div>
 
-    <div v-if="streaming || progress" class="mt-5">
+    <div v-if="showProgress" class="mt-5">
       <div class="mb-3 flex items-center justify-between gap-3">
         <span class="text-[12px] font-semibold text-on-surface">
           {{ progress ? (t(`stages.${progress.stage}`) ?? progress.stage) : t('rebuild.starting') }}
@@ -83,7 +83,9 @@ const rebuildError = ref<string | null>(null);
 const fullReset = ref(false);
 const { confirm } = useConfirm();
 
-const { progress, streaming, streamError, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'));
+const { progress, streaming, streamError, showProgress, startStream, stageProgressPercent, isStageComplete, isStageActive } = useIngestionProgress(toRef(props, 'groupId'), {
+  onComplete: () => emit('complete'),
+});
 
 async function onRebuildClick() {
   const ok = await confirm({

@@ -146,6 +146,12 @@ export const useGroupsStore = defineStore('groups', () => {
     });
   }
 
+  async function deleteGroup(groupId: string) {
+    await apiFetch<{ ok: boolean }>(`/groups/${groupId}`, { method: 'DELETE' });
+    groups.value = groups.value.filter((g) => g.id !== groupId);
+    if (selectedGroupId.value === groupId) selectedGroupId.value = null;
+  }
+
   return {
     groups,
     discovered,
@@ -166,5 +172,6 @@ export const useGroupsStore = defineStore('groups', () => {
     setStatus,
     patchGroup,
     rebuildGroup,
+    deleteGroup,
   };
 });

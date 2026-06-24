@@ -2,7 +2,8 @@ import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js';
 import { embedBatch, embed } from '../lib/embeddings.js';
-import { generateEpisodeSummary, generateGroupContext, synthesizeCharacter } from '../ai/summarizer.js';
+import { generateEpisodeSummary, generateGroupContext } from '../ai/summarizer.js';
+import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
 import { buildRelationshipMap } from '../ai/relationships.js';
 import { alignExportIdentities } from '../lib/export-alignment.js';
@@ -31,6 +32,10 @@ export async function setIngestionProgress(groupId: string, progress: Partial<In
       ...progress,
     }),
   );
+}
+
+export async function clearIngestionProgress(groupId: string) {
+  await redis.del(`ingestion_progress:${groupId}`);
 }
 
 async function purgeDerivedIntelligence(groupId: string, includeChunks: boolean) {
@@ -175,28 +180,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
 
   await setProgress({ stage: 'synthesizing' });
 
-  const { data: profiles } = await db.from('user_profiles').select('display_name, behavioral_summary').eq('group_id', groupId);
-  const { data: groupMeta } = await db.from('groups').select('name, language_mode, character_config').eq('id', groupId).single();
-  const prevReplyModel = (groupMeta?.character_config as { reply_model?: string } | null)?.reply_model;
-
-  const character = await synthesizeCharacter({
-    groupName: groupMeta?.name ?? 'the group',
-    episodeSummaries: episodeSummaries.slice(-10),
-    userProfiles: (profiles ?? []).map((p) => `${p.display_name}: ${p.behavioral_summary}`),
-    languageMode: groupMeta?.language_mode ?? languageMode,
-  });
-
-  await db
-    .from('groups')
-    .update({
-      character_config: {
-        ...character,
-        preset: 'custom',
-        version: 1,
-        ...(prevReplyModel ? { reply_model: prevReplyModel } : {}),
-      },
-    })
-    .eq('id', groupId);
+  await synthesizeCharacterForGroup(groupId);
 
   await setProgress({ stage: 'done' });
 }

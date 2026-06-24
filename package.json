@@ -32,6 +32,8 @@
     "health": "bash scripts/health.sh",
     "health:prod": "bash scripts/health.sh --prod",
     "logs": "bash scripts/logs.sh",
+    "ingest:status": "bash scripts/ingest-status.sh",
+    "resynthesize:character": "bash scripts/resynthesize-character.sh",
     "test:parser": "bun scripts/test-parser.mjs",
     "test": "bun run --filter '@wavi/api' test",
     "replay": "bun run --filter '@wavi/api' replay",

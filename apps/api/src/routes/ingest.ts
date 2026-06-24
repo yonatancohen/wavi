@@ -1,8 +1,15 @@
+import type { IngestionProgress } from '@wavi/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { beginSseStream, endSseStream, writeSseData, writeSseHeartbeat } from '../lib/sse.js';
 import { runIngestionFromExport, runSupplementalExportAlignment, setIngestionProgress } from '../jobs/ingestion-pipeline.js';
+
+async function readIngestionProgress(groupId: string): Promise<IngestionProgress | null> {
+  const raw = await redis.get(`ingestion_progress:${groupId}`);
+  if (!raw) return null;
+  return typeof raw === 'string' ? (JSON.parse(raw) as IngestionProgress) : (raw as IngestionProgress);
+}
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -85,6 +92,18 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // ── GET /api/ingest/:groupId/progress/status — snapshot for page reload ──
+  fastify.get<{ Params: { groupId: string } }>('/:groupId/progress/status', async (req, reply) => {
+    const { groupId } = req.params;
+
+    if (!(await verifyGroupOwnership(groupId))) {
+      return reply.code(404).send({ error: 'Group not found' });
+    }
+
+    const progress = await readIngestionProgress(groupId);
+    return { progress };
+  });
+
   // ── GET /api/ingest/:groupId/progress — SSE progress stream ──
   fastify.get<{ Params: { groupId: string }; Querystring: { token?: string } }>('/:groupId/progress', async (req, reply) => {
     const { groupId } = req.params;
@@ -100,15 +119,23 @@ export const ingestRoute: FastifyPluginAsync = async (fastify) => {
       writeSseData(reply, progress);
     };
 
+    const initial = await readIngestionProgress(groupId);
+    if (initial) {
+      sendProgress(initial);
+      if (initial.stage === 'done' || initial.stage === 'error') {
+        endSseStream(reply);
+        return;
+      }
+    }
+
     // Heartbeat counter — send a keepalive SSE comment every ~15 s when no
     // data is flowing so Railway's proxy doesn't close the idle connection.
     let pollsSinceData = 0;
 
     const interval = setInterval(async () => {
-      const raw = await redis.get(`ingestion_progress:${groupId}`);
-      if (raw) {
+      const progress = await readIngestionProgress(groupId);
+      if (progress) {
         pollsSinceData = 0;
-        const progress = typeof raw === 'string' ? JSON.parse(raw) : raw;
         sendProgress(progress);
         if (progress.stage === 'done' || progress.stage === 'error') {
           clearInterval(interval);

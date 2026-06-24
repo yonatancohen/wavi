@@ -57,6 +57,15 @@
               <span class="material-symbols-outlined text-[16px]">edit</span>
               {{ t('members.editName') }}
             </button>
+            <button
+              type="button"
+              class="btn btn-secondary inline-flex shrink-0 items-center gap-1.5 !min-h-0 border-error/30 px-3 py-1.5 text-[12px] text-error hover:bg-error/[0.08]"
+              :disabled="deletingId === member.id || savingId === member.id"
+              @click="deleteMember(member)"
+            >
+              <span class="material-symbols-outlined text-[16px]">delete</span>
+              {{ t('members.remove') }}
+            </button>
           </div>
           <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
             {{ member.wa_user_id }}
@@ -189,6 +198,7 @@ import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
 import HelpTooltip from './HelpTooltip.vue';
+import { useConfirm } from '../composables/useConfirm';
 import type { UserProfile } from '@wavi/shared';
 
 const { t } = useI18n();
@@ -199,6 +209,7 @@ const members = ref<UserProfile[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const savingId = ref<string | null>(null);
+const deletingId = ref<string | null>(null);
 const editingNameId = ref<string | null>(null);
 const editingSummaryId = ref<string | null>(null);
 const aliasDraft = reactive<Record<string, string>>({});
@@ -206,6 +217,7 @@ const aliasErrors = reactive<Record<string, string>>({});
 const nameDraft = reactive<Record<string, string>>({});
 const summaryDraft = reactive<Record<string, string>>({});
 const mergeTarget = reactive<Record<string, string>>({});
+const { confirm } = useConfirm();
 
 function memberAliases(member: UserProfile): string[] {
   return member.profile_data?.aliases ?? [];
@@ -387,6 +399,32 @@ async function mergeMember(member: UserProfile) {
     error.value = e instanceof Error ? e.message : t('members.failedSave');
   } finally {
     savingId.value = null;
+  }
+}
+
+async function deleteMember(member: UserProfile) {
+  const ok = await confirm({
+    title: t('members.confirmRemoveTitle'),
+    message: t('members.confirmRemove', { name: member.display_name }),
+    confirmLabel: t('members.remove'),
+    variant: 'destructive',
+  });
+  if (!ok) return;
+
+  const previous = [...members.value];
+  members.value = members.value.filter((m) => m.id !== member.id);
+  if (editingNameId.value === member.id) cancelEditName(member.id);
+  if (editingSummaryId.value === member.id) cancelEditSummary(member.id);
+  error.value = null;
+  deletingId.value = member.id;
+
+  try {
+    await apiFetch(`/groups/${props.groupId}/members/${member.id}`, { method: 'DELETE' });
+  } catch (e) {
+    members.value = previous;
+    error.value = e instanceof Error ? e.message : t('members.failedRemove');
+  } finally {
+    deletingId.value = null;
   }
 }
 
