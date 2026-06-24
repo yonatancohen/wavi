@@ -108,6 +108,20 @@
               </div>
               <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
             </div>
+            <div class="sm:col-span-2">
+              <div class="mb-1 flex items-center justify-between text-[12px]">
+                <span class="text-on-surface">{{ t('character.slider.emoji_usage') }}</span>
+                <span class="font-medium text-on-surface-variant">
+                  {{ t(`character.emojiUsage.${localConfig.sliders.emoji_usage}`) }}
+                </span>
+              </div>
+              <input :value="emojiUsageIndex" type="range" min="0" :max="EMOJI_USAGE_LEVELS.length - 1" step="1" class="w-full accent-primary" @input="onEmojiUsageInput" />
+              <div class="mt-1 flex justify-between text-[10px] text-on-surface-variant/70">
+                <span v-for="level in EMOJI_USAGE_LEVELS" :key="level">
+                  {{ t(`character.emojiUsage.${level}`) }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -120,7 +134,7 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import type { GroupWithStats, CharacterConfig, PersonalitySliders } from '@wavi/shared';
-import { DEFAULT_REPLY_MODEL } from '@wavi/shared';
+import { DEFAULT_REPLY_MODEL, EMOJI_USAGE_LEVELS, normalizePersonalitySliders } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -132,7 +146,7 @@ const saving = ref(false);
 const saveError = ref<string | null>(null);
 const MAX_OPINIONS = 3;
 
-const sliders: { key: keyof PersonalitySliders; label: string }[] = [
+const sliders: { key: Exclude<keyof PersonalitySliders, 'emoji_usage'>; label: string }[] = [
   { key: 'formality', label: 'formality' },
   { key: 'humor', label: 'humor' },
   { key: 'verbosity', label: 'verbosity' },
@@ -143,7 +157,16 @@ const sliders: { key: keyof PersonalitySliders; label: string }[] = [
 function cloneConfig(config: CharacterConfig): CharacterConfig {
   const cloned = JSON.parse(JSON.stringify(config)) as CharacterConfig;
   if (!cloned.reply_model) cloned.reply_model = DEFAULT_REPLY_MODEL;
+  cloned.sliders = normalizePersonalitySliders(cloned.sliders);
   return cloned;
+}
+
+const emojiUsageIndex = computed(() => EMOJI_USAGE_LEVELS.indexOf(localConfig.value?.sliders.emoji_usage ?? 'medium'));
+
+function onEmojiUsageInput(event: Event) {
+  if (!localConfig.value) return;
+  const index = Number((event.target as HTMLInputElement).value);
+  localConfig.value.sliders.emoji_usage = EMOJI_USAGE_LEVELS[index] ?? 'medium';
 }
 
 const localConfig = ref<CharacterConfig | null>(props.group.character_config ? cloneConfig(props.group.character_config) : null);

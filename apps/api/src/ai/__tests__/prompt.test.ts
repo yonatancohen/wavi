@@ -121,7 +121,7 @@ describe('buildSystemPrompt', () => {
         voice: 'Dry and sarcastic.',
         opinions: ['Coffee > tea', 'Tabs > spaces'],
         signature_behavior: 'Ends sentences with an observation no one asked for.',
-        sliders: { formality: 20, humor: 80, verbosity: 50, assertiveness: 60, empathy: 40 },
+        sliders: { formality: 20, humor: 80, verbosity: 50, assertiveness: 60, empathy: 40, emoji_usage: 'medium' },
         preset: 'custom',
         version: 1,
       },
@@ -143,7 +143,7 @@ describe('buildSystemPrompt', () => {
         voice: 'Cheerful.',
         opinions: ['Pineapple on pizza is fine'],
         signature_behavior: 'Adds a random fun fact.',
-        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 },
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
         preset: 'casual',
         version: 1,
       },
@@ -160,7 +160,7 @@ describe('buildSystemPrompt', () => {
         voice: 'Formal.',
         opinions: ['Punctuality matters'],
         signature_behavior: 'Uses bullet points.',
-        sliders: { formality: 80, humor: 10, verbosity: 60, assertiveness: 70, empathy: 40 },
+        sliders: { formality: 80, humor: 10, verbosity: 60, assertiveness: 70, empathy: 40, emoji_usage: 'low' },
         preset: 'professional',
         version: 1,
       },
@@ -179,7 +179,7 @@ describe('buildSystemPrompt', () => {
           voice: 'Test.',
           opinions: ['opinion'],
           signature_behavior: 'quirk',
-          sliders: { formality, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 },
+          sliders: { formality, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
           preset: 'custom',
           version: 1,
         },
@@ -196,7 +196,7 @@ describe('buildSystemPrompt', () => {
         voice: 'Curious.',
         opinions: ['Facts matter'],
         signature_behavior: 'Cites sources.',
-        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 },
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
         preset: 'custom',
         version: 1,
       },
@@ -210,5 +210,37 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('BLOCK — WEB SEARCH');
     expect(prompt).toContain('Sunny and warm.');
     expect(prompt).toContain('https://example.com');
+  });
+
+  it('includes emoji usage guidance in the personality block', () => {
+    const makeCtxWithEmojiUsage = (emoji_usage: 'none' | 'low' | 'medium' | 'high') =>
+      makeContext({
+        character_config: {
+          voice: 'Test.',
+          opinions: ['opinion'],
+          signature_behavior: 'quirk',
+          sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage },
+          preset: 'custom',
+          version: 1,
+        },
+      });
+
+    expect(buildSystemPrompt(makeCtxWithEmojiUsage('none'))).toContain('never use emojis');
+    expect(buildSystemPrompt(makeCtxWithEmojiUsage('high'))).toContain('emojis freely');
+    expect(buildSystemPrompt(makeCtxWithEmojiUsage('medium'))).toContain('Emoji usage: medium');
+  });
+
+  it('defaults emoji usage to medium when missing from stored config', () => {
+    const ctx = makeContext({
+      character_config: {
+        voice: 'Test.',
+        opinions: ['opinion'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 } as any,
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    expect(buildSystemPrompt(ctx)).toContain('Emoji usage: medium');
   });
 });

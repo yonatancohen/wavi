@@ -398,7 +398,14 @@
       "humor": "Humor",
       "verbosity": "Verbosity",
       "assertiveness": "Assertiveness",
-      "empathy": "Empathy"
+      "empathy": "Empathy",
+      "emoji_usage": "Emoji usage"
+    },
+    "emojiUsage": {
+      "none": "None",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
     }
   },
   "ingest": {

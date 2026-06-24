@@ -398,7 +398,14 @@
       "humor": "הומור",
       "verbosity": "דברנות",
       "assertiveness": "נחרצות",
-      "empathy": "אמפתיה"
+      "empathy": "אמפתיה",
+      "emoji_usage": "שימוש באימוג'ים"
+    },
+    "emojiUsage": {
+      "none": "ללא",
+      "low": "נמוך",
+      "medium": "בינוני",
+      "high": "גבוה"
     }
   },
   "ingest": {

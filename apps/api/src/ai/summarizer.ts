@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LanguageMode } from '@wavi/shared';
+import type { LanguageMode, EmojiUsageLevel } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -63,6 +63,7 @@ export async function synthesizeCharacter(params: { groupName: string; episodeSu
     verbosity: number;
     assertiveness: number;
     empathy: number;
+    emoji_usage: EmojiUsageLevel;
   };
 }> {
   const lang = synthesisLanguageInstruction(params.languageMode);
@@ -92,7 +93,8 @@ Respond in valid JSON only (no markdown, no explanation):
     "humor": <0-100>,
     "verbosity": <0-100>,
     "assertiveness": <0-100>,
-    "empathy": <0-100>
+    "empathy": <0-100>,
+    "emoji_usage": "none|low|medium|high"
   }
 }`,
       },
@@ -109,7 +111,7 @@ Respond in valid JSON only (no markdown, no explanation):
       voice: `A friendly, witty member of ${params.groupName} who knows everyone well.`,
       opinions: ['Pineapple does not belong on pizza', 'Sleep is underrated', 'Group chats are better with AI'],
       signature_behavior: 'Ends longer replies with a dry one-liner.',
-      sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65 },
+      sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65, emoji_usage: 'medium' },
     };
   }
 }

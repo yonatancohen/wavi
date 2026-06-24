@@ -67,12 +67,36 @@ export interface AgentStatusResponse {
 
 // ── Character Config ─────────────────────────────────────────
 
+export type EmojiUsageLevel = 'none' | 'low' | 'medium' | 'high';
+
+export const EMOJI_USAGE_LEVELS: EmojiUsageLevel[] = ['none', 'low', 'medium', 'high'];
+
+export const DEFAULT_EMOJI_USAGE: EmojiUsageLevel = 'medium';
+
+export function normalizeEmojiUsage(value: EmojiUsageLevel | undefined): EmojiUsageLevel {
+  return value && EMOJI_USAGE_LEVELS.includes(value) ? value : DEFAULT_EMOJI_USAGE;
+}
+
+export function emojiUsagePromptHint(level: EmojiUsageLevel): string {
+  switch (level) {
+    case 'none':
+      return 'never use emojis — plain text only';
+    case 'low':
+      return 'emojis sparingly — at most one per message, only when it adds tone';
+    case 'medium':
+      return 'emojis occasionally — natural WhatsApp style, not every message';
+    case 'high':
+      return 'emojis freely — pepper replies with emojis like an expressive texter';
+  }
+}
+
 export interface PersonalitySliders {
   formality: number; // 0–100
   humor: number; // 0–100
   verbosity: number; // 0–100
   assertiveness: number; // 0–100
   empathy: number; // 0–100
+  emoji_usage: EmojiUsageLevel;
 }
 
 export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
@@ -95,15 +119,34 @@ export const DEFAULT_SLIDERS: PersonalitySliders = {
   verbosity: 50,
   assertiveness: 60,
   empathy: 70,
+  emoji_usage: DEFAULT_EMOJI_USAGE,
 };
 
 export const PRESET_SLIDERS: Record<string, PersonalitySliders> = {
-  professional: { formality: 85, humor: 15, verbosity: 60, assertiveness: 70, empathy: 40 },
-  casual: { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65 },
-  comedian: { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45 },
-  warm: { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90 },
+  professional: {
+    formality: 85,
+    humor: 15,
+    verbosity: 60,
+    assertiveness: 70,
+    empathy: 40,
+    emoji_usage: 'low',
+  },
+  casual: { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65, emoji_usage: 'medium' },
+  comedian: { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45, emoji_usage: 'high' },
+  warm: { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90, emoji_usage: 'medium' },
   custom: DEFAULT_SLIDERS,
 };
+
+export function normalizePersonalitySliders(sliders: Partial<PersonalitySliders> | undefined): PersonalitySliders {
+  return {
+    formality: sliders?.formality ?? DEFAULT_SLIDERS.formality,
+    humor: sliders?.humor ?? DEFAULT_SLIDERS.humor,
+    verbosity: sliders?.verbosity ?? DEFAULT_SLIDERS.verbosity,
+    assertiveness: sliders?.assertiveness ?? DEFAULT_SLIDERS.assertiveness,
+    empathy: sliders?.empathy ?? DEFAULT_SLIDERS.empathy,
+    emoji_usage: normalizeEmojiUsage(sliders?.emoji_usage),
+  };
+}
 
 // ── Group ────────────────────────────────────────────────────
 
