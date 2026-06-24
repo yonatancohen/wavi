@@ -1,20 +1,23 @@
 <template>
   <section class="border-b border-outline-variant bg-surface/95">
-    <button
-      type="button"
-      class="flex w-full items-center justify-between gap-3 px-margin-mobile py-3 text-start lg:hidden"
-      :aria-expanded="detailsExpanded"
-      :aria-label="detailsExpanded ? t('groupDetail.overview.collapse') : t('groupDetail.overview.expand')"
-      @click="detailsExpanded = !detailsExpanded"
-    >
-      <div class="min-w-0">
-        <p class="font-sora text-[13px] font-semibold text-on-surface">{{ t('groupDetail.overview.title') }}</p>
-        <p class="mt-0.5 truncate font-mono text-[11px] text-on-surface-variant">{{ collapsedSummary }}</p>
-      </div>
-      <span class="material-symbols-outlined shrink-0 text-[20px] text-on-surface-variant">
-        {{ detailsExpanded ? 'expand_less' : 'expand_more' }}
-      </span>
-    </button>
+    <div class="flex items-center gap-2 px-margin-mobile py-3 lg:hidden">
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-center gap-2 text-start"
+        :aria-expanded="detailsExpanded"
+        :aria-label="detailsExpanded ? t('groupDetail.overview.collapse') : t('groupDetail.overview.expand')"
+        @click="detailsExpanded = !detailsExpanded"
+      >
+        <div class="min-w-0 flex-1">
+          <p class="font-sora text-[13px] font-semibold text-on-surface">{{ t('groupDetail.overview.title') }}</p>
+          <p class="mt-0.5 truncate font-mono text-[11px] text-on-surface-variant">{{ collapsedSummary }}</p>
+        </div>
+        <span class="material-symbols-outlined shrink-0 text-[20px] text-on-surface-variant">
+          {{ detailsExpanded ? 'expand_less' : 'expand_more' }}
+        </span>
+      </button>
+      <ActionButtons :group="group" :saving="saving" @go-live="emit('goLive')" @pause="emit('pause')" />
+    </div>
 
     <div class="px-margin-mobile pb-4 lg:px-margin-desktop lg:pb-5" :class="{ 'hidden lg:block': !detailsExpanded }">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -26,7 +29,7 @@
             {{ statusLabel(group.status, t) }}
           </span>
         </div>
-        <ActionButtons :group="group" :saving="saving" @go-live="emit('goLive')" @pause="emit('pause')" />
+        <ActionButtons class="hidden lg:flex" :group="group" :saving="saving" @go-live="emit('goLive')" @pause="emit('pause')" />
       </div>
 
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">

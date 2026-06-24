@@ -23,7 +23,7 @@
 
     <header class="page-header page-header--group sticky top-0 z-10 hidden lg:block">
       <RouterLink to="/groups" class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary">
-        <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
+        <span class="material-symbols-outlined text-[14px] rtl:scale-x-[-1]">arrow_back</span>
         {{ t('groupDetail.back') }}
       </RouterLink>
 

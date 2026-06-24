@@ -126,7 +126,7 @@
             </div>
             <RouterLink to="/activity" class="flex shrink-0 items-center gap-1 text-[12px] text-on-surface-variant no-underline transition-colors hover:text-primary">
               {{ t('dashboard.recentActivity.viewAll') }}
-              <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_forward</span>
+              <span class="material-symbols-outlined text-[14px] rtl:scale-x-[-1]">arrow_forward</span>
             </RouterLink>
           </div>
 

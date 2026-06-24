@@ -15,7 +15,7 @@
       <header class="mobile-top-bar lg:hidden">
         <div class="flex min-w-0 items-center gap-2">
           <RouterLink v-if="showMobileBack" to="/groups" class="icon-btn min-h-10 min-w-10 shrink-0" :aria-label="t('groupDetail.back')">
-            <span class="material-symbols-outlined text-[20px] [dir=rtl]:scale-x-[-1]">arrow_back</span>
+            <span class="material-symbols-outlined text-[20px] rtl:scale-x-[-1]">arrow_back</span>
           </RouterLink>
           <img v-else src="/wavi-mascot.jpg" alt="" class="h-8 w-8 shrink-0 rounded-lg object-contain ring-1 ring-outline-variant/30" />
           <div class="min-w-0">

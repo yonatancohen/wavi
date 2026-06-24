@@ -14,7 +14,7 @@
       <p class="text-[13px] text-on-surface-variant">{{ t('dashboard.health.offline') }}</p>
       <RouterLink to="/connect" class="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-primary no-underline hover:underline">
         {{ t('dashboard.health.goConnect') }}
-        <span class="material-symbols-outlined text-[14px] [dir=rtl]:scale-x-[-1]">arrow_forward</span>
+        <span class="material-symbols-outlined text-[14px] rtl:scale-x-[-1]">arrow_forward</span>
       </RouterLink>
     </div>
 

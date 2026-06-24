@@ -22,12 +22,12 @@
     </header>
 
     <div class="page-content py-7">
-      <div class="mb-4 flex flex-col gap-2 sm:flex-row">
-        <button class="btn btn-secondary flex w-full items-center justify-center gap-2" :disabled="creatingDraft" @click="openCreateDraft">
+      <div class="mb-4 flex flex-wrap gap-2">
+        <button class="btn btn-secondary flex items-center justify-center gap-2" :disabled="creatingDraft" @click="openCreateDraft">
           <span class="material-symbols-outlined text-[16px]">edit_note</span>
           {{ creatingDraft ? t('groups.loading') : t('groups.createDraft') }}
         </button>
-        <button class="btn btn-primary flex w-full items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
+        <button class="btn btn-primary flex items-center justify-center gap-2" :disabled="discovering" @click="openDiscover">
           <span class="material-symbols-outlined text-[16px]">group_add</span>
           {{ discovering ? t('groups.loading') : t('groups.addFromWhatsapp') }}
         </button>

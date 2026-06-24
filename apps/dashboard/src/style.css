@@ -192,6 +192,10 @@
     border-color: color-mix(in srgb, rgb(var(--color-on-surface)) 20%, transparent);
   }
 
+  .btn-danger {
+    @apply btn bg-error text-on-error transition-all hover:brightness-110 active:scale-95;
+  }
+
   /* ── Badge ───────────────────────────────────── */
   .badge {
     @apply whitespace-nowrap rounded-full text-[10px] font-semibold uppercase tracking-wide;

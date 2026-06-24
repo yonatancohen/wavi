@@ -1,7 +1,7 @@
 <template>
   <div class="flex shrink-0 items-center gap-2">
     <button
-      v-if="group.status !== 'active'"
+      v-if="group.status !== 'active' && group.status !== 'paused'"
       type="button"
       class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]"
       :disabled="saving || group.is_draft"
@@ -11,13 +11,13 @@
       <span class="material-symbols-outlined text-[16px]">play_arrow</span>
       {{ saving ? t('groupDetail.setup.saving') : t('groupDetail.setup.goLive') }}
     </button>
-    <button v-if="group.status === 'active'" type="button" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="emit('pause')">
-      <span class="material-symbols-outlined text-[16px]">pause</span>
-      {{ t('groupDetail.setup.pause') }}
-    </button>
-    <button v-if="group.status === 'paused'" type="button" class="btn btn-secondary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="emit('goLive')">
+    <button v-if="group.status === 'paused'" type="button" class="btn btn-primary flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="emit('goLive')">
       <span class="material-symbols-outlined text-[16px]">play_arrow</span>
       {{ t('groupDetail.setup.resume') }}
+    </button>
+    <button v-if="group.status === 'active'" type="button" class="btn btn-danger flex items-center gap-1.5 px-3 py-2 text-[12px]" :disabled="saving" @click="emit('pause')">
+      <span class="material-symbols-outlined text-[16px]">pause</span>
+      {{ t('groupDetail.setup.pause') }}
     </button>
   </div>
 </template>
