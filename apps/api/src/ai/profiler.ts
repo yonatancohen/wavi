@@ -1,6 +1,6 @@
-import { db } from '../db/client.js';
 import type { LanguageMode, UserProfileData } from '@wavi/shared';
 import { mergeAliases, messageReferencesName } from '../lib/identity.js';
+import { upsertUserProfile } from '../lib/profile-store.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { synthesisLanguageInstruction } from './language.js';
 
@@ -129,18 +129,14 @@ ${sample.slice(0, 2000)}`,
     const parsed = JSON.parse(clean) as UserProfileData & { behavioral_summary?: string };
     const aliases = mergeAliases(preloadedAliases, ...(parsed.aliases ?? []));
 
-    await db.from('user_profiles').upsert(
-      {
-        group_id: groupId,
-        wa_user_id: waUserId,
-        display_name: displayName,
-        profile_data: { ...parsed, aliases },
-        behavioral_summary: parsed.behavioral_summary ?? '',
-        msg_count: messages.length,
-        last_updated: new Date().toISOString(),
-      },
-      { onConflict: 'group_id,wa_user_id' },
-    );
+    await upsertUserProfile({
+      group_id: groupId,
+      wa_user_id: waUserId,
+      display_name: displayName,
+      profile_data: { ...parsed, aliases },
+      behavioral_summary: parsed.behavioral_summary ?? '',
+      msg_count: messages.length,
+    });
   } catch {
     // Skip malformed profile
   }

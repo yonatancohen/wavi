@@ -30,7 +30,7 @@ async function reconcileUserIdentity(groupId: string, senderWaId: string, displa
     // Update display name to live push name and record old export label as alias
     if (alreadyKeyed.display_name !== displayName) {
       await addProfileAliases(groupId, waUserId, alreadyKeyed.display_name);
-      await db.from('user_profiles').update({ display_name: displayName, last_updated: new Date().toISOString() }).eq('id', alreadyKeyed.id);
+      await db.from('user_profiles').update({ display_name: displayName, last_updated: new Date().toISOString() }).eq('id', alreadyKeyed.id).eq('group_id', groupId);
     }
     await redis.setex(cacheKey, 86400, '1');
     return;
@@ -56,7 +56,8 @@ async function reconcileUserIdentity(groupId: string, senderWaId: string, displa
       profile_data: { ...(profile.profile_data as object), aliases: mergedAliases },
       last_updated: new Date().toISOString(),
     })
-    .eq('id', profile.id);
+    .eq('id', profile.id)
+    .eq('group_id', groupId);
   await reconcileRelationshipIds(groupId, oldId, waUserId, displayName);
 
   console.log(`[Reconcile] Updated wa_user_id "${oldId}" → ${waUserId} (${displayName}) in group ${groupId}`);

@@ -24,7 +24,8 @@ export async function addProfileAliases(groupId: string, waUserId: string, ...ne
       profile_data: { ...(profile.profile_data as object), aliases: filtered },
       last_updated: new Date().toISOString(),
     })
-    .eq('id', profile.id);
+    .eq('id', profile.id)
+    .eq('group_id', groupId);
 
   return filtered;
 }
