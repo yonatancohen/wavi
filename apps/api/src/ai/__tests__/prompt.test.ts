@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildConversationTurns, buildSystemPrompt } from '../prompt-build.js';
-import type { PromptContext } from '@wavi/shared';
+import type { CharacterConfig, PersonalitySliders, PromptContext, UserProfile } from '@wavi/shared';
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -20,11 +20,11 @@ function makeMessage(body: string, is_agent_reply: boolean, sender_name = 'Alice
 
 function makeContext(overrides: Partial<PromptContext> = {}): PromptContext {
   return {
-    character_config: null as any,
+    character_config: null as unknown as CharacterConfig,
     group_name: 'Test Group',
     language_mode: 'auto',
     group_context_summary: '',
-    sender_profile: null as any,
+    sender_profile: null as unknown as UserProfile,
     relevant_relationships: [],
     group_memories: [],
     mentioned_people: [],
@@ -110,7 +110,7 @@ describe('buildConversationTurns', () => {
 
 describe('buildSystemPrompt', () => {
   it('returns a fallback prompt when character_config is null', () => {
-    const ctx = makeContext({ character_config: null as any });
+    const ctx = makeContext({ character_config: null as unknown as CharacterConfig });
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('WhatsApp group chat');
     expect(prompt).toContain('short, casual');
@@ -237,7 +237,7 @@ describe('buildSystemPrompt', () => {
         voice: 'Test.',
         opinions: ['opinion'],
         signature_behavior: 'quirk',
-        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 } as any,
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 } as unknown as PersonalitySliders,
         preset: 'custom',
         version: 1,
       },

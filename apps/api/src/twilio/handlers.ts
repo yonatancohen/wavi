@@ -1,7 +1,7 @@
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { appendToChunkBuffer } from '../jobs/chunker.js';
-import { isGroupReplyEnabled, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
+import { isGroupReplyEnabled, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW, type CharacterConfig } from '@wavi/shared';
 
 export async function handleTwilioMessage(from: string, body: string) {
   // from = 'whatsapp:+972501234567'
@@ -84,7 +84,7 @@ export async function handleTwilioMessage(from: string, body: string) {
   });
 }
 
-function getRateLimitResponse(characterConfig: any): string {
+function getRateLimitResponse(characterConfig: Partial<CharacterConfig> | null | undefined): string {
   const humor = characterConfig?.sliders?.humor ?? 50;
   if (humor > 70) return `Easy there — I need a breather. You've hit your limit for the hour. I'll be back. 😤`;
   if (humor > 40) return `That's 20 for this hour. Give me a break and try again later.`;

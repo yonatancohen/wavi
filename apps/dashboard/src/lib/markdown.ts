@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { marked, type Tokens } from 'marked';
 
 export interface TocEntry {
@@ -79,5 +80,13 @@ export function renderMarkdown(markdown: string): string {
     breaks: false,
   });
 
-  return marked.parse(markdown, { renderer }) as string;
+  const raw = marked.parse(markdown, { renderer }) as string;
+  return sanitizeDocHtml(raw);
+}
+
+/** Allow doc-specific markup (headings with ids, mermaid blocks, tables). */
+export function sanitizeDocHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['id', 'data-lang'],
+  });
 }

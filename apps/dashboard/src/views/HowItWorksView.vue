@@ -48,7 +48,7 @@
           </nav>
         </aside>
 
-        <article ref="articleRef" class="doc-prose order-1 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container p-6 sm:p-8 xl:order-2" v-html="html" />
+        <article ref="articleRef" class="doc-prose order-1 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container p-6 sm:p-8 xl:order-2" />
       </div>
     </div>
   </div>
@@ -74,6 +74,12 @@ const quickPhases = computed(() => [
   { id: 'what-is-replay', icon: 'replay', label: t('howItWorks.phases.replay') },
   { id: 'highly-detailed-section', icon: 'menu_book', label: t('howItWorks.phases.deepDive') },
 ]);
+
+function syncArticleHtml() {
+  if (articleRef.value) {
+    articleRef.value.innerHTML = html.value;
+  }
+}
 
 function mermaidTheme(): 'dark' | 'default' {
   return document.documentElement.classList.contains('light') ? 'default' : 'dark';
@@ -123,6 +129,7 @@ let observer: MutationObserver | null = null;
 
 onMounted(async () => {
   await nextTick();
+  syncArticleHtml();
   await renderMermaid();
 
   if (location.hash) {
@@ -146,6 +153,7 @@ onUnmounted(() => {
 
 watch(html, async () => {
   await nextTick();
+  syncArticleHtml();
   await renderMermaid();
 });
 </script>
