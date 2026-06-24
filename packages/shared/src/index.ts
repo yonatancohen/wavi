@@ -116,6 +116,8 @@ export interface Group {
   character_config: CharacterConfig | null;
   character_locked: boolean;
   language_mode: LanguageMode;
+  /** When true, Wavi may search the web for factual / current-info questions. */
+  web_search_enabled: boolean;
   created_at: string;
 }
 
@@ -369,6 +371,18 @@ export interface MentionedPerson {
   relationships: string[];
 }
 
+export interface WebSearchSnippet {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface WebSearchContext {
+  query: string;
+  answer?: string;
+  results: WebSearchSnippet[];
+}
+
 export interface PromptContext {
   character_config: CharacterConfig;
   group_name: string;
@@ -384,6 +398,7 @@ export interface PromptContext {
   resolved_display_names: Record<string, string>;
   quoted_message?: QuotedMessageContext | null;
   current_message: string;
+  web_search?: WebSearchContext | null;
 }
 
 // ── Cost observability ───────────────────────────────────────

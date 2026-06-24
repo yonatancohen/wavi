@@ -1,5 +1,6 @@
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
+import { normalizeWebSearchQuery, searchWeb, shouldUseWebSearch } from '../lib/web-search.js';
 import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName } from '../lib/identity.js';
@@ -16,6 +17,11 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   const ragQuery = normalizeRagQuery(currentMessage, structured.recent_messages);
   const rag = await fetchRAGContext(groupId, ragQuery);
 
+  let web_search = null;
+  if (structured.web_search_enabled && shouldUseWebSearch(currentMessage)) {
+    web_search = await searchWeb(normalizeWebSearchQuery(currentMessage));
+  }
+
   const resolvedNames = await resolveDisplayNames(groupId, [...structured.recent_messages.map((m) => m.sender_wa_id), senderWaId, ...(quotedMessage ? [quotedMessage.sender_wa_id] : [])]);
 
   const mentionedPeople = await fetchMentionedPeople(groupId, currentMessage, senderWaId);
@@ -27,6 +33,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     resolved_display_names: resolvedNames,
     quoted_message: quotedMessage ?? null,
     current_message: currentMessage,
+    web_search,
   };
 }
 
@@ -34,7 +41,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 
 async function fetchStructuredContext(groupId: string, senderWaId: string) {
   const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult] = await Promise.all([
-    db.from('groups').select('name, character_config, language_mode').eq('id', groupId).single(),
+    db.from('groups').select('name, character_config, language_mode, web_search_enabled').eq('id', groupId).single(),
 
     db.from('user_profiles').select('*').eq('group_id', groupId).eq('wa_user_id', senderWaId).single(),
 
@@ -56,6 +63,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     character_config: groupResult.data?.character_config ?? null,
     group_name: groupResult.data?.name ?? 'the group',
     language_mode: (groupResult.data?.language_mode ?? 'auto') as LanguageMode,
+    web_search_enabled: groupResult.data?.web_search_enabled ?? false,
     sender_profile: profileResult.data ?? null,
     relevant_relationships: relationshipsResult.data ?? [],
     group_memories: memoriesResult.data ?? [],

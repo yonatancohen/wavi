@@ -189,4 +189,26 @@ describe('buildSystemPrompt', () => {
     expect(buildSystemPrompt(makeCtxWithFormality(90))).toContain('formal');
     expect(buildSystemPrompt(makeCtxWithFormality(50))).toContain('balanced');
   });
+
+  it('includes web search block when results are present', () => {
+    const ctx = makeContext({
+      character_config: {
+        voice: 'Curious.',
+        opinions: ['Facts matter'],
+        signature_behavior: 'Cites sources.',
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50 },
+        preset: 'custom',
+        version: 1,
+      },
+      web_search: {
+        query: 'weather Tel Aviv',
+        answer: 'Sunny and warm.',
+        results: [{ title: 'Forecast', url: 'https://example.com', snippet: '32°C in Tel Aviv.' }],
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('BLOCK — WEB SEARCH');
+    expect(prompt).toContain('Sunny and warm.');
+    expect(prompt).toContain('https://example.com');
+  });
 });

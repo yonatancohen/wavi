@@ -3,6 +3,7 @@ import type { GroupStatus, GroupWithStats } from '@wavi/shared';
 export function normalizeGroupWithStats(group: GroupWithStats): GroupWithStats {
   return {
     ...group,
+    web_search_enabled: group.web_search_enabled ?? false,
     profile_count: group.profile_count ?? 0,
     message_count_today: group.message_count_today ?? 0,
     reply_count_today: group.reply_count_today ?? 0,

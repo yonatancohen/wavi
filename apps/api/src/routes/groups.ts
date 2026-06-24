@@ -256,7 +256,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>('/:id', async (req, reply) => {
-    const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'name'];
+    const allowed = ['character_config', 'status', 'character_locked', 'language_mode', 'web_search_enabled', 'name'];
     const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
 
     if (update.status === 'active') {

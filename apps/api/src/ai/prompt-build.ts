@@ -20,6 +20,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const mentionedBlock = buildMentionedPeopleBlock(ctx);
   const quotedBlock = buildQuotedReplyBlock(ctx);
   const memoriesBlock = buildMemoriesBlock(ctx);
+  const webSearchBlock = buildWebSearchBlock(ctx);
 
   return `
 BLOCK 1 — IDENTITY
@@ -56,6 +57,8 @@ ${ctx.relevant_relationships.length > 0 ? ctx.relevant_relationships.map((r) => 
 ${mentionedBlock}
 
 ${memoriesBlock}
+
+${webSearchBlock}
 
 BLOCK 8 — RELEVANT HISTORY (retrieved by semantic search)
 ${ctx.rag_chunks.length > 0 ? ctx.rag_chunks.map((chunk, i) => `[Past context ${i + 1}]: ${chunk}`).join('\n') : 'No relevant past context found.'}
@@ -201,5 +204,20 @@ function buildMemoriesBlock(ctx: PromptContext): string {
   if (!ctx.group_memories?.length) return '';
   const lines = ctx.group_memories.slice(0, 10).map((m) => `- ${m.memory_text}`);
   return `BLOCK — GROUP MEMORIES
+${lines.join('\n')}`;
+}
+
+function buildWebSearchBlock(ctx: PromptContext): string {
+  const search = ctx.web_search;
+  if (!search?.results?.length && !search?.answer) return '';
+
+  const lines: string[] = [];
+  if (search.answer) lines.push(`Summary: ${search.answer}`);
+  for (const r of search.results.slice(0, 5)) {
+    lines.push(`- ${r.title}: ${r.snippet} (${r.url})`);
+  }
+
+  return `BLOCK — WEB SEARCH (live results for: "${search.query}")
+Use these for factual or current-info questions. Prefer this over guessing. Group history and memories still win for in-group context.
 ${lines.join('\n')}`;
 }

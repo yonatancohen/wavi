@@ -19,7 +19,7 @@
     </label>
     <select
       v-model="languageMode"
-      class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+      class="mb-6 w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
       :disabled="saving"
       @change="saveLanguage"
     >
@@ -27,7 +27,18 @@
       <option value="en">{{ t('groupSettings.languageEn') }}</option>
       <option value="auto">{{ t('groupSettings.languageAuto') }}</option>
     </select>
-    <p v-if="saving" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
+
+    <div class="mb-6 rounded-xl border border-outline-variant/70 bg-surface-variant/15 px-4 py-4">
+      <label class="flex cursor-pointer items-start gap-3">
+        <input v-model="webSearchEnabled" type="checkbox" class="mt-0.5 rounded border-outline-variant" :disabled="saving" @change="saveWebSearch" />
+        <span>
+          <span class="block text-[13px] font-medium text-on-surface">{{ t('groupSettings.webSearch') }}</span>
+          <span class="mt-1 block text-[12px] leading-relaxed text-on-surface-variant">{{ t('groupSettings.webSearchHint') }}</span>
+        </span>
+      </label>
+    </div>
+
+    <p v-if="saving" class="text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
 
     <div class="mt-auto border-t border-outline-variant pt-5">
       <RebuildIntelligence embedded :group-id="group.id" @complete="emit('rebuildComplete')" />
@@ -49,6 +60,7 @@ const emit = defineEmits<{ updated: [group: GroupWithStats]; rebuildComplete: []
 
 const store = useGroupsStore();
 const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');
+const webSearchEnabled = ref(props.group.web_search_enabled ?? false);
 const saving = ref(false);
 const saveError = ref<string | null>(null);
 
@@ -56,6 +68,13 @@ watch(
   () => props.group.language_mode,
   (mode) => {
     languageMode.value = mode ?? 'he';
+  },
+);
+
+watch(
+  () => props.group.web_search_enabled,
+  (enabled) => {
+    webSearchEnabled.value = enabled ?? false;
   },
 );
 
@@ -69,6 +88,21 @@ async function saveLanguage() {
   } catch (e) {
     saveError.value = e instanceof Error ? e.message : t('groupSettings.failedSave');
     languageMode.value = props.group.language_mode ?? 'he';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function saveWebSearch() {
+  if (webSearchEnabled.value === (props.group.web_search_enabled ?? false)) return;
+  saving.value = true;
+  saveError.value = null;
+  try {
+    const updated = await store.patchGroup(props.group.id, { web_search_enabled: webSearchEnabled.value });
+    emit('updated', updated);
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : t('groupSettings.failedSave');
+    webSearchEnabled.value = props.group.web_search_enabled ?? false;
   } finally {
     saving.value = false;
   }

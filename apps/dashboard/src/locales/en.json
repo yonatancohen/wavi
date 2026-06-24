@@ -251,6 +251,8 @@
     "languageHe": "Hebrew",
     "languageEn": "English",
     "languageAuto": "Auto (match message)",
+    "webSearch": "Web search",
+    "webSearchHint": "When enabled, Wavi searches the web for factual or current-info questions (scores, weather, news, etc.). Requires TAVILY_API_KEY on the API.",
     "saving": "Saving…",
     "failedSave": "Failed to save settings"
   },

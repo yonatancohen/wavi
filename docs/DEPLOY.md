@@ -83,6 +83,7 @@ WhatsApp login must survive redeploys:
 | `SUPABASE_SERVICE_ROLE_KEY` | yes      | Server-only, never in dashboard            |
 | `ANTHROPIC_API_KEY`         | yes      | Replies + synthesis                        |
 | `OPENAI_API_KEY`            | yes      | Embeddings only                            |
+| `TAVILY_API_KEY`            | optional | Web search when enabled per group          |
 | `UPSTASH_REDIS_REST_URL`    | yes      | Same Redis for dev + prod                  |
 | `UPSTASH_REDIS_REST_TOKEN`  | yes      |                                            |
 | `AGENT_ID`                  | yes      | UUID from `agents` table                   |

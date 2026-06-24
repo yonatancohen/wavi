@@ -251,6 +251,8 @@
     "languageHe": "עברית",
     "languageEn": "אנגלית",
     "languageAuto": "אוטומטי (לפי ההודעה)",
+    "webSearch": "חיפוש באינטרנט",
+    "webSearchHint": "כשמופעל, wavi מחפש ברשת לשאלות עובדתיות או עדכניות (תוצאות, מזג אוויר, חדשות וכו'). דורש TAVILY_API_KEY ב-API.",
     "saving": "שומר…",
     "failedSave": "שמירת ההגדרות נכשלה"
   },

@@ -35,6 +35,11 @@ bun install
 - Open Supabase SQL Editor
 - Run `supabase-schema.sql` in full
 - Enable pgvector extension (Settings → Database → Extensions)
+- If upgrading an existing database, run:
+
+```sql
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS web_search_enabled boolean DEFAULT false;
+```
 
 ### 3. Environment variables
 
@@ -50,6 +55,8 @@ UPSTASH_REDIS_REST_TOKEN=
 PORT=3000
 WA_AGENT_NAME=wavi
 AGENT_ID=<your agent row UUID from Supabase>
+# Optional: Tavily API key for per-group web search (dashboard → group settings)
+# TAVILY_API_KEY=
 ```
 
 **Dashboard** (`apps/dashboard/.env`):
