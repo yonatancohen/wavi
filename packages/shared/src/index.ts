@@ -569,6 +569,21 @@ export interface PromptContext {
   image_generation_enabled: boolean;
 }
 
+// ── Reminders ────────────────────────────────────────────────
+
+export interface ScheduledReminder {
+  id: string;
+  group_id: string;
+  group_name: string | null;
+  wa_group_id: string;
+  sender_wa_id: string;
+  sender_name: string | null;
+  reminder_text: string;
+  fire_at: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
 // ── Cost observability ───────────────────────────────────────
 
 export interface CostStats {

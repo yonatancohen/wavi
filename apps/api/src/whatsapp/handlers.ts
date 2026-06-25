@@ -581,6 +581,17 @@ async function tryHandleReminderCommand(params: {
   }
 
   // ── Create ──────────────────────────────────────────────────
+  const pending = await getPendingReminders({
+    group_id: params.groupId,
+    sender_wa_id: params.senderWaId,
+  });
+
+  if (pending.length >= 10) {
+    const reply = isHebrew ? `כבר יש לך 10 תזכורות ממתינות 😅 בטל אחת לפני שתוסיף חדשה.` : `You already have 10 pending reminders 😅 Cancel one before adding a new one.`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
   const parsed = parseReminderInput(cmd.payload);
 
   if (!parsed) {
