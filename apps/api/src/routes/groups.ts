@@ -387,9 +387,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // Test reply preview (no WhatsApp delivery, no DB writes)
+  // Test reply preview (no WhatsApp delivery, no DB writes — except reminder commands
+  // which write to the reminders table so the full create/list/cancel flow can be tested).
   fastify.post<{ Params: { id: string }; Body: TestReplyRequest }>('/:id/test-reply', async (req, reply) => {
-    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    const { data: group } = await db.from('groups').select('id, wa_group_id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
 
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
@@ -399,8 +400,29 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const senderName = req.body.sender_name?.trim() || DEFAULT_TEST_SENDER_NAME;
     const senderWaId = req.body.sender_wa_id?.trim() || DEFAULT_TEST_SENDER_WA_ID;
     const extraTurns = mapTestHistoryToExtraTurns(req.body.history);
-
     const startTime = Date.now();
+
+    // Reminder commands (create / list / cancel) are handled directly — no
+    // Claude call needed. Real reminders are written to the DB so they fire
+    // at the scheduled time, just like in the live WhatsApp flow.
+    const { resolveReminderCommand } = await import('../lib/reminder-handler.js');
+    const reminderResult = await resolveReminderCommand({
+      groupId: group.id,
+      waGroupId: group.wa_group_id,
+      senderWaId,
+      senderName,
+      body: message,
+    });
+
+    if (reminderResult.handled) {
+      return {
+        reply: reminderResult.reply,
+        latency_ms: Date.now() - startTime,
+        prompt_tokens: 0,
+        completion_tokens: 0,
+      } satisfies TestReplyResponse;
+    }
+
     const { replyText, imagePrompt, imageCaption, inputTokens, outputTokens } = await generateReplyText({
       groupId: req.params.id,
       senderWaId,
