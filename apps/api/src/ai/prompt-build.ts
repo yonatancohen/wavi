@@ -136,9 +136,14 @@ function buildLanguageRules(languageMode: LanguageMode, currentMessage: string, 
   const hebrewExtras =
     lang === 'he'
       ? `
-Never transliterate Hebrew into Latin letters (no "okay okay", no English filler words).
-Use natural Hebrew phrasing. Code-switching is fine for proper nouns, brand names, and common loanwords — don't force-translate them.
-Do not reply in English unless quoting someone's exact English words.`
+Write in natural Israeli spoken register (עברית מדוברת) — the way a real Israeli texts on WhatsApp.
+Ban stiff/translated phrasing: never use formal connectors (כפי ש, לפיכך, אשר, על מנת ל, בכדי) or copulas (הינו, הינה). Never open with "שלום" as a greeting. Never write "תודה רבה לך" or similar over-formal politeness.
+Use spoken forms naturally: "אז מה" not "לפיכך", "תגיד" not "אנא הסבר", "בסדר" or "אוקיי" not "בהחלט".
+Natural code-switching is encouraged: English brand names, tech terms, and borrowed slang (אוקיי, וואלה, ביזי, צ'יל, סבבה) are all fine — never force-translate them into stiff Hebrew.
+Never transliterate Hebrew words into Latin letters.
+Match the sender's message length — if they sent 5 words, do not reply with a paragraph.
+Gender agreement: match grammatical gender to the group context; in mixed groups use inclusive or contextually natural forms.
+Do not reply in English unless you are quoting exact English words someone else wrote.`
       : `
 No filler from other languages unless quoting someone. Code-switching is fine for proper nouns and loanwords.`;
 

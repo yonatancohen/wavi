@@ -7,6 +7,8 @@ import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { normalizeRagQuery } from './rag-query.js';
 
+const RAG_SIMILARITY_THRESHOLD = 0.35;
+
 export { normalizeRagQuery } from './rag-query.js';
 
 // ── Main context assembler ────────────────────────────────────
@@ -16,7 +18,11 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 
   const structured = await fetchStructuredContext(groupId, senderWaId);
   const ragQuery = normalizeRagQuery(currentMessage, structured.recent_messages);
-  const rag = await fetchRAGContext(groupId, ragQuery);
+  const rag = await fetchRAGContext(
+    groupId,
+    ragQuery,
+    structured.recent_messages.map((m) => m.body),
+  );
 
   let web_search = null;
   if (structured.web_search_enabled && shouldUseWebSearch(currentMessage)) {
@@ -76,27 +82,43 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
 
 // ── Layer 2: pgvector RAG fetch ───────────────────────────────
 
-async function fetchRAGContext(groupId: string, query: string) {
+async function fetchRAGContext(groupId: string, query: string, recentMessageBodies: string[] = []) {
   const queryEmbedding = await embed(query, { groupId });
 
   const [chunksResult, episodesResult] = await Promise.all([
     db.rpc('search_message_chunks', {
       p_group_id: groupId,
       p_embedding: JSON.stringify(queryEmbedding),
-      p_limit: 5,
+      p_limit: 10,
     }),
 
     db.rpc('search_episode_summaries', {
       p_group_id: groupId,
       p_embedding: JSON.stringify(queryEmbedding),
-      p_limit: 3,
+      p_limit: 5,
     }),
   ]);
 
-  return {
-    rag_chunks: (chunksResult.data ?? []).map((r: { summary?: string; content?: string }) => r.summary ?? r.content),
-    rag_episode_summaries: (episodesResult.data ?? []).map((r: { summary: string }) => r.summary),
+  // True if the first 80 chars of a RAG result overlap with any recent message already in the prompt.
+  const isRecentDup = (text: string) => {
+    const head = text.slice(0, 80);
+    return recentMessageBodies.some((body) => body.includes(head) || head.includes(body.slice(0, 80)));
   };
+
+  const rag_chunks = ((chunksResult.data ?? []) as { similarity: number; summary?: string; content?: string }[])
+    .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
+    .filter((r) => !isRecentDup(r.summary ?? r.content ?? ''))
+    .slice(0, 5)
+    .map((r) => r.summary ?? r.content)
+    .filter((s): s is string => s !== undefined);
+
+  const rag_episode_summaries = ((episodesResult.data ?? []) as { similarity: number; summary: string }[])
+    .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
+    .filter((r) => !isRecentDup(r.summary))
+    .slice(0, 3)
+    .map((r) => r.summary);
+
+  return { rag_chunks, rag_episode_summaries };
 }
 
 /** Map wa_user_id → display_name for conversation turns. */

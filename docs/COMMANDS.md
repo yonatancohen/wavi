@@ -89,6 +89,12 @@ bun run replay -- <groupId> --sender "Yoni Cohen" --message "@wavi מי זה Dan
 
 See `apps/api/scripts/replay.ts`, `apps/api/scripts/replay-fixtures.json`, and [HOW-WAVI-WORKS.md](./HOW-WAVI-WORKS.md) (also in the dashboard under **How It Works**).
 
+### Feature flags (API env)
+
+| Variable           | Default | Effect                                                                                                                                                                         |
+| ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SUMMARIZE_CHUNKS` | unset   | Set to `true` to run a per-chunk LLM summary during ingest/rebuild. Improves RAG quality at the cost of extra Claude calls. Unset (or any other value) skips the summary step. |
+
 ---
 
 ## Database

@@ -115,11 +115,11 @@ flowchart TD
 
 ### The 3 context layers
 
-| Layer                       | Source                                                           | Always / on-demand                        |
-| --------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
-| **Layer 1 — Structured DB** | Character, sender profile, relationships, memories, last 20 msgs | Always (Postgres queries)                 |
-| **Layer 2 — RAG**           | Top 5 message chunks + top 3 episode summaries                   | Per message (vector search)               |
-| **Layer 3 — Summaries**     | Group context summary, behavioral summaries                      | Pre-computed at ingest; loaded in Layer 1 |
+| Layer                       | Source                                                                                                  | Always / on-demand                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Layer 1 — Structured DB** | Character, sender profile, relationships, memories, last 20 msgs                                        | Always (Postgres queries)                 |
+| **Layer 2 — RAG**           | Up to 5 message chunks + up to 3 episode summaries (similarity ≥ 0.35, deduped against recent messages) | Per message (vector search)               |
+| **Layer 3 — Summaries**     | Group context summary, behavioral summaries                                                             | Pre-computed at ingest; loaded in Layer 1 |
 
 ### What each fetch returns
 
@@ -245,7 +245,7 @@ The assembled context object includes:
 
 - Strips `@wavi` and numeric `@mention` IDs
 - Removes filler words ("וואו", "hey", "please")
-- Appends the last 3 recent messages as `context | query`
+- Appends recent-message context — 1 message for short/deictic questions (≤8 words + a question word like מי/מה/מתי/where/what/when), 3 messages for longer statements — so embeddings track intent without diluting deictic queries
 
 The **embedding query** is not the raw `@wavi` tag — it's the semantic intent plus recent thread.
 
@@ -313,7 +313,7 @@ Output: `character_config` JSON — voice, opinions, signature behavior, sliders
 After every message:
 
 - Buffer in Redis until 50 messages
-- Flush: LLM chunk summary → embed full content → `message_chunks`
+- Flush: embed full content → `message_chunks`; optional per-chunk LLM summary (set `SUMMARIZE_CHUNKS=true`; runs at ingest/rebuild only)
 - Every 100 messages: new episode summary
 - Queue **live re-profiling** for active speakers
 
@@ -348,14 +348,14 @@ After every message:
 
 **User:** `@wavi מי זה Dan Cohen? וואו` from Yoni Cohen
 
-| Step       | What Wavi does                                                                             |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| RAG query  | Strips `@wavi` + `וואו` → embeds something like `"Yoni: … \| Sara: … \| מי זה Dan Cohen?"` |
-| Structured | Loads Yoni's profile, his top relationships, group character (Hebrew casual), last 20 msgs |
-| Mentioned  | Detects "Dan Cohen" → loads Dan's behavioral summary + relationships + sensitivity         |
-| RAG        | Finds chunks/episodes where Dan appears                                                    |
-| Prompt     | 10-block system prompt + conversation history                                              |
-| Claude     | Short in-character Hebrew answer about Dan                                                 |
+| Step       | What Wavi does                                                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| RAG query  | Strips `@wavi` + `וואו` → detects deictic ("מי זה Dan Cohen?"), prepends only the single most-recent message as anchor → embeds `"Sara: … | מי זה Dan Cohen?"` (only 1 anchor message, not 3) |
+| Structured | Loads Yoni's profile, his top relationships, group character (Hebrew casual), last 20 msgs                                                |
+| Mentioned  | Detects "Dan Cohen" → loads Dan's behavioral summary + relationships + sensitivity                                                        |
+| RAG        | Finds chunks/episodes where Dan appears                                                                                                   |
+| Prompt     | 10-block system prompt + conversation history                                                                                             |
+| Claude     | Short in-character Hebrew answer about Dan                                                                                                |
 
 Run `bun run replay -- --fixtures` with your env to see the **exact** prompt for that case.
 
