@@ -1,8 +1,8 @@
 import { getDueReminders, markReminderSent } from '../lib/reminder-store.js';
 
-// Poll every 30 s — inexpensive Supabase read, only touches the partial index
+// Poll every 60 s — inexpensive Supabase read, only touches the partial index
 // (fire_at) WHERE sent_at IS NULL so it stays fast even with a large table.
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 60_000;
 
 export async function startReminderWorker() {
   console.log('[ReminderWorker] Starting...');
