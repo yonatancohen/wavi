@@ -21,6 +21,7 @@
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">
+      <!-- ── Left column ─────────────────────────────────────── -->
       <div class="space-y-4">
         <div>
           <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
@@ -62,8 +63,40 @@
             class="w-full resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
           />
         </div>
+
+        <div>
+          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('character.catchphrases') }}
+          </label>
+          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+            {{ t('character.catchphrasesHint') }}
+          </p>
+          <div class="space-y-2">
+            <div v-for="(_, idx) in localConfig.catchphrases" :key="idx" class="flex items-center gap-2">
+              <input
+                v-model="localConfig.catchphrases![idx]"
+                type="text"
+                :placeholder="t('character.catchphrasePlaceholder')"
+                class="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
+              />
+              <button type="button" class="icon-btn mt-0 shrink-0 !min-h-0 p-1.5 text-on-surface-variant/60 hover:text-error" :title="t('character.removeCatchphrase')" @click="removeCatchphrase(idx)">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          </div>
+          <button
+            v-if="(localConfig.catchphrases?.length ?? 0) < MAX_CATCHPHRASES"
+            type="button"
+            class="btn btn-secondary mt-2 inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[11px]"
+            @click="addCatchphrase"
+          >
+            <span class="material-symbols-outlined text-[16px]">add</span>
+            {{ t('character.addCatchphrase') }}
+          </button>
+        </div>
       </div>
 
+      <!-- ── Right column ────────────────────────────────────── -->
       <div class="space-y-4">
         <div>
           <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
@@ -92,14 +125,38 @@
         </div>
 
         <div>
-          <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            {{ t('character.sliders') }}
-          </label>
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label class="block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+              {{ t('character.sliders') }}
+            </label>
+          </div>
+
+          <!-- Preset pills -->
+          <div class="mb-3">
+            <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">{{ t('character.presetsHint') }}</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="preset in PRESETS"
+                :key="preset"
+                type="button"
+                class="rounded-full border px-3 py-1 text-[11px] font-medium transition-colors"
+                :class="
+                  localConfig.preset === preset
+                    ? 'border-primary/60 bg-primary/10 text-primary'
+                    : 'border-outline-variant bg-surface-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-on-surface'
+                "
+                @click="applyPreset(preset)"
+              >
+                {{ t(`character.preset.${preset}`) }}
+              </button>
+            </div>
+          </div>
+
           <p class="mb-3 text-[11px] leading-relaxed text-on-surface-variant/80">
             {{ t('character.slidersHint') }}
           </p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="slider in sliders" :key="slider.key">
+            <div v-for="slider in SLIDERS" :key="slider.key">
               <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
                 <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
                 <span class="shrink-0 font-mono tabular-nums text-on-surface-variant">
@@ -110,23 +167,6 @@
                 {{ t(`character.sliderDesc.${slider.key}`) }}
               </p>
               <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
-            </div>
-            <div>
-              <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
-                <span class="text-on-surface">{{ t('character.slider.emoji_usage') }}</span>
-                <span class="shrink-0 font-medium text-on-surface-variant">
-                  {{ t(`character.emojiUsage.${localConfig.sliders.emoji_usage}`) }}
-                </span>
-              </div>
-              <p class="mb-1.5 text-[10px] leading-snug text-on-surface-variant/75">
-                {{ t('character.sliderDesc.emoji_usage') }}
-              </p>
-              <input :value="emojiUsageIndex" type="range" min="0" :max="EMOJI_USAGE_LEVELS.length - 1" step="1" class="w-full accent-primary" @input="onEmojiUsageInput" />
-              <div class="mt-1 flex justify-between text-[10px] text-on-surface-variant/70">
-                <span v-for="level in EMOJI_USAGE_LEVELS" :key="level">
-                  {{ t(`character.emojiUsage.${level}`) }}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -139,8 +179,8 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
-import type { GroupWithStats, CharacterConfig, PersonalitySliders } from '@wavi/shared';
-import { DEFAULT_REPLY_MODEL, EMOJI_USAGE_LEVELS, normalizePersonalitySliders } from '@wavi/shared';
+import type { GroupWithStats, CharacterConfig, PersonalitySliders, CharacterPreset } from '@wavi/shared';
+import { DEFAULT_REPLY_MODEL, PRESET_SLIDERS, normalizePersonalitySliders } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -151,28 +191,27 @@ const store = useGroupsStore();
 const saving = ref(false);
 const saveError = ref<string | null>(null);
 const MAX_OPINIONS = 3;
+const MAX_CATCHPHRASES = 3;
 
-const sliders: { key: Exclude<keyof PersonalitySliders, 'emoji_usage'>; label: string }[] = [
-  { key: 'formality', label: 'formality' },
-  { key: 'humor', label: 'humor' },
-  { key: 'verbosity', label: 'verbosity' },
-  { key: 'assertiveness', label: 'assertiveness' },
-  { key: 'empathy', label: 'empathy' },
+const PRESETS: CharacterPreset[] = ['professional', 'casual', 'comedian', 'warm', 'custom'];
+
+const SLIDERS: { key: keyof PersonalitySliders }[] = [
+  { key: 'formality' },
+  { key: 'humor' },
+  { key: 'verbosity' },
+  { key: 'assertiveness' },
+  { key: 'empathy' },
+  { key: 'sarcasm' },
+  { key: 'energy' },
+  { key: 'emoji_usage' },
 ];
 
 function cloneConfig(config: CharacterConfig): CharacterConfig {
   const cloned = JSON.parse(JSON.stringify(config)) as CharacterConfig;
   if (!cloned.reply_model) cloned.reply_model = DEFAULT_REPLY_MODEL;
   cloned.sliders = normalizePersonalitySliders(cloned.sliders);
+  if (!cloned.catchphrases) cloned.catchphrases = [];
   return cloned;
-}
-
-const emojiUsageIndex = computed(() => EMOJI_USAGE_LEVELS.indexOf(localConfig.value?.sliders.emoji_usage ?? 'medium'));
-
-function onEmojiUsageInput(event: Event) {
-  if (!localConfig.value) return;
-  const index = Number((event.target as HTMLInputElement).value);
-  localConfig.value.sliders.emoji_usage = EMOJI_USAGE_LEVELS[index] ?? 'medium';
 }
 
 const localConfig = ref<CharacterConfig | null>(props.group.character_config ? cloneConfig(props.group.character_config) : null);
@@ -190,6 +229,14 @@ const isDirty = computed(() => {
   return JSON.stringify(localConfig.value) !== JSON.stringify(saved);
 });
 
+function applyPreset(preset: CharacterPreset) {
+  if (!localConfig.value) return;
+  localConfig.value.preset = preset;
+  if (preset !== 'custom') {
+    localConfig.value.sliders = { ...PRESET_SLIDERS[preset] };
+  }
+}
+
 function addOpinion() {
   if (!localConfig.value || localConfig.value.opinions.length >= MAX_OPINIONS) return;
   localConfig.value.opinions.push('');
@@ -200,6 +247,18 @@ function removeOpinion(index: number) {
   localConfig.value.opinions.splice(index, 1);
 }
 
+function addCatchphrase() {
+  if (!localConfig.value) return;
+  if (!localConfig.value.catchphrases) localConfig.value.catchphrases = [];
+  if (localConfig.value.catchphrases.length >= MAX_CATCHPHRASES) return;
+  localConfig.value.catchphrases.push('');
+}
+
+function removeCatchphrase(index: number) {
+  if (!localConfig.value?.catchphrases) return;
+  localConfig.value.catchphrases.splice(index, 1);
+}
+
 async function save() {
   if (!localConfig.value || !isDirty.value) return;
   saving.value = true;
@@ -207,6 +266,7 @@ async function save() {
   const payload: CharacterConfig = {
     ...localConfig.value,
     opinions: localConfig.value.opinions.map((o) => o.trim()).filter(Boolean),
+    catchphrases: (localConfig.value.catchphrases ?? []).map((c) => c.trim()).filter(Boolean),
   };
   try {
     const updated = await store.updateCharacter(props.group.id, payload);

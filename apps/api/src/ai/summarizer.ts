@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LanguageMode, EmojiUsageLevel, VoiceExample } from '@wavi/shared';
+import type { LanguageMode, VoiceExample, AgentGender } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -14,13 +14,17 @@ export type SynthesizedCharacter = {
   voice: string;
   opinions: string[];
   signature_behavior: string;
+  catchphrases: string[];
+  agent_gender?: AgentGender;
   sliders: {
     formality: number;
     humor: number;
     verbosity: number;
     assertiveness: number;
     empathy: number;
-    emoji_usage: EmojiUsageLevel;
+    sarcasm: number;
+    energy: number;
+    emoji_usage: number;
   };
   examples: VoiceExample[];
 };
@@ -31,7 +35,9 @@ function defaultCharacterFallback(groupName: string, languageMode: LanguageMode)
       voice: `חבר/ה ותיק/ה ב"${groupName}" — מדבר/ת עברית יומיומית, מכיר/ה את הקבוצה, קצת מגזים/ה אבל לא מתנשא/ת.`,
       opinions: ['תכנון יוצאים צריך להסתיים עם אוכל טוב', 'קבוצה בלי הומור זה לא קבוצה', 'אם לא סגרו מקום עד רביעי — זה לא קורה'],
       signature_behavior: 'מוסיף/ה אנרגיה לכל תוכנית שכבר הוגדרה — כמו hype man של הקבוצה.',
-      sliders: { formality: 15, humor: 75, verbosity: 45, assertiveness: 60, empathy: 70, emoji_usage: 'medium' },
+      catchphrases: [],
+      agent_gender: 'זכר',
+      sliders: { formality: 15, humor: 75, verbosity: 45, assertiveness: 60, empathy: 70, sarcasm: 30, energy: 65, emoji_usage: 55 },
       examples: [],
     };
   }
@@ -40,7 +46,8 @@ function defaultCharacterFallback(groupName: string, languageMode: LanguageMode)
     voice: `A longtime member of ${groupName} who knows everyone well and matches the group's casual tone.`,
     opinions: ['Good plans should end with good food', 'A group without humor is just a calendar', 'If it is not locked by Wednesday it is not happening'],
     signature_behavior: 'Hypes up whatever the group already decided to do.',
-    sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65, emoji_usage: 'medium' },
+    catchphrases: [],
+    sliders: { formality: 30, humor: 70, verbosity: 50, assertiveness: 60, empathy: 65, sarcasm: 20, energy: 55, emoji_usage: 55 },
     examples: [],
   };
 }
@@ -49,13 +56,17 @@ function buildCharacterSynthesisPrompt(params: { groupName: string; episodeSumma
   const lang = synthesisLanguageInstruction(params.languageMode);
   const languageFieldsRule =
     params.languageMode === 'he'
-      ? 'CRITICAL: voice, every opinion, signature_behavior, and ALL user/agent text in examples MUST be in natural Israeli Hebrew — no English in those fields.'
+      ? 'CRITICAL: voice, every opinion, signature_behavior, catchphrases, and ALL user/agent text in examples MUST be in natural Israeli Hebrew — no English in those fields.'
       : params.languageMode === 'en'
-        ? 'CRITICAL: voice, opinions, signature_behavior, and examples MUST be in English.'
-        : 'CRITICAL: voice, opinions, signature_behavior, and examples MUST follow the language rule above.';
+        ? 'CRITICAL: voice, opinions, signature_behavior, catchphrases, and examples MUST be in English.'
+        : 'CRITICAL: voice, opinions, signature_behavior, catchphrases, and examples MUST follow the language rule above.';
+  const genderRule =
+    params.languageMode === 'he'
+      ? 'agent_gender: infer the character\'s natural grammatical gender from the group context. Use "זכר" (masculine) or "נקבה" (feminine). Default to "זכר" if ambiguous.'
+      : '';
 
   return `${lang}
-${languageFieldsRule}
+${languageFieldsRule}${genderRule ? '\n' + genderRule : ''}
 
 You are designing an AI persona for a WhatsApp group called "${params.groupName}".
 
@@ -72,13 +83,17 @@ Respond in valid JSON only (no markdown, no explanation):
   "voice": "2-3 sentence description of how this character talks and their personality",
   "opinions": ["opinion 1", "opinion 2", "opinion 3"],
   "signature_behavior": "one specific recurring quirk or behavior",
+  "catchphrases": ["short recurring phrase 1", "short recurring phrase 2"],
+  "agent_gender": "זכר",
   "sliders": {
     "formality": <0-100>,
     "humor": <0-100>,
     "verbosity": <0-100>,
     "assertiveness": <0-100>,
     "empathy": <0-100>,
-    "emoji_usage": "none|low|medium|high"
+    "sarcasm": <0-100>,
+    "energy": <0-100>,
+    "emoji_usage": <0-100>
   },
   "examples": [
     { "user": "<a message a group member might send>", "agent": "<how this character would reply — natural length, in character>" },

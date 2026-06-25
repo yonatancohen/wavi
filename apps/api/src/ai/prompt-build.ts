@@ -1,5 +1,5 @@
 import type { PromptContext, LanguageMode } from '@wavi/shared';
-import { emojiUsagePromptHint, normalizeEmojiUsage } from '@wavi/shared';
+import { emojiUsagePromptHint, normalizePersonalitySliders } from '@wavi/shared';
 import { isQuotedAgent } from '../whatsapp/agent-identity.js';
 import { effectiveReplyLanguage, getLanguageName } from './language.js';
 
@@ -13,8 +13,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     return `You are ${process.env.WA_AGENT_NAME ?? 'wavi'}, a member of a WhatsApp group chat. Reply like a real person texting — short, casual, one message. No essays, lists, or markdown.`;
   }
 
-  const sliders = c.sliders;
-  const emojiUsage = normalizeEmojiUsage(sliders.emoji_usage);
+  const sliders = normalizePersonalitySliders(c.sliders);
   const recentMessages = ctx.recent_messages;
   const languageRules = buildLanguageRules(language_mode, ctx.current_message, recentMessages);
   const roleBoundary = buildRoleBoundary(language_mode, ctx.current_message, recentMessages);
@@ -37,7 +36,7 @@ ${roleBoundary}
 BLOCK 3 — CHARACTER
 ${c.voice}
 Your opinions: ${c.opinions.join(' | ')}
-Signature behavior: ${c.signature_behavior}
+Signature behavior: ${c.signature_behavior}${c.catchphrases?.length ? `\nYour phrases: ${c.catchphrases.join(' | ')} — weave these in naturally, not every message.` : ''}
 
 ${examplesBlock}
 
@@ -47,7 +46,9 @@ Humor: ${sliders.humor}/100 (${sliders.humor < 30 ? 'serious' : sliders.humor > 
 Verbosity: ${sliders.verbosity}/100 (${sliders.verbosity < 30 ? 'very brief' : sliders.verbosity > 70 ? 'elaborate' : 'moderate'})
 Assertiveness: ${sliders.assertiveness}/100 (${sliders.assertiveness < 30 ? 'hedged/neutral' : sliders.assertiveness > 70 ? 'direct/opinionated' : 'balanced'})
 Empathy: ${sliders.empathy}/100 (${sliders.empathy < 30 ? 'task-focused' : sliders.empathy > 70 ? 'very warm' : 'balanced'})
-Emoji usage: ${emojiUsage} (${emojiUsagePromptHint(emojiUsage)})
+Sarcasm: ${sliders.sarcasm}/100 (${sliders.sarcasm < 25 ? 'sincere and earnest' : sliders.sarcasm > 65 ? 'sharp sarcasm freely' : 'dry wit occasionally'})
+Energy: ${sliders.energy}/100 (${sliders.energy < 30 ? 'chill and mellow' : sliders.energy > 70 ? 'hype and enthusiastic' : 'relaxed but engaged'})
+Emoji usage: ${sliders.emoji_usage}/100 (${emojiUsagePromptHint(sliders.emoji_usage)})
 
 BLOCK 5 — GROUP CONTEXT
 ${ctx.group_context_summary || 'No group context available yet.'}
