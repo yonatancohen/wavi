@@ -100,7 +100,7 @@ const { t } = useI18n();
 const stats = ref<GroupUsageStats | null>(null);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
-const collapsed = ref(false);
+const collapsed = ref(true);
 const { activePeriodId, activePeriod } = useUsagePeriod(stats);
 
 async function load() {
