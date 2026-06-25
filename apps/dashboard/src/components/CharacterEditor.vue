@@ -66,33 +66,27 @@
 
         <div>
           <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            {{ t('character.catchphrases') }}
+            {{ t('character.gender') }}
           </label>
           <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
-            {{ t('character.catchphrasesHint') }}
+            {{ t('character.genderHint') }}
           </p>
-          <div class="space-y-2">
-            <div v-for="(_, idx) in localConfig.catchphrases" :key="idx" class="flex items-center gap-2">
-              <input
-                v-model="localConfig.catchphrases![idx]"
-                type="text"
-                :placeholder="t('character.catchphrasePlaceholder')"
-                class="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-              />
-              <button type="button" class="icon-btn mt-0 shrink-0 !min-h-0 p-1.5 text-on-surface-variant/60 hover:text-error" :title="t('character.removeCatchphrase')" @click="removeCatchphrase(idx)">
-                <span class="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
+          <div class="flex gap-2">
+            <button
+              v-for="opt in GENDER_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="rounded-xl border px-4 py-2 text-[13px] font-medium transition-colors"
+              :class="
+                localConfig.agent_gender === opt.value
+                  ? 'border-primary/60 bg-primary/10 text-primary'
+                  : 'border-outline-variant bg-surface-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-on-surface'
+              "
+              @click="localConfig.agent_gender = opt.value"
+            >
+              {{ t(opt.label) }}
+            </button>
           </div>
-          <button
-            v-if="(localConfig.catchphrases?.length ?? 0) < MAX_CATCHPHRASES"
-            type="button"
-            class="btn btn-secondary mt-2 inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[11px]"
-            @click="addCatchphrase"
-          >
-            <span class="material-symbols-outlined text-[16px]">add</span>
-            {{ t('character.addCatchphrase') }}
-          </button>
         </div>
       </div>
 
@@ -179,7 +173,7 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
-import type { GroupWithStats, CharacterConfig, PersonalitySliders, CharacterPreset } from '@wavi/shared';
+import type { GroupWithStats, CharacterConfig, PersonalitySliders, CharacterPreset, AgentGender } from '@wavi/shared';
 import { DEFAULT_REPLY_MODEL, PRESET_SLIDERS, normalizePersonalitySliders } from '@wavi/shared';
 
 const { t } = useI18n();
@@ -191,26 +185,20 @@ const store = useGroupsStore();
 const saving = ref(false);
 const saveError = ref<string | null>(null);
 const MAX_OPINIONS = 3;
-const MAX_CATCHPHRASES = 3;
 
 const PRESETS: CharacterPreset[] = ['professional', 'casual', 'comedian', 'warm', 'custom'];
 
-const SLIDERS: { key: keyof PersonalitySliders }[] = [
-  { key: 'formality' },
-  { key: 'humor' },
-  { key: 'verbosity' },
-  { key: 'assertiveness' },
-  { key: 'empathy' },
-  { key: 'sarcasm' },
-  { key: 'energy' },
-  { key: 'emoji_usage' },
+const SLIDERS: { key: keyof PersonalitySliders }[] = [{ key: 'formality' }, { key: 'humor' }, { key: 'verbosity' }, { key: 'assertiveness' }, { key: 'empathy' }, { key: 'emoji_usage' }];
+
+const GENDER_OPTIONS: { value: AgentGender; label: string }[] = [
+  { value: 'זכר', label: 'character.genderMasc' },
+  { value: 'נקבה', label: 'character.genderFem' },
 ];
 
 function cloneConfig(config: CharacterConfig): CharacterConfig {
   const cloned = JSON.parse(JSON.stringify(config)) as CharacterConfig;
   if (!cloned.reply_model) cloned.reply_model = DEFAULT_REPLY_MODEL;
   cloned.sliders = normalizePersonalitySliders(cloned.sliders);
-  if (!cloned.catchphrases) cloned.catchphrases = [];
   return cloned;
 }
 
@@ -247,18 +235,6 @@ function removeOpinion(index: number) {
   localConfig.value.opinions.splice(index, 1);
 }
 
-function addCatchphrase() {
-  if (!localConfig.value) return;
-  if (!localConfig.value.catchphrases) localConfig.value.catchphrases = [];
-  if (localConfig.value.catchphrases.length >= MAX_CATCHPHRASES) return;
-  localConfig.value.catchphrases.push('');
-}
-
-function removeCatchphrase(index: number) {
-  if (!localConfig.value?.catchphrases) return;
-  localConfig.value.catchphrases.splice(index, 1);
-}
-
 async function save() {
   if (!localConfig.value || !isDirty.value) return;
   saving.value = true;
@@ -266,7 +242,6 @@ async function save() {
   const payload: CharacterConfig = {
     ...localConfig.value,
     opinions: localConfig.value.opinions.map((o) => o.trim()).filter(Boolean),
-    catchphrases: (localConfig.value.catchphrases ?? []).map((c) => c.trim()).filter(Boolean),
   };
   try {
     const updated = await store.updateCharacter(props.group.id, payload);

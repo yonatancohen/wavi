@@ -490,11 +490,10 @@
     "signature": "Signature behavior",
     "signatureHint": "One recurring quirk the group would recognize — a habit or how Wavi typically wraps up.",
     "signaturePlaceholder": "e.g. Signs off with a dry one-liner",
-    "catchphrases": "Catchphrases",
-    "catchphrasesHint": "Short recurring expressions Wavi drops naturally — slang, reactions, or signature lines. Up to 3.",
-    "catchphrasePlaceholder": "e.g. wait, actually…",
-    "addCatchphrase": "Add catchphrase",
-    "removeCatchphrase": "Remove",
+    "gender": "Agent gender",
+    "genderHint": "Sets Hebrew grammatical gender for verb and adjective agreement throughout replies.",
+    "genderMasc": "זכר (masculine)",
+    "genderFem": "נקבה (feminine)",
     "presets": "Presets",
     "presetsHint": "Snap to a starting personality, then fine-tune the sliders.",
     "preset": {
@@ -517,8 +516,6 @@
       "verbosity": "Verbosity",
       "assertiveness": "Assertiveness",
       "empathy": "Empathy",
-      "sarcasm": "Sarcasm",
-      "energy": "Energy",
       "emoji_usage": "Emoji"
     },
     "sliderDesc": {
@@ -527,8 +524,6 @@
       "verbosity": "Short one-liners vs. longer, more detailed replies.",
       "assertiveness": "Hedged and neutral vs. direct and opinionated.",
       "empathy": "Task-focused vs. warm and emotionally attuned.",
-      "sarcasm": "Sincere and earnest vs. sharp, dry sarcasm.",
-      "energy": "Chill and mellow vs. hype and enthusiastic.",
       "emoji_usage": "Rarely or never vs. freely peppered in."
     }
   },
