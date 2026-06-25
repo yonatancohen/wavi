@@ -443,6 +443,8 @@ export interface UpdateMemberRequest {
   /** Add several aliases at once (comma-separated strings in each entry are split). */
   add_aliases?: string[];
   remove_alias?: string;
+  /** Remove every alias for this member (display name unchanged). */
+  clear_aliases?: boolean;
 }
 
 export interface UpdateRelationshipRequest {

@@ -76,9 +76,14 @@
 
         <!-- Names Wavi recognizes -->
         <div class="mb-4 rounded-lg border border-outline-variant/60 bg-surface/40 p-3">
-          <p class="mb-0.5 text-[11px] font-semibold text-on-surface">
-            {{ t('members.recognizedNames') }}
-          </p>
+          <div class="mb-0.5 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-[11px] font-semibold text-on-surface">
+              {{ t('members.recognizedNames') }}
+            </p>
+            <button v-if="memberAliases(member).length" type="button" class="text-[10px] font-medium text-error/80 transition-colors hover:text-error" @click="clearAllAliases(member)">
+              {{ t('members.clearAllAliases') }}
+            </button>
+          </div>
           <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
             {{ t('members.recognizedNamesHint') }}
           </p>
@@ -370,16 +375,51 @@ async function addAliases(member: UserProfile) {
   }
 }
 
+async function clearAllAliases(member: UserProfile) {
+  if (!memberAliases(member).length) return;
+
+  const ok = await confirm({
+    title: t('members.confirmClearAliasesTitle'),
+    message: t('members.confirmClearAliases', { name: member.display_name }),
+    confirmLabel: t('members.clearAllAliases'),
+    variant: 'destructive',
+  });
+  if (!ok) return;
+
+  const previous = [...memberAliases(member)];
+  restoreAliases(member.id, []);
+  delete aliasErrors[member.id];
+
+  try {
+    const updated = await patchMember(member.id, { clear_aliases: true });
+    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
+  } catch (e) {
+    restoreAliases(member.id, previous);
+    aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
+  }
+}
+
 async function removeAlias(member: UserProfile, alias: string) {
-  savingId.value = member.id;
-  error.value = null;
+  const previous = [...memberAliases(member)];
+  const removeNorm = alias.toLowerCase();
+  members.value = members.value.map((m) => {
+    if (m.id !== member.id) return m;
+    return {
+      ...m,
+      profile_data: {
+        ...m.profile_data,
+        aliases: memberAliases(m).filter((a) => a.toLowerCase() !== removeNorm),
+      },
+    };
+  });
+  delete aliasErrors[member.id];
+
   try {
     const updated = await patchMember(member.id, { remove_alias: alias });
     members.value = members.value.map((m) => (m.id === member.id ? updated : m));
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('members.failedSave');
-  } finally {
-    savingId.value = null;
+    restoreAliases(member.id, previous);
+    aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
   }
 }
 

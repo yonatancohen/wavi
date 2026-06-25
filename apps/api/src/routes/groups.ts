@@ -537,6 +537,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       updates.profile_data = profileData;
     }
 
+    if (body.clear_aliases) {
+      profileData.aliases = [];
+      updates.profile_data = profileData;
+    }
+
     if (body.behavioral_summary !== undefined) {
       updates.behavioral_summary = body.behavioral_summary.trim();
       profileData.curation = { ...profileData.curation, summary_locked: true };
