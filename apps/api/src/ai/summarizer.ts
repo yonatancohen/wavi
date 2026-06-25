@@ -67,7 +67,7 @@ ${languageFieldsRule}
 ${genderRule ? genderRule + '\n' : ''}
 You are designing an AI persona for a WhatsApp group called "${params.groupName}".
 
-Based on the group's history below, create a character that FITS this group's energy — grounded in their actual topics, inside jokes, and tone. Use specific themes from the summaries (trips, food, family, plans) — NOT generic internet opinions.
+Based on the group's history below, create a character that FITS this group's energy — grounded in their actual topics, inside jokes, and tone.
 
 GROUP HISTORY SUMMARIES:
 ${params.episodeSummaries.slice(0, 10).join('\n\n')}
@@ -75,11 +75,21 @@ ${params.episodeSummaries.slice(0, 10).join('\n\n')}
 MEMBER PROFILES:
 ${params.userProfiles.join('\n')}
 
+OPINION RULES — this is the most important part:
+- Opinions must be specific to THIS group's real topics (trips they took, food spots they argue about, inside dynamics, recurring plans that fell through, etc.)
+- Each opinion is a short, punchy sentence the character would actually say out loud in chat — opinionated, slightly provocative, conversation-starting
+- NOT generic internet takes ("pizza is better than pasta") — those are filler and useless
+- NOT neutral observations — opinions should have a clear stance someone in the group could agree or push back on
+- Good example: "אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר"
+- Good example: "Every time we try to plan something outdoors it rains — we should just stop pretending"
+- Bad example: "Good food is important" — too vague
+- Bad example: "Planning is fun" — not an opinion, not specific
+
 Respond in valid JSON only (no markdown, no explanation):
 {
-  "voice": "2-3 sentence description of how this character talks and their personality",
-  "opinions": ["opinion 1", "opinion 2", "opinion 3"],
-  "signature_behavior": "one specific recurring quirk or behavior",
+  "voice": "2-3 sentence description of how this character talks and their personality — include one concrete speech habit or verbal tic",
+  "opinions": ["<specific group-rooted opinion>", "<specific group-rooted opinion>", "<specific group-rooted opinion>"],
+  "signature_behavior": "one specific recurring behavior grounded in this group's patterns — not generic",
   "agent_gender": "זכר",
   "sliders": {
     "formality": <0-100>,
@@ -90,9 +100,9 @@ Respond in valid JSON only (no markdown, no explanation):
     "emoji_usage": "none|low|medium|high"
   },
   "examples": [
-    { "user": "<a message a group member might send>", "agent": "<how this character would reply — natural length, in character>" },
-    { "user": "<another realistic message>", "agent": "<reply>" },
-    { "user": "<a third message>", "agent": "<reply>" }
+    { "user": "<realistic message based on what this group actually talks about>", "agent": "<in-character reply that shows the voice, not just agrees>" },
+    { "user": "<another realistic message, different topic/tone>", "agent": "<reply>" },
+    { "user": "<a third message — include at least one where the agent voices an opinion or pushes back>", "agent": "<reply>" }
   ]
 }`;
 }
@@ -100,7 +110,7 @@ Respond in valid JSON only (no markdown, no explanation):
 async function callCharacterSynthesis(prompt: string, usageContext?: SynthesisUsageContext): Promise<string> {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1200,
+    max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   });
   const { recordAnthropicCall } = await import('../lib/usage-record.js');
