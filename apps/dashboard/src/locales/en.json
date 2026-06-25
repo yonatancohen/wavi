@@ -488,10 +488,24 @@
     "addOpinion": "Add opinion",
     "removeOpinion": "Remove opinion",
     "signature": "Signature behavior",
-    "signatureHint": "One recurring quirk the group would recognize — a habit, catchphrase, or how Wavi typically wraps up.",
+    "signatureHint": "One recurring quirk the group would recognize — a habit or how Wavi typically wraps up.",
     "signaturePlaceholder": "e.g. Signs off with a dry one-liner",
+    "catchphrases": "Catchphrases",
+    "catchphrasesHint": "Short recurring expressions Wavi drops naturally — slang, reactions, or signature lines. Up to 3.",
+    "catchphrasePlaceholder": "e.g. wait, actually…",
+    "addCatchphrase": "Add catchphrase",
+    "removeCatchphrase": "Remove",
+    "presets": "Presets",
+    "presetsHint": "Snap to a starting personality, then fine-tune the sliders.",
+    "preset": {
+      "professional": "Professional",
+      "casual": "Casual",
+      "comedian": "Comedian",
+      "warm": "Warm",
+      "custom": "Custom"
+    },
     "sliders": "Personality sliders",
-    "slidersHint": "Fine-tune tone. Drag each slider — low is more casual, brief, or subtle; high is more formal, wordy, direct, or warm.",
+    "slidersHint": "Fine-tune tone. Low end = subtle/casual; high end = intense/expressive.",
     "failedSave": "Failed to save character",
     "replyModel": "Reply model",
     "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",
@@ -503,7 +517,9 @@
       "verbosity": "Verbosity",
       "assertiveness": "Assertiveness",
       "empathy": "Empathy",
-      "emoji_usage": "Emoji usage"
+      "sarcasm": "Sarcasm",
+      "energy": "Energy",
+      "emoji_usage": "Emoji"
     },
     "sliderDesc": {
       "formality": "Casual slang vs. polished, formal phrasing.",
@@ -511,13 +527,9 @@
       "verbosity": "Short one-liners vs. longer, more detailed replies.",
       "assertiveness": "Hedged and neutral vs. direct and opinionated.",
       "empathy": "Task-focused vs. warm and emotionally attuned.",
-      "emoji_usage": "How often Wavi adds emojis to messages."
-    },
-    "emojiUsage": {
-      "none": "None",
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High"
+      "sarcasm": "Sincere and earnest vs. sharp, dry sarcasm.",
+      "energy": "Chill and mellow vs. hype and enthusiastic.",
+      "emoji_usage": "Rarely or never vs. freely peppered in."
     }
   },
   "ingest": {
