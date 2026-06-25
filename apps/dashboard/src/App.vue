@@ -237,6 +237,7 @@ const mobilePageTitle = computed(() => {
   if (path === '/groups') return t('groups.title');
   if (path === '/activity') return t('activity.title');
   if (path === '/live-log') return t('liveLog.title');
+  if (path === '/reminders') return t('reminders.title');
   if (path === '/test-chat') return t('testChat.title');
   if (path === '/how-it-works') return t('howItWorks.title');
   if (path === '/connect') return t('connect.title');
@@ -254,6 +255,7 @@ const mobilePageSubtitle = computed(() => {
   if (path === '/groups') return t('groups.subtitle');
   if (path === '/activity') return t('activity.subtitle');
   if (path === '/live-log') return t('liveLog.subtitle');
+  if (path === '/reminders') return t('reminders.subtitle');
   if (path === '/test-chat') return t('testChat.subtitle');
   if (path === '/how-it-works') return t('howItWorks.subtitle');
   if (path === '/connect') return t('connect.subtitle');

@@ -9,6 +9,7 @@ import { repliesRoute } from './routes/replies.js';
 import { flowsRoute } from './routes/flows.js';
 import { healthRoute } from './routes/health.js';
 import { twilioRoute } from './routes/twilio.js';
+import { remindersRoute } from './routes/reminders.js';
 import { startReplyWorker } from './ai/worker.js';
 import { startReminderWorker } from './jobs/reminder-worker.js';
 import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js';
@@ -90,6 +91,7 @@ await server.register(groupsRoute, { prefix: '/api/groups' });
 await server.register(ingestRoute, { prefix: '/api/ingest' });
 await server.register(repliesRoute, { prefix: '/api/replies' });
 await server.register(flowsRoute, { prefix: '/api/flows' });
+await server.register(remindersRoute, { prefix: '/api/reminders' });
 await server.register(twilioRoute, { prefix: '/twilio' });
 
 // ── Start ─────────────────────────────────────────────────────

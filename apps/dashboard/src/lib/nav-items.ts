@@ -9,6 +9,7 @@ export const overviewNavItems: NavItem[] = [
   { to: '/', icon: 'dashboard', label: 'nav.dashboard', showDot: true },
   { to: '/groups', icon: 'group', label: 'nav.groups' },
   { to: '/activity', icon: 'history', label: 'nav.activity' },
+  { to: '/reminders', icon: 'alarm', label: 'nav.reminders' },
   { to: '/live-log', icon: 'terminal', label: 'nav.liveLog' },
   { to: '/test-chat', icon: 'science', label: 'nav.testChat' },
 ];

@@ -5,6 +5,7 @@
     "dashboard": "Dashboard",
     "groups": "Groups",
     "activity": "Activity",
+    "reminders": "Reminders",
     "testChat": "Test Chat",
     "howItWorks": "How It Works",
     "whatsapp": "WhatsApp",
@@ -682,6 +683,17 @@
       "trigger": "Trigger",
       "replay": "Replay",
       "deepDive": "Deep dive"
+    }
+  },
+  "reminders": {
+    "title": "Reminders",
+    "subtitle": "All scheduled reminders set by group members",
+    "count": "{n} pending",
+    "refresh": "Refresh",
+    "cancel": "Cancel reminder",
+    "empty": {
+      "title": "No reminders scheduled",
+      "body": "When group members set reminders with @wavi, they'll appear here."
     }
   }
 }
