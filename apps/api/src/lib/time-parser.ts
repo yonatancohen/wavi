@@ -106,10 +106,16 @@ const EN_PATTERNS: TimePattern[] = [
     regex: /\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
     parse: (m, now) => atTime(now, applyAmPm(parseInt(m[1], 10), m[3]), m[2] ? parseInt(m[2], 10) : 0),
   },
-  // "at HH:MM" (24-h, no am/pm)
+  // "at HH:MM" (24-h with colon, no am/pm)
   {
     regex: /\bat\s+(\d{1,2}):(\d{2})\b/i,
     parse: (m, now) => atTime(now, parseInt(m[1], 10), parseInt(m[2], 10)),
+  },
+  // "at 16" — bare 24-hour hour, no colon and no am/pm.
+  // Must come after the colon and am/pm patterns so they take priority.
+  {
+    regex: /\bat\s+(\d{1,2})\b/i,
+    parse: (m, now) => atTime(now, parseInt(m[1], 10), 0),
   },
 ];
 
@@ -203,10 +209,16 @@ const HE_PATTERNS: TimePattern[] = [
     regex: /בשעה\s+(\d{1,2})(?::(\d{2}))?/,
     parse: (m, now) => atTime(now, parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : 0),
   },
-  // "ב-HH:MM" (with explicit colon — avoids matching "ב-10" alone when ambiguous)
+  // "ב-HH:MM" (with explicit colon)
   {
     regex: /ב-(\d{1,2}):(\d{2})/,
     parse: (m, now) => atTime(now, parseInt(m[1], 10), parseInt(m[2], 10)),
+  },
+  // "ב-16" — bare 24-hour hour after ב-, no colon.
+  // Must come after the colon variant so "ב-16:30" is not short-circuited.
+  {
+    regex: /ב-(\d{1,2})\b/,
+    parse: (m, now) => atTime(now, parseInt(m[1], 10), 0),
   },
 ];
 

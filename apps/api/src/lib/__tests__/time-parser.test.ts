@@ -109,6 +109,22 @@ describe('parseReminderInput — English', () => {
     // Should be valid (pushed to next day)
     expect(r).not.toBeNull();
   });
+
+  it('parses bare "at 16" (24-hour, no colon)', () => {
+    const r = parseReminderInput('remind me at 16 to leave');
+    expect(r).not.toBeNull();
+    // FIXED_NOW is 10:00 UTC; 16:00 same day is in the future
+    expect(r!.fireAt.getUTCHours()).toBe(16);
+    expect(r!.reminderText).toContain('leave');
+  });
+
+  it('parses bare "at 9" (past, pushes to next day)', () => {
+    // 9:00 is before FIXED_NOW (10:00) → should be tomorrow
+    const r = parseReminderInput('at 9 call the office');
+    expect(r).not.toBeNull();
+    expect(r!.fireAt.getUTCDate()).toBe(16); // next day
+    expect(r!.fireAt.getUTCHours()).toBe(9);
+  });
 });
 
 // ── Hebrew ────────────────────────────────────────────────────
@@ -180,6 +196,20 @@ describe('parseReminderInput — Hebrew', () => {
 
   it('returns null for pure Hebrew text with no time', () => {
     expect(parseReminderInput('לצאת מהבית')).toBeNull();
+  });
+
+  it('parses bare "ב-16" (Hebrew 24-hour, no colon)', () => {
+    const r = parseReminderInput('תזכיר לי ב-16 לצאת');
+    expect(r).not.toBeNull();
+    expect(r!.fireAt.getUTCHours()).toBe(16);
+    expect(r!.reminderText).toContain('לצאת');
+  });
+
+  it('parses "ב-16:30" (Hebrew with colon, colon variant takes priority)', () => {
+    const r = parseReminderInput('ב-16:30 פגישה');
+    expect(r).not.toBeNull();
+    expect(r!.fireAt.getUTCHours()).toBe(16);
+    expect(r!.fireAt.getUTCMinutes()).toBe(30);
   });
 });
 
