@@ -556,8 +556,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     if (!profile) return reply.code(404).send({ error: 'Member not found' });
 
     const waUserId = profile.wa_user_id;
-    const { error: relError } = await db.from('relationship_map').delete().eq('group_id', req.params.id).or(`user_a_wa_id.eq.${waUserId},user_b_wa_id.eq.${waUserId}`);
-    if (relError) return reply.code(500).send({ error: relError.message });
+    const { error: relErrorA } = await db.from('relationship_map').delete().eq('group_id', req.params.id).eq('user_a_wa_id', waUserId);
+    if (relErrorA) return reply.code(500).send({ error: relErrorA.message });
+    const { error: relErrorB } = await db.from('relationship_map').delete().eq('group_id', req.params.id).eq('user_b_wa_id', waUserId);
+    if (relErrorB) return reply.code(500).send({ error: relErrorB.message });
 
     const { error } = await db.from('user_profiles').delete().eq('id', profile.id).eq('group_id', req.params.id);
     if (error) return reply.code(500).send({ error: error.message });
@@ -594,7 +596,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     // Rewire relationship rows from merged id → kept id
     const oldId = merge.wa_user_id;
     const newId = keep.wa_user_id;
-    const { data: relRows } = await db.from('relationship_map').select('*').eq('group_id', req.params.id).or(`user_a_wa_id.eq.${oldId},user_b_wa_id.eq.${oldId}`);
+    const [{ data: relRowsA }, { data: relRowsB }] = await Promise.all([
+      db.from('relationship_map').select('*').eq('group_id', req.params.id).eq('user_a_wa_id', oldId),
+      db.from('relationship_map').select('*').eq('group_id', req.params.id).eq('user_b_wa_id', oldId),
+    ]);
+    const relRows = [...(relRowsA ?? []), ...(relRowsB ?? [])].filter((row, idx, arr) => arr.findIndex((r) => r.id === row.id) === idx);
 
     for (const row of relRows ?? []) {
       let userA = row.user_a_wa_id === oldId ? newId : row.user_a_wa_id;

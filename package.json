@@ -34,6 +34,7 @@
     "logs": "bash scripts/logs.sh",
     "ingest:status": "bash scripts/ingest-status.sh",
     "resynthesize:character": "bash scripts/resynthesize-character.sh",
+    "merge:colon-profiles": "bash scripts/merge-colon-profiles.sh",
     "test:parser": "bun scripts/test-parser.mjs",
     "test": "bun run --filter '@wavi/api' test",
     "replay": "bun run --filter '@wavi/api' replay",
