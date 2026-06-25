@@ -70,30 +70,27 @@ export interface AgentStatusResponse {
 /** Grammatical gender for the agent persona — drives Hebrew verb/adjective agreement. */
 export type AgentGender = 'זכר' | 'נקבה';
 
-/** Legacy string emoji level — kept for backward-compat migration only. */
-export type EmojiUsageLegacy = 'none' | 'low' | 'medium' | 'high';
+export type EmojiUsageLevel = 'none' | 'low' | 'medium' | 'high';
 
-/** Maps a legacy string emoji level or any raw value to a clean 0–100 number. */
-export function migrateEmojiUsage(value: EmojiUsageLegacy | number | undefined): number {
-  if (typeof value === 'number') return Math.max(0, Math.min(100, value));
-  switch (value) {
-    case 'none':
-      return 0;
-    case 'low':
-      return 25;
-    case 'high':
-      return 85;
-    case 'medium':
-    default:
-      return 55;
-  }
+export const EMOJI_USAGE_LEVELS: EmojiUsageLevel[] = ['none', 'low', 'medium', 'high'];
+
+export const DEFAULT_EMOJI_USAGE: EmojiUsageLevel = 'medium';
+
+export function normalizeEmojiUsage(value: EmojiUsageLevel | undefined): EmojiUsageLevel {
+  return value && EMOJI_USAGE_LEVELS.includes(value) ? value : DEFAULT_EMOJI_USAGE;
 }
 
-export function emojiUsagePromptHint(level: number): string {
-  if (level === 0) return 'never use emojis — plain text only';
-  if (level < 30) return 'emojis very sparingly — at most one per message, only when it genuinely adds tone';
-  if (level < 65) return 'emojis occasionally — natural WhatsApp style, not every message';
-  return 'emojis freely — pepper replies with emojis like an expressive texter';
+export function emojiUsagePromptHint(level: EmojiUsageLevel): string {
+  switch (level) {
+    case 'none':
+      return 'never use emojis — plain text only';
+    case 'low':
+      return 'emojis sparingly — at most one per message, only when it adds tone';
+    case 'medium':
+      return 'emojis occasionally — natural WhatsApp style, not every message';
+    case 'high':
+      return 'emojis freely — pepper replies with emojis like an expressive texter';
+  }
 }
 
 export interface PersonalitySliders {
@@ -102,9 +99,7 @@ export interface PersonalitySliders {
   verbosity: number; // 0–100
   assertiveness: number; // 0–100
   empathy: number; // 0–100
-  sarcasm: number; // 0–100: 0 = sincere/genuine, 100 = sharp sarcasm
-  energy: number; // 0–100: 0 = chill/mellow, 100 = hype/enthusiastic
-  emoji_usage: number; // 0–100
+  emoji_usage: EmojiUsageLevel;
 }
 
 export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
@@ -121,8 +116,6 @@ export interface CharacterConfig {
   voice: string; // 2-3 sentence voice description
   opinions: string[]; // 3-5 opinions on group-relevant topics
   signature_behavior: string; // one recurring quirk
-  /** Short recurring expressions the character drops naturally — up to 3. */
-  catchphrases?: string[];
   sliders: PersonalitySliders;
   preset: 'custom' | 'professional' | 'casual' | 'comedian' | 'warm';
   version: number;
@@ -138,31 +131,32 @@ export const DEFAULT_SLIDERS: PersonalitySliders = {
   verbosity: 50,
   assertiveness: 60,
   empathy: 70,
-  sarcasm: 25,
-  energy: 55,
-  emoji_usage: 55,
+  emoji_usage: DEFAULT_EMOJI_USAGE,
 };
 
-export type CharacterPreset = 'custom' | 'professional' | 'casual' | 'comedian' | 'warm';
-
-export const PRESET_SLIDERS: Record<CharacterPreset, PersonalitySliders> = {
-  professional: { formality: 85, humor: 15, verbosity: 60, assertiveness: 70, empathy: 40, sarcasm: 10, energy: 30, emoji_usage: 10 },
-  casual: { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65, sarcasm: 30, energy: 55, emoji_usage: 55 },
-  comedian: { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45, sarcasm: 65, energy: 80, emoji_usage: 85 },
-  warm: { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90, sarcasm: 5, energy: 60, emoji_usage: 55 },
+export const PRESET_SLIDERS: Record<string, PersonalitySliders> = {
+  professional: {
+    formality: 85,
+    humor: 15,
+    verbosity: 60,
+    assertiveness: 70,
+    empathy: 40,
+    emoji_usage: 'low',
+  },
+  casual: { formality: 25, humor: 60, verbosity: 45, assertiveness: 50, empathy: 65, emoji_usage: 'medium' },
+  comedian: { formality: 10, humor: 95, verbosity: 55, assertiveness: 75, empathy: 45, emoji_usage: 'high' },
+  warm: { formality: 40, humor: 50, verbosity: 60, assertiveness: 35, empathy: 90, emoji_usage: 'medium' },
   custom: DEFAULT_SLIDERS,
 };
 
-export function normalizePersonalitySliders(sliders: Partial<PersonalitySliders & { emoji_usage: EmojiUsageLegacy | number }> | undefined): PersonalitySliders {
+export function normalizePersonalitySliders(sliders: Partial<PersonalitySliders> | undefined): PersonalitySliders {
   return {
     formality: sliders?.formality ?? DEFAULT_SLIDERS.formality,
     humor: sliders?.humor ?? DEFAULT_SLIDERS.humor,
     verbosity: sliders?.verbosity ?? DEFAULT_SLIDERS.verbosity,
     assertiveness: sliders?.assertiveness ?? DEFAULT_SLIDERS.assertiveness,
     empathy: sliders?.empathy ?? DEFAULT_SLIDERS.empathy,
-    sarcasm: sliders?.sarcasm ?? DEFAULT_SLIDERS.sarcasm,
-    energy: sliders?.energy ?? DEFAULT_SLIDERS.energy,
-    emoji_usage: migrateEmojiUsage(sliders?.emoji_usage as EmojiUsageLegacy | number | undefined),
+    emoji_usage: normalizeEmojiUsage(sliders?.emoji_usage),
   };
 }
 

@@ -76,7 +76,8 @@ if ('help' in parsed) {
 }
 
 requireEnv();
-const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!) as any;
 
 const groupId = await resolveGroupId(db, parsed);
 
