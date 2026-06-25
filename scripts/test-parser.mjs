@@ -13,9 +13,23 @@ if (!filePath) {
   process.exit(1);
 }
 
-// Inline the parser logic (avoid needing to build first)
-const IOS_PATTERN = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)\]\s+(.+?):\s(.+)$/;
-const ANDROID_PATTERN = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+-\s+(.+?):\s(.+)$/;
+// Inline the parser logic (avoid needing to build first) — keep in sync with apps/api/src/lib/parser.ts
+const IOS_HEADER = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)\]\s+(.+?):[ \t](.*)$/;
+const ANDROID_HEADER = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+-\s+(.+?):[ \t](.*)$/;
+
+function splitFirstLine(text) {
+  const newlineIdx = text.indexOf('\n');
+  if (newlineIdx === -1) return { headerLine: text, continuation: '' };
+  return { headerLine: text.slice(0, newlineIdx), continuation: text.slice(newlineIdx + 1) };
+}
+
+function joinMessageBody(firstLineBody, continuation) {
+  const head = firstLineBody.trim();
+  const tail = continuation.trim();
+  if (!tail) return head;
+  if (!head) return tail;
+  return `${head}\n${tail}`;
+}
 
 const SYSTEM = [
   /Messages and calls are end-to-end encrypted/i,
@@ -32,13 +46,15 @@ const SYSTEM = [
 const MEDIA = [/<Media omitted>/i, /<image omitted>/i, /תמונה הושמטה/i];
 
 function parseLine(line) {
-  const clean = line.replace(/[\u200e\u200f\u202a-\u202e]/g, '').trim();
-  const match = clean.match(IOS_PATTERN) ?? clean.match(ANDROID_PATTERN);
+  const clean = line.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').trim();
+  const { headerLine, continuation } = splitFirstLine(clean);
+  const match = headerLine.match(IOS_HEADER) ?? headerLine.match(ANDROID_HEADER);
   if (!match) return null;
-  const [, , , senderName, body] = match;
+  const [, , , senderName, firstLineBody] = match;
+  const body = joinMessageBody(firstLineBody, continuation);
   return {
     sender: senderName.trim(),
-    body: body.trim(),
+    body,
     isSystem: SYSTEM.some((p) => p.test(body)),
     isMedia: MEDIA.some((p) => p.test(body)),
   };
@@ -57,8 +73,8 @@ let current = null;
 const messages = [];
 
 for (const line of lines) {
-  const stripped = line.replace(/[\u200e\u200f\u202a-\u202e]/g, '').trim();
-  const isNew = IOS_PATTERN.test(stripped) || ANDROID_PATTERN.test(stripped);
+  const stripped = line.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').trim();
+  const isNew = IOS_HEADER.test(stripped) || ANDROID_HEADER.test(stripped);
 
   if (isNew) {
     if (current) {
@@ -86,7 +102,11 @@ console.log('╚═════════════════════�
 
 // Detect format
 const firstLines = raw.split('\n').slice(0, 3).join('\n');
-const detectedFormat = IOS_PATTERN.test(firstLines.replace(/[\u200e\u200f]/g, '')) ? 'iOS' : ANDROID_PATTERN.test(firstLines.replace(/[\u200e\u200f]/g, '')) ? 'Android' : 'Unknown';
+const detectedFormat = IOS_HEADER.test(firstLines.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, ''))
+  ? 'iOS'
+  : ANDROID_HEADER.test(firstLines.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, ''))
+    ? 'Android'
+    : 'Unknown';
 
 console.log(`File:    ${filePath}`);
 console.log(`Format:  ${detectedFormat}`);

@@ -11,9 +11,13 @@ import { cleanMessageBody, resolveSenderIdentity, stripUnicodeDirectionMarks } f
 //
 // Some locales swap MM/DD. We try DD/MM first, fallback to MM/DD.
 // Hebrew names are RTL but the format is the same — handled natively.
+//
+// Sender/body split uses colon + horizontal whitespace only (not `\s`, which
+// includes newlines). Multiline messages often end line 1 with a trailing colon
+// before the continuation — e.g. "Name: setup:\nactual text".
 
-const IOS_PATTERN = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)\]\s+(.+?):\s(.+)$/;
-const ANDROID_PATTERN = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+-\s+(.+?):\s(.+)$/;
+const IOS_HEADER = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)\]\s+(.+?):[ \t](.*)$/;
+const ANDROID_HEADER = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+-\s+(.+?):[ \t](.*)$/;
 
 // System messages to skip
 const SYSTEM_PATTERNS = [
@@ -86,20 +90,38 @@ function parseDate(datePart: string, timePart: string): Date | null {
   return tryDMY() ?? tryMDY();
 }
 
+function splitFirstLine(text: string): { headerLine: string; continuation: string } {
+  const newlineIdx = text.indexOf('\n');
+  if (newlineIdx === -1) return { headerLine: text, continuation: '' };
+  return {
+    headerLine: text.slice(0, newlineIdx),
+    continuation: text.slice(newlineIdx + 1),
+  };
+}
+
+function joinMessageBody(firstLineBody: string, continuation: string): string {
+  const head = firstLineBody.trim();
+  const tail = continuation.trim();
+  if (!tail) return head;
+  if (!head) return tail;
+  return `${head}\n${tail}`;
+}
+
 function parseLine(line: string): ParsedWAMessage | null {
   const clean = stripUnicodeDirectionMarks(line).trim();
   if (!clean) return null;
 
-  const match = clean.match(IOS_PATTERN) ?? clean.match(ANDROID_PATTERN);
+  const { headerLine, continuation } = splitFirstLine(clean);
+  const match = headerLine.match(IOS_HEADER) ?? headerLine.match(ANDROID_HEADER);
   if (!match) return null;
 
-  const [, datePart, timePart, senderName, body] = match;
+  const [, datePart, timePart, senderName, firstLineBody] = match;
 
   const timestamp = parseDate(datePart, timePart);
   if (!timestamp) return null;
 
   const senderLabel = stripUnicodeDirectionMarks(senderName).trim();
-  const bodyClean = cleanMessageBody(body.trim());
+  const bodyClean = cleanMessageBody(joinMessageBody(firstLineBody, continuation));
   const identity = resolveSenderIdentity(senderLabel);
 
   return {
@@ -112,6 +134,11 @@ function parseLine(line: string): ParsedWAMessage | null {
   };
 }
 
+function isMessageHeaderLine(line: string): boolean {
+  const stripped = stripUnicodeDirectionMarks(line).trim();
+  return IOS_HEADER.test(stripped) || ANDROID_HEADER.test(stripped);
+}
+
 // ── Main parser ───────────────────────────────────────────────
 
 export function parseWAExport(raw: string): ParsedWAMessage[] {
@@ -120,9 +147,8 @@ export function parseWAExport(raw: string): ParsedWAMessage[] {
   let current: string | null = null;
 
   for (const line of lines) {
-    // Check if this line starts a new message
     const stripped = stripUnicodeDirectionMarks(line).trim();
-    const isNewMessage = IOS_PATTERN.test(stripped) || ANDROID_PATTERN.test(stripped);
+    const isNewMessage = isMessageHeaderLine(line);
 
     if (isNewMessage) {
       // Flush previous accumulated message
