@@ -249,3 +249,26 @@ export async function buildUserProfilesFromHistory(
 
   console.log(`[Profiler] Group ${groupId}: ${stats.full} full, ${stats.stub} stub/minimal, ${stats.skipped} skipped (${Object.keys(byUser).length} senders in export)`);
 }
+
+/** Rebuild alias list from stored messages (fallback when no ingest snapshot exists). */
+export async function recomputeAliasesForMember(groupId: string, waUserId: string, displayName: string, languageMode: LanguageMode = 'auto'): Promise<string[]> {
+  const { data: profiles } = await db.from('user_profiles').select('display_name').eq('group_id', groupId);
+  const otherMemberNames = (profiles ?? []).map((p) => p.display_name).filter((name): name is string => Boolean(name && name !== displayName));
+
+  const { data: rows } = await db.from('messages').select('body, sender_wa_id, sender_name, timestamp').eq('group_id', groupId).order('timestamp', { ascending: true });
+
+  const messages: ResolvedExportMessage[] = (rows ?? []).map((row) => ({
+    timestamp: new Date(row.timestamp),
+    sender_wa_id: row.sender_wa_id,
+    sender_name: row.sender_name ?? row.sender_wa_id,
+    body: row.body ?? '',
+    is_system_message: false,
+    is_media_omitted: false,
+    observed_labels: [],
+  }));
+
+  const bodies = messages.filter((m) => m.sender_wa_id === waUserId).map((m) => m.body);
+  const addressedSamples = collectAddressedSamples(waUserId, displayName, messages);
+  const llmAliases = filterCrossMemberAliases(await extractAliasesFromContext(displayName, bodies, addressedSamples, languageMode, groupId), displayName, otherMemberNames);
+  return mergeAliases([], ...llmAliases);
+}

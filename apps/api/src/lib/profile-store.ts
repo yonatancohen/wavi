@@ -1,5 +1,7 @@
 import { db } from '../db/client.js';
 import { mergeProfileFromIngest, type UserProfileUpsertRow } from './profile-merge.js';
+import { getProfileAliases } from './alias-store.js';
+import type { UserProfileData } from '@wavi/shared';
 
 export type { UserProfileUpsertRow } from './profile-merge.js';
 
@@ -7,6 +9,19 @@ export type UpsertUserProfileOptions = {
   /** When true, merge aliases and preserve dashboard-locked fields instead of replacing. */
   merge?: boolean;
 };
+
+function finalizeProfileData(data: UserProfileData, merge: boolean, existingData?: UserProfileData | null): UserProfileData {
+  const aliases = getProfileAliases(data);
+  if (merge) {
+    const curation = { ...(existingData?.curation ?? {}), ...(data.curation ?? {}) };
+    return { ...data, aliases, curation };
+  }
+  return {
+    ...data,
+    aliases,
+    curation: { ...(data.curation ?? {}), source_aliases: aliases },
+  };
+}
 
 /** Insert or update a profile for one group. Never reassigns rows across groups. */
 export async function upsertUserProfile(row: UserProfileUpsertRow, options: UpsertUserProfileOptions = {}): Promise<void> {
@@ -19,7 +34,7 @@ export async function upsertUserProfile(row: UserProfileUpsertRow, options: Upse
     .maybeSingle();
 
   if (existing) {
-    const merged = options.merge ? mergeProfileFromIngest(existing, row) : row;
+    const merged = options.merge ? mergeProfileFromIngest(existing, row) : { ...row, profile_data: finalizeProfileData(row.profile_data, false) };
     await db
       .from('user_profiles')
       .update({
@@ -36,6 +51,7 @@ export async function upsertUserProfile(row: UserProfileUpsertRow, options: Upse
 
   await db.from('user_profiles').insert({
     ...row,
+    profile_data: finalizeProfileData(row.profile_data, false),
     last_updated: now,
   });
 }

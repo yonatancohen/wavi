@@ -42,7 +42,7 @@
               {{ t('members.cancel') }}
             </button>
           </div>
-          <div v-else class="flex flex-wrap items-center justify-between gap-2">
+          <div v-else class="flex items-start justify-between gap-2">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <h3 class="font-sora text-[15px] font-semibold text-on-surface">
                 {{ member.display_name }}
@@ -53,19 +53,20 @@
                 </span>
               </HelpTooltip>
             </div>
-            <button type="button" class="btn btn-primary inline-flex shrink-0 items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" @click="startEditName(member)">
-              <span class="material-symbols-outlined text-[16px]">edit</span>
-              {{ t('members.editName') }}
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary inline-flex shrink-0 items-center gap-1.5 !min-h-0 border-error/30 px-3 py-1.5 text-[12px] text-error hover:bg-error/[0.08]"
-              :disabled="deletingId === member.id || savingId === member.id"
-              @click="deleteMember(member)"
-            >
-              <span class="material-symbols-outlined text-[16px]">delete</span>
-              {{ t('members.remove') }}
-            </button>
+            <div class="flex shrink-0 items-center">
+              <button type="button" class="icon-btn !min-h-0 !min-w-0 p-1.5 text-primary hover:bg-primary/10 hover:text-primary" :aria-label="t('members.editName')" @click="startEditName(member)">
+                <span class="material-symbols-outlined text-[18px]">edit</span>
+              </button>
+              <button
+                type="button"
+                class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 hover:text-error disabled:opacity-40"
+                :aria-label="t('members.remove')"
+                :disabled="deletingId === member.id || savingId === member.id"
+                @click="deleteMember(member)"
+              >
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+              </button>
+            </div>
           </div>
           <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
             {{ member.wa_user_id }}
@@ -80,9 +81,20 @@
             <p class="text-[11px] font-semibold text-on-surface">
               {{ t('members.recognizedNames') }}
             </p>
-            <button v-if="memberAliases(member).length" type="button" class="text-[10px] font-medium text-error/80 transition-colors hover:text-error" @click="clearAllAliases(member)">
-              {{ t('members.clearAllAliases') }}
-            </button>
+            <div v-if="canResetAliases(member) || memberAliases(member).length" class="flex flex-wrap items-center gap-3">
+              <button
+                v-if="canResetAliases(member)"
+                type="button"
+                class="text-[10px] font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+                :disabled="resettingId === member.id"
+                @click="resetAliases(member)"
+              >
+                {{ resettingId === member.id ? t('members.resettingAliases') : t('members.resetAliases') }}
+              </button>
+              <button v-if="memberAliases(member).length" type="button" class="text-[10px] font-medium text-error/80 transition-colors hover:text-error" @click="clearAllAliases(member)">
+                {{ t('members.clearAllAliases') }}
+              </button>
+            </div>
           </div>
           <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
             {{ t('members.recognizedNamesHint') }}
@@ -215,6 +227,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const savingId = ref<string | null>(null);
 const deletingId = ref<string | null>(null);
+const resettingId = ref<string | null>(null);
 const editingNameId = ref<string | null>(null);
 const editingSummaryId = ref<string | null>(null);
 const aliasDraft = reactive<Record<string, string>>({});
@@ -226,6 +239,24 @@ const { confirm } = useConfirm();
 
 function memberAliases(member: UserProfile): string[] {
   return member.profile_data?.aliases ?? [];
+}
+
+function sourceAliases(member: UserProfile): string[] {
+  return member.profile_data?.curation?.source_aliases ?? [];
+}
+
+function aliasSetsEqual(a: string[], b: string[]): boolean {
+  const norm = (list: string[]) => [...list].map((s) => s.toLowerCase()).sort();
+  const na = norm(a);
+  const nb = norm(b);
+  return na.length === nb.length && na.every((v, i) => v === nb[i]);
+}
+
+function canResetAliases(member: UserProfile): boolean {
+  const current = memberAliases(member);
+  const source = sourceAliases(member);
+  if (source.length) return !aliasSetsEqual(current, source);
+  return current.length > 0;
 }
 
 function parseAliasInput(raw: string): string[] {
@@ -387,6 +418,40 @@ async function addAliases(member: UserProfile) {
     restoreAliases(member.id, previous);
     aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
   }
+}
+
+async function resetAliases(member: UserProfile) {
+  const memberId = member.id;
+  const previous = [...memberAliases(member)];
+  const snapshot = [...sourceAliases(member)];
+  const hasSnapshot = snapshot.length > 0;
+
+  const ok = await confirm({
+    title: t('members.confirmResetAliasesTitle'),
+    message: hasSnapshot ? t('members.confirmResetAliasesSnapshot', { name: member.display_name }) : t('members.confirmResetAliasesRecompute', { name: member.display_name }),
+    confirmLabel: t('members.resetAliases'),
+    variant: 'destructive',
+  });
+  if (!ok) return;
+
+  if (hasSnapshot) {
+    restoreAliases(memberId, snapshot);
+  } else {
+    resettingId.value = memberId;
+  }
+  delete aliasErrors[memberId];
+
+  void patchMember(memberId, { reset_aliases: true })
+    .then((updated) => {
+      members.value = members.value.map((m) => (m.id === memberId ? updated : m));
+    })
+    .catch((e) => {
+      restoreAliases(memberId, previous);
+      aliasErrors[memberId] = e instanceof Error ? e.message : t('members.failedSave');
+    })
+    .finally(() => {
+      if (resettingId.value === memberId) resettingId.value = null;
+    });
 }
 
 async function clearAllAliases(member: UserProfile) {

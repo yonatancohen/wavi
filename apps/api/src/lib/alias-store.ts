@@ -6,6 +6,10 @@ export function getProfileAliases(profileData: UserProfileData | null | undefine
   return profileData?.aliases ?? [];
 }
 
+export function getSourceAliases(profileData: UserProfileData | null | undefined): string[] {
+  return profileData?.curation?.source_aliases ?? [];
+}
+
 /** Append aliases to a profile (deduped). Returns updated alias list. */
 export async function addProfileAliases(groupId: string, waUserId: string, ...newAliases: string[]): Promise<string[]> {
   const { data: profile } = await db.from('user_profiles').select('id, profile_data, display_name').eq('group_id', groupId).eq('wa_user_id', waUserId).maybeSingle();

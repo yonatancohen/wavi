@@ -35,7 +35,10 @@ export function mergeProfileFromIngest(existing: ExistingProfile, incoming: User
     profile_data: {
       ...incoming.profile_data,
       aliases: mergedAliases,
-      curation,
+      curation: {
+        ...curation,
+        source_aliases: curation.source_aliases,
+      },
     },
   };
 }

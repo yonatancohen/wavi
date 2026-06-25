@@ -232,6 +232,8 @@ export interface MessagesPage {
 export interface ProfileCuration {
   display_name_locked?: boolean;
   summary_locked?: boolean;
+  /** Aliases as of last full (non-merge) ingest — used by dashboard reset. */
+  source_aliases?: string[];
 }
 
 export interface UserProfileData {
@@ -445,6 +447,8 @@ export interface UpdateMemberRequest {
   remove_alias?: string;
   /** Remove every alias for this member (display name unchanged). */
   clear_aliases?: boolean;
+  /** Restore aliases to last ingest snapshot (or recompute from messages if missing). */
+  reset_aliases?: boolean;
 }
 
 export interface UpdateRelationshipRequest {

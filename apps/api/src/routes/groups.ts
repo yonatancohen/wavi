@@ -26,8 +26,9 @@ import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { getAgentUsageStats, getGroupUsageStats } from '../lib/usage.js';
 import { generateReplyText } from '../ai/generate.js';
 import { generateImage } from '../ai/generate-image.js';
-import { getProfileAliases } from '../lib/alias-store.js';
+import { getProfileAliases, getSourceAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
+import { recomputeAliasesForMember } from '../ai/profiler.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
 import { friendlyDbError } from '../lib/db-errors.js';
 
@@ -539,6 +540,19 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     if (body.clear_aliases) {
       profileData.aliases = [];
+      updates.profile_data = profileData;
+    }
+
+    if (body.reset_aliases) {
+      const { data: groupRow } = await db.from('groups').select('language_mode').eq('id', req.params.id).maybeSingle();
+      const languageMode = (groupRow?.language_mode as 'auto' | 'he' | 'en' | undefined) ?? 'auto';
+      const source = getSourceAliases(profileData);
+      const next = source.length ? source : await recomputeAliasesForMember(req.params.id, profile.wa_user_id, profile.display_name, languageMode);
+      profileData.aliases = next;
+      profileData.curation = {
+        ...profileData.curation,
+        source_aliases: source.length ? source : next,
+      };
       updates.profile_data = profileData;
     }
 
