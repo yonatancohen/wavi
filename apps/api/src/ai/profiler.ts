@@ -10,12 +10,12 @@ interface ProfileMessage {
   body: string;
 }
 
-const PROXIMITY_MS = 90 * 1000;
+const PROXIMITY_MS = 30 * 1000;
 const PROFILE_LLM_RETRIES = 2;
 
 export type ProfileBuildResult = 'full' | 'stub' | 'skipped';
 
-async function extractAliasesFromContext(displayName: string, ownMessages: string[], addressedSamples: string[], languageMode: LanguageMode, groupId: string): Promise<string[]> {
+async function extractAliasesFromContext(displayName: string, _ownMessages: string[], addressedSamples: string[], languageMode: LanguageMode, groupId: string): Promise<string[]> {
   if (addressedSamples.length === 0) return [];
 
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -24,28 +24,27 @@ async function extractAliasesFromContext(displayName: string, ownMessages: strin
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 200,
+    max_tokens: 150,
     messages: [
       {
         role: 'user',
         content: `${lang}
 
 The WhatsApp contact label for one group member is "${displayName}".
-Below are messages FROM them and messages where others may ADDRESS or REFER to them by nickname.
+Below are messages where OTHER people explicitly call or address them by a different name.
 
-Return JSON only: { "aliases": ["nickname1", "nickname2"] }
-Rules:
-- Include nicknames, first names, pet names, transliterations (e.g. אלון/alon), and @mention labels used for this person
-- Do NOT include the full contact label "${displayName}" itself
-- Do NOT include generic words or other people's names
-- Max 8 aliases, most confident first
-- Empty array if none found
+Return JSON only: { "aliases": ["name1", "name2"] }
+Strict rules:
+- ONLY include names that LITERALLY APPEAR in the messages below — no guessing, no inference
+- The name must be used as a direct address or clear reference to this specific person
+- Do NOT derive first names or transliterations from the contact label
+- Do NOT include the contact label "${displayName}" itself, even partially
+- Do NOT include generic words, pronouns, or names belonging to other people
+- Max 3 aliases, most certain first
+- Return { "aliases": [] } if no clear evidence
 
-Their messages:
-${ownMessages.slice(-30).join('\n').slice(0, 1200)}
-
-Messages about / to them:
-${addressedSamples.slice(0, 40).join('\n').slice(0, 1200)}`,
+Messages where others address or refer to them:
+${addressedSamples.slice(0, 15).join('\n').slice(0, 800)}`,
       },
     ],
   });
