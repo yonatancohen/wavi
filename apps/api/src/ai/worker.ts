@@ -8,6 +8,7 @@ import { completeReplyFlow, markReplyFlowProcessing } from '../lib/reply-flows.j
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { uploadReplyImage } from '../lib/image-storage.js';
 import { isGroupReplyEnabled, type GroupStatus } from '@wavi/shared';
+import { recordFailedReply } from '../lib/failed-replies.js';
 import type { ReplyJob } from '../lib/reply-queue.js';
 import type { ReplyMedia } from '../whatsapp/provider.js';
 
@@ -123,6 +124,14 @@ async function processReplyJob(job: ReplyJob) {
 
     if (!replyText && !media) {
       console.warn('[ReplyWorker] Empty reply generated');
+      await recordFailedReply({
+        group_id: job.group_id,
+        message_id: job.message_id ?? null,
+        stage: 'generation',
+        error: new Error('Empty reply generated — model returned no text or image'),
+        trigger_name: job.sender_name,
+        trigger_body: job.body,
+      });
       return;
     }
 
@@ -159,7 +168,22 @@ async function processReplyJob(job: ReplyJob) {
         console.warn(`[ReplyWorker] Delivery failed (attempt ${attempt}/${MAX_DELIVERY_ATTEMPTS}), re-queued`, err);
         return;
       }
-      throw err;
+      // Retries exhausted — the reply never reached the group. Record the
+      // incident so it surfaces in the dashboard, then stop (let finally
+      // close the flow). Returning instead of throwing avoids the outer catch
+      // logging this a second time as a generation failure.
+      console.error(`[ReplyWorker] Delivery permanently failed after ${attempt} attempts`, err);
+      await recordFailedReply({
+        group_id: job.group_id,
+        message_id: job.message_id ?? null,
+        stage: 'delivery',
+        error: err,
+        attempted_body: replyText,
+        trigger_name: job.sender_name,
+        trigger_body: job.body,
+        attempts: attempt,
+      });
+      return;
     }
 
     await db.from('messages').insert({
@@ -194,6 +218,14 @@ async function processReplyJob(job: ReplyJob) {
     console.log(`[ReplyWorker] Replied in ${latencyMs}ms (${inputTokens + outputTokens} tokens${media ? ', with image' : ''})`);
   } catch (err) {
     console.error('[ReplyWorker] Job failed:', err);
+    await recordFailedReply({
+      group_id: job.group_id,
+      message_id: job.message_id ?? null,
+      stage: 'generation',
+      error: err,
+      trigger_name: job.sender_name,
+      trigger_body: job.body,
+    });
   } finally {
     if (!deliveryFailed) {
       await completeReplyFlow(job.flow_id);
@@ -223,7 +255,18 @@ export async function checkForNegativeReaction(params: { groupId: string; sender
 
   const apology = await generateApology(group?.character_config, params.groupId);
 
-  await deliverReply(params.waGroupId, apology);
+  try {
+    await deliverReply(params.waGroupId, apology);
+  } catch (err) {
+    await recordFailedReply({
+      group_id: params.groupId,
+      stage: 'delivery',
+      error: err,
+      attempted_body: apology,
+      trigger_name: params.senderWaId,
+      trigger_body: params.body,
+    });
+  }
 
   for (const key of keys) {
     const parts = key.split(':');

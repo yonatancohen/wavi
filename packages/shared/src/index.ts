@@ -421,6 +421,25 @@ export interface Reply {
   triggered_by_message?: string;
 }
 
+/** Where a failed reply broke: while generating text/image, or while delivering to WhatsApp. */
+export type FailedReplyStage = 'generation' | 'delivery';
+
+/** A reply that never reached the group — generation threw or delivery exhausted its retries. */
+export interface FailedReply {
+  id: string;
+  message_id: string | null;
+  group_id: string;
+  stage: FailedReplyStage;
+  error_message: string | null;
+  attempted_body: string | null;
+  trigger_name: string | null;
+  trigger_body: string | null;
+  attempts: number;
+  created_at: string;
+  // joined
+  group_name?: string;
+}
+
 // ── Rate Limit ───────────────────────────────────────────────
 
 export const RATE_LIMIT_MAX = 20; // per hour

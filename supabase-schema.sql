@@ -147,6 +147,24 @@ CREATE TABLE replies (
 );
 CREATE INDEX idx_replies_group ON replies (group_id, created_at DESC);
 
+-- Replies that never reached the group: delivery exhausted all retries, or
+-- generation threw. Kept separate from `replies` (which is the success log) so
+-- the dashboard can surface delivery/generation incidents without polluting the
+-- activity feed. `stage` records where it broke; `attempts` is the retry count.
+CREATE TABLE failed_replies (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id     uuid REFERENCES messages(id),
+  group_id       uuid REFERENCES groups(id) ON DELETE CASCADE,
+  stage          text NOT NULL DEFAULT 'delivery', -- 'generation' | 'delivery'
+  error_message  text,
+  attempted_body text,            -- the reply text we tried to send, if generation got that far
+  trigger_name   text,            -- who tagged Wavi
+  trigger_body   text,            -- the message that triggered the (failed) reply
+  attempts       int DEFAULT 1,
+  created_at     timestamptz DEFAULT now()
+);
+CREATE INDEX idx_failed_replies_group ON failed_replies (group_id, created_at DESC);
+
 -- ── pgvector RPC functions ─────────────────────────────────────
 -- Called from API via supabase.rpc()
 

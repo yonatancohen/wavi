@@ -5,6 +5,7 @@ import { appendToChunkBuffer } from '../jobs/chunker.js';
 import { isGroupReplyEnabled, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from '@wavi/shared';
 import { isAgentTagged, getAgentUserIds } from './agent-identity.js';
 import { checkInputGuard } from '../ai/guard.js';
+import { recordFailedReply } from '../lib/failed-replies.js';
 import type { LanguageMode } from '@wavi/shared';
 import { addProfileAliases, findProfileByNameOrAlias, findProfileForReconciliation, getProfileAliases } from '../lib/alias-store.js';
 import { extractMentionLabels, mergeAliases, pairMentionLabelsWithIds } from '../lib/identity.js';
@@ -209,6 +210,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     body,
     languageMode: (group.language_mode ?? 'he') as LanguageMode,
     waMsgId: msg.waMsgId,
+    messageId: stored?.id,
   });
   if (memoryHandled) return;
 
@@ -218,6 +220,8 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     body,
     languageMode: (group.language_mode ?? 'he') as LanguageMode,
     waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+    senderName: resolvedNameEarly,
   });
   if (aliasHandled) return;
 
@@ -236,17 +240,22 @@ export async function handleIncomingMessage(msg: InboundMessage) {
 
   if (currentCount > RATE_LIMIT_MAX) {
     if (currentCount === RATE_LIMIT_MAX + 1) {
+      const rateLimitReply = getRateLimitResponse(group.character_config);
       await db.from('messages').insert({
         group_id: group.id,
         sender_wa_id: 'agent',
         sender_name: AGENT_NAME,
-        body: getRateLimitResponse(group.character_config),
+        body: rateLimitReply,
         is_agent_reply: true,
         timestamp: new Date().toISOString(),
       });
 
       const { sendReply } = await import('./client.js');
-      await sendReply(waGroupId, getRateLimitResponse(group.character_config), msg.waMsgId);
+      try {
+        await sendReply(waGroupId, rateLimitReply, msg.waMsgId);
+      } catch (err) {
+        await recordFailedReply({ group_id: group.id, message_id: stored?.id, stage: 'delivery', error: err, attempted_body: rateLimitReply, trigger_name: senderName, trigger_body: body });
+      }
     }
     return;
   }
@@ -262,7 +271,11 @@ export async function handleIncomingMessage(msg: InboundMessage) {
       timestamp: new Date().toISOString(),
     });
     const { sendReply } = await import('./client.js');
-    await sendReply(waGroupId, guard.deflection, msg.waMsgId);
+    try {
+      await sendReply(waGroupId, guard.deflection, msg.waMsgId);
+    } catch (err) {
+      await recordFailedReply({ group_id: group.id, message_id: stored?.id, stage: 'delivery', error: err, attempted_body: guard.deflection, trigger_name: senderName, trigger_body: body });
+    }
     return;
   }
 
@@ -324,26 +337,35 @@ function detectAliasCommand(body: string): { alias: string; person: string } | n
   return null;
 }
 
-async function tryHandleAliasCommand(params: { groupId: string; waGroupId: string; body: string; languageMode: LanguageMode; waMsgId: string }): Promise<boolean> {
+async function tryHandleAliasCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+  senderName?: string | null;
+}): Promise<boolean> {
   const parsed = detectAliasCommand(params.body);
   if (!parsed) return false;
 
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
   const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
   const profile = await findProfileByNameOrAlias(params.groupId, parsed.person);
 
   if (!profile) {
     const reply = he ? `לא מצאתי מישהו בשם "${parsed.person}" 😕` : `Couldn't find anyone named "${parsed.person}" 😕`;
-    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId);
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
     return true;
   }
 
   await addProfileAliases(params.groupId, profile.wa_user_id, parsed.alias);
   const reply = he ? `סבבה, "${parsed.alias}" = ${profile.display_name} 👍` : `Got it — "${parsed.alias}" is ${profile.display_name} 👍`;
-  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId);
+  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
   return true;
 }
 
-async function sendAgentReply(groupId: string, waGroupId: string, reply: string, waMsgId: string) {
+async function sendAgentReply(groupId: string, waGroupId: string, reply: string, waMsgId: string, ctx?: { messageId?: string | null; triggerName?: string | null; triggerBody?: string | null }) {
   await db.from('messages').insert({
     group_id: groupId,
     sender_wa_id: 'agent',
@@ -353,7 +375,19 @@ async function sendAgentReply(groupId: string, waGroupId: string, reply: string,
     timestamp: new Date().toISOString(),
   });
   const { sendReply } = await import('./client.js');
-  await sendReply(waGroupId, reply, waMsgId);
+  try {
+    await sendReply(waGroupId, reply, waMsgId);
+  } catch (err) {
+    await recordFailedReply({
+      group_id: groupId,
+      message_id: ctx?.messageId ?? null,
+      stage: 'delivery',
+      error: err,
+      attempted_body: reply,
+      trigger_name: ctx?.triggerName ?? null,
+      trigger_body: ctx?.triggerBody ?? null,
+    });
+  }
 }
 
 async function tryHandleMemoryCommand(params: {
@@ -364,6 +398,7 @@ async function tryHandleMemoryCommand(params: {
   body: string;
   languageMode: LanguageMode;
   waMsgId: string;
+  messageId?: string | null;
 }): Promise<boolean> {
   const parsed = detectMemoryCommand(params.body);
   if (!parsed) return false;
@@ -408,7 +443,19 @@ async function tryHandleMemoryCommand(params: {
   });
 
   const { sendReply } = await import('./client.js');
-  await sendReply(params.waGroupId, reply, params.waMsgId);
+  try {
+    await sendReply(params.waGroupId, reply, params.waMsgId);
+  } catch (err) {
+    await recordFailedReply({
+      group_id: params.groupId,
+      message_id: params.messageId ?? null,
+      stage: 'delivery',
+      error: err,
+      attempted_body: reply,
+      trigger_name: params.senderName,
+      trigger_body: params.body,
+    });
+  }
   return true;
 }
 

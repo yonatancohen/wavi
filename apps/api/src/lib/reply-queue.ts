@@ -38,6 +38,8 @@ export async function queueReplyJob(params: {
   body: string;
   wa_msg_id: string;
   quoted_message?: QuotedMessageContext | null;
+  /** When set, the worker re-delivers this exact text instead of regenerating (used by failed-reply retries). */
+  reply_text?: string;
 }) {
   const flow_id = await registerReplyFlow({
     group_id: params.group_id,
