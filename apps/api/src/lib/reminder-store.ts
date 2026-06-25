@@ -67,6 +67,25 @@ export async function getPendingReminders(params: { group_id: string; sender_wa_
   return (data ?? []) as Reminder[];
 }
 
+/** Hard-delete a reminder by primary key (used by auto-replace guard and API). */
+export async function deleteReminderById(id: string): Promise<void> {
+  await db.from('reminders').delete().eq('id', id);
+}
+
+/**
+ * Update mutable fields of a pending reminder.
+ * Returns the updated row or null if it no longer exists.
+ */
+export async function updateReminder(id: string, patch: { reminder_text?: string; fire_at?: string }): Promise<Reminder | null> {
+  const { data, error } = await db.from('reminders').update(patch).eq('id', id).is('sent_at', null).select().single();
+
+  if (error) {
+    console.error('[ReminderStore] Failed to update reminder:', error);
+    return null;
+  }
+  return data as Reminder;
+}
+
 /**
  * Cancel (delete) the first reminder that matches the given text fragment.
  * Returns the reminder text that was cancelled, or null if nothing matched.

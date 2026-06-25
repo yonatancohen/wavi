@@ -32,5 +32,15 @@ export const useRemindersStore = defineStore('reminders', () => {
     }
   }
 
-  return { reminders, loading, cancelling, error, fetchReminders, cancelReminder };
+  async function updateReminder(id: string, patch: { reminder_text?: string; fire_at?: string }) {
+    const updated = await apiFetch<ScheduledReminder>(`/reminders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    const idx = reminders.value.findIndex((r) => r.id === id);
+    if (idx !== -1) reminders.value[idx] = updated;
+    return updated;
+  }
+
+  return { reminders, loading, cancelling, error, fetchReminders, cancelReminder, updateReminder };
 });
