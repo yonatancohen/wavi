@@ -95,6 +95,13 @@
     @apply min-h-screen bg-background font-body text-on-surface antialiased;
   }
 
+  /* Allow vertical scroll to pass through range inputs on touch devices.
+     Without this, starting a swipe on a slider in iOS/Safari swallows the
+     touch event and the page stops scrolling at that slider. */
+  input[type='range'] {
+    touch-action: pan-y;
+  }
+
   .material-symbols-outlined {
     font-variation-settings:
       'FILL' 0,
@@ -241,11 +248,17 @@
   }
 
   /* On mobile the bottom nav is position:fixed (3.25rem + safe area).
-     Add that clearance to every page-content so the last row is
-     always fully scrollable above the nav bar. */
+     Pad page-content generously so the last element scrolls fully above
+     the nav bar. The ::after approach is used as a belt-and-suspenders
+     fallback for WebKit's known padding-bottom-in-scroll-container bug. */
   @media (max-width: 1023px) {
     .page-content {
-      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+      padding-bottom: 0;
+    }
+    .page-content::after {
+      content: '';
+      display: block;
+      height: calc(5.5rem + env(safe-area-inset-bottom, 0px));
     }
   }
 
