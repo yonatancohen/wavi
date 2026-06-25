@@ -12,7 +12,7 @@
     <!-- Sticky filter bar -->
     <div
       v-if="!loading && !error"
-      class="sticky top-0 z-[5] flex flex-wrap items-center gap-3 border-b border-outline-variant px-margin-mobile py-2.5 lg:top-14 lg:px-margin-desktop"
+      class="sticky top-0 z-[5] flex flex-wrap items-center gap-3 border-b border-outline-variant px-margin-mobile py-2.5 lg:top-[75.5px] lg:px-margin-desktop"
       style="background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent); backdrop-filter: blur(8px)"
     >
       <select
