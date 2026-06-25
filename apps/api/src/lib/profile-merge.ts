@@ -1,4 +1,5 @@
 import { mergeAliases } from './identity.js';
+import { isPlaceholderProfileSummary } from './profile-fallback.js';
 import type { UserProfileData } from '@wavi/shared';
 
 function profileAliases(profileData: UserProfileData | null | undefined): string[] {
@@ -27,10 +28,13 @@ export function mergeProfileFromIngest(existing: ExistingProfile, incoming: User
   const curation = existingData.curation ?? {};
   const mergedAliases = mergeAliases(profileAliases(existingData), ...profileAliases(incoming.profile_data));
 
+  const existingSummary = existing.behavioral_summary?.trim() ?? '';
+  const preserveSummary = curation.summary_locked && existingSummary.length > 0 && !isPlaceholderProfileSummary(existingSummary);
+
   return {
     ...incoming,
     display_name: curation.display_name_locked ? (existing.display_name ?? incoming.display_name) : incoming.display_name,
-    behavioral_summary: curation.summary_locked ? (existing.behavioral_summary ?? incoming.behavioral_summary) : incoming.behavioral_summary,
+    behavioral_summary: preserveSummary ? existing.behavioral_summary! : incoming.behavioral_summary,
     msg_count: Math.max(existing.msg_count ?? 0, incoming.msg_count),
     profile_data: {
       ...incoming.profile_data,

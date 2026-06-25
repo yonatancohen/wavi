@@ -64,4 +64,28 @@ describe('mergeProfileFromIngest', () => {
     expect(merged.display_name).toBe('New');
     expect(merged.behavioral_summary).toBe('New summary');
   });
+
+  it('replaces placeholder summary even when summary_locked', () => {
+    const existing = {
+      display_name: 'Member',
+      behavioral_summary: 'Member — פרופיל בסיסי (100 הודעות); ניתוח מלא לא זמין.',
+      msg_count: 100,
+      profile_data: {
+        ...baseProfileData,
+        curation: { summary_locked: true },
+      },
+    };
+
+    const incoming = {
+      group_id: 'g1',
+      wa_user_id: '123',
+      display_name: 'Member',
+      behavioral_summary: 'Full LLM summary',
+      msg_count: 100,
+      profile_data: baseProfileData,
+    };
+
+    const merged = mergeProfileFromIngest(existing, incoming);
+    expect(merged.behavioral_summary).toBe('Full LLM summary');
+  });
 });

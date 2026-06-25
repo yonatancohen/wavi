@@ -30,6 +30,12 @@ export function buildMinimalProfileData(msgCount: number, aliases: string[] = []
   };
 }
 
+export function isPlaceholderProfileSummary(summary: string | null | undefined): boolean {
+  const s = summary?.trim() ?? '';
+  if (!s) return true;
+  return /פרופיל בסיסי|minimal profile only|full analysis unavailable|ניתוח מלא לא זמין/i.test(s);
+}
+
 export function minimalBehavioralSummary(displayName: string, msgCount: number, languageMode: LanguageMode): string {
   if (languageMode === 'he') {
     if (msgCount === 0) return `${displayName} — חבר/ה בקבוצה, אין הודעות בייצוא.`;
