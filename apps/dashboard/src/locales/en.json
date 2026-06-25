@@ -88,6 +88,10 @@
       "messagesToday": "Messages today",
       "repliesToday": "Replies today"
     },
+    "failures": {
+      "title": "{count} failed reply today | {count} failed replies today",
+      "body": "A reply was generated but never reached the group. Tap to review."
+    },
     "health": {
       "title": "Session Health",
       "offline": "WhatsApp is not linked. Connect to see live browser health.",
@@ -405,7 +409,34 @@
     "flagging": "Saving…",
     "failedFlag": "Failed to update flag",
     "failedLoad": "Failed to load activity",
-    "replyImageAlt": "Generated reply image"
+    "replyImageAlt": "Generated reply image",
+    "tabs": {
+      "label": "Activity type",
+      "replies": "Replies",
+      "failed": "Failed"
+    },
+    "failed": {
+      "count": "{count} failure | {count} failures",
+      "empty": {
+        "title": "No failures",
+        "body": "Every reply Wavi generated reached its group. Delivery or generation errors will show up here."
+      },
+      "emptyFilteredTitle": "No failures here",
+      "emptyFilteredBody": "No failed replies match this group filter.",
+      "stage": {
+        "delivery": "Delivery",
+        "generation": "Generation"
+      },
+      "attempts": "{count} attempt | {count} attempts",
+      "errorLabel": "Error",
+      "attemptedLabel": "Attempted reply",
+      "unknownError": "Unknown error",
+      "retry": "Re-send",
+      "retrying": "Re-sending…",
+      "retryFailed": "Couldn't re-send",
+      "retryHintDelivery": "Sends the same reply again",
+      "retryHintGeneration": "Regenerates the reply"
+    }
   },
   "liveLog": {
     "title": "Live Log",

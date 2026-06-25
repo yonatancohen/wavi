@@ -11,10 +11,28 @@
 
     <!-- Sticky filter bar -->
     <div
-      v-if="!loading && !error"
+      v-if="!error"
       class="sticky top-0 z-[5] flex flex-wrap items-center gap-3 border-b border-outline-variant px-margin-mobile py-2.5 lg:top-[75.5px] lg:px-margin-desktop"
       style="background-color: color-mix(in srgb, rgb(var(--color-surface)) 95%, transparent); backdrop-filter: blur(8px)"
     >
+      <div class="flex gap-1 rounded-full border border-outline-variant bg-surface-container-high/50 p-1" role="tablist" :aria-label="t('activity.tabs.label')">
+        <button
+          v-for="tabItem in tabs"
+          :key="tabItem.id"
+          type="button"
+          role="tab"
+          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
+          :class="tab === tabItem.id ? (tabItem.id === 'failed' ? 'bg-error text-on-error' : 'bg-primary text-on-primary') : 'text-on-surface-variant hover:text-on-surface'"
+          :aria-selected="tab === tabItem.id"
+          @click="tab = tabItem.id"
+        >
+          {{ tabItem.label }}
+          <span v-if="tabItem.id === 'failed' && failureCount > 0 && tab !== 'failed'" class="rounded-full bg-error/20 px-1.5 text-[10px] font-bold text-error">
+            {{ failureCount }}
+          </span>
+        </button>
+      </div>
+
       <select
         v-model="selectedGroupId"
         class="h-9 rounded-xl border border-outline-variant bg-surface-variant/20 px-3 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
@@ -25,15 +43,17 @@
         </option>
       </select>
 
-      <label class="flex cursor-pointer items-center gap-2">
-        <input v-model="flaggedOnly" type="checkbox" class="rounded border-outline-variant" />
-        <span class="text-[13px] text-on-surface-variant">{{ t('activity.flaggedOnly') }}</span>
-      </label>
-      <HelpTooltip :title="t('activity.flaggedOnlyTooltipTitle')" :body="t('activity.flaggedOnlyTooltipBody')">
-        <button type="button" class="icon-btn !min-h-0 p-0.5 text-on-surface-variant/60" :aria-label="t('activity.flaggedOnlyTooltipTitle')">
-          <span class="material-symbols-outlined text-[16px]">help</span>
-        </button>
-      </HelpTooltip>
+      <template v-if="tab === 'replies'">
+        <label class="flex cursor-pointer items-center gap-2">
+          <input v-model="flaggedOnly" type="checkbox" class="rounded border-outline-variant" />
+          <span class="text-[13px] text-on-surface-variant">{{ t('activity.flaggedOnly') }}</span>
+        </label>
+        <HelpTooltip :title="t('activity.flaggedOnlyTooltipTitle')" :body="t('activity.flaggedOnlyTooltipBody')">
+          <button type="button" class="icon-btn !min-h-0 p-0.5 text-on-surface-variant/60" :aria-label="t('activity.flaggedOnlyTooltipTitle')">
+            <span class="material-symbols-outlined text-[16px]">help</span>
+          </button>
+        </HelpTooltip>
+      </template>
 
       <button v-if="hasActiveFilters" type="button" class="btn btn-secondary !min-h-0 px-3 py-2 text-[12px]" @click="clearFilters">
         {{ t('activity.clearFilters') }}
@@ -49,151 +69,273 @@
         {{ error }}
       </div>
 
-      <div v-else-if="items.length === 0 && !hasActiveFilters" class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
-        <div class="relative mx-auto mb-6 inline-block">
-          <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
-          <div class="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-surface-container shadow-wavi-ring">
-            <span class="material-symbols-outlined text-2xl text-primary">history</span>
-          </div>
-        </div>
-        <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">
-          {{ t('activity.empty.title') }}
-        </h2>
-        <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
-          {{ t('activity.empty.body') }}
-        </p>
-        <RouterLink to="/groups" class="btn btn-primary">{{ t('activity.empty.cta') }}</RouterLink>
-      </div>
-
-      <div v-else-if="items.length === 0 && hasActiveFilters" class="rounded-xl border border-outline-variant bg-surface-container px-6 py-10 text-center">
-        <p class="mb-4 text-[13px] text-on-surface-variant">
-          {{ t('activity.emptyFiltered') }}
-        </p>
-        <button type="button" class="btn btn-secondary !min-h-0 px-4 py-2 text-[12px]" @click="clearFilters">
-          {{ t('activity.clearFilters') }}
-        </button>
-      </div>
-
-      <div v-else class="rounded-xl border border-outline-variant bg-surface-container">
-        <div class="border-b border-outline-variant px-5 py-3">
-          <span class="font-mono text-[11px] text-on-surface-variant">
-            {{ t('activity.count', items.length) }}
-          </span>
-        </div>
-
-        <div class="divide-y divide-on-surface/[0.04]">
-          <div v-for="item in items" :key="item.id" class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-on-surface/[0.02]">
-            <!-- Icon -->
-            <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="item.flagged ? 'bg-error/15' : 'bg-primary/15'">
-              <span class="material-symbols-outlined text-[15px]" :class="item.flagged ? 'text-error' : 'text-primary'">{{ item.flagged ? 'flag' : 'smart_toy' }}</span>
+      <!-- ── Replies tab ───────────────────────────────────────── -->
+      <template v-else-if="tab === 'replies'">
+        <div v-if="items.length === 0 && !hasActiveFilters" class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
+          <div class="relative mx-auto mb-6 inline-block">
+            <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
+            <div class="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-surface-container shadow-wavi-ring">
+              <span class="material-symbols-outlined text-2xl text-primary">history</span>
             </div>
+          </div>
+          <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">
+            {{ t('activity.empty.title') }}
+          </h2>
+          <p class="mb-6 text-[13px] leading-relaxed text-on-surface-variant">
+            {{ t('activity.empty.body') }}
+          </p>
+          <RouterLink to="/groups" class="btn btn-primary">{{ t('activity.empty.cta') }}</RouterLink>
+        </div>
 
-            <!-- Content -->
-            <div class="min-w-0 flex-1">
-              <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h3 class="text-[13px] font-semibold text-primary">{{ item.groupName }}</h3>
-                  <span v-if="item.flagged" class="rounded-full border border-error/20 bg-error/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error">
-                    {{ t('activity.flagged') }}
-                  </span>
-                </div>
-                <span class="log-timestamp">{{ item.time }}</span>
+        <div v-else-if="items.length === 0 && hasActiveFilters" class="rounded-xl border border-outline-variant bg-surface-container px-6 py-10 text-center">
+          <p class="mb-4 text-[13px] text-on-surface-variant">
+            {{ t('activity.emptyFiltered') }}
+          </p>
+          <button type="button" class="btn btn-secondary !min-h-0 px-4 py-2 text-[12px]" @click="clearFilters">
+            {{ t('activity.clearFilters') }}
+          </button>
+        </div>
+
+        <div v-else class="rounded-xl border border-outline-variant bg-surface-container">
+          <div class="border-b border-outline-variant px-5 py-3">
+            <span class="font-mono text-[11px] text-on-surface-variant">
+              {{ t('activity.count', items.length) }}
+            </span>
+          </div>
+
+          <div class="divide-y divide-on-surface/[0.04]">
+            <div v-for="item in items" :key="item.id" class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-on-surface/[0.02]">
+              <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="item.flagged ? 'bg-error/15' : 'bg-primary/15'">
+                <span class="material-symbols-outlined text-[15px]" :class="item.flagged ? 'text-error' : 'text-primary'">{{ item.flagged ? 'flag' : 'smart_toy' }}</span>
               </div>
 
-              <p v-if="item.trigger" class="mb-1.5 text-[12px] text-on-surface-variant">
-                {{ t('activity.triggeredBy') }}
-                <span class="text-on-surface">{{ item.trigger }}</span>
-                <span v-if="item.triggerMessage" class="italic"> — "{{ item.triggerMessage }}"</span>
-              </p>
-
-              <p class="text-[13px] leading-relaxed text-on-surface">{{ item.body }}</p>
-
-              <div v-if="item.imageUrl" class="mt-2.5 overflow-hidden rounded-lg border border-outline-variant/60 bg-surface-variant/10">
-                <img :src="item.imageUrl" :alt="t('activity.replyImageAlt')" class="max-h-40 w-auto max-w-full object-contain" loading="lazy" />
-              </div>
-
-              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <div class="flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
-                  <span>{{ item.latency }}ms</span>
-                  <span>{{ item.tokens }} tok</span>
+              <div class="min-w-0 flex-1">
+                <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-[13px] font-semibold text-primary">{{ item.groupName }}</h3>
+                    <span v-if="item.flagged" class="rounded-full border border-error/20 bg-error/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error">
+                      {{ t('activity.flagged') }}
+                    </span>
+                  </div>
+                  <span class="log-timestamp">{{ item.time }}</span>
                 </div>
-                <HelpTooltip
-                  :title="item.flagged ? t('activity.revertFlagTooltipTitle') : t('activity.flagAsMissTooltipTitle')"
-                  :body="item.flagged ? t('activity.revertFlagTooltipBody') : t('activity.flagAsMissTooltipBody')"
-                >
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                    :class="item.flagged ? 'border-outline-variant text-on-surface-variant hover:bg-on-surface/[0.04]' : 'border-error/30 text-error hover:bg-error/[0.08]'"
-                    :disabled="flaggingId === item.id"
-                    @click="toggleFlag(item)"
+
+                <p v-if="item.trigger" class="mb-1.5 text-[12px] text-on-surface-variant">
+                  {{ t('activity.triggeredBy') }}
+                  <span class="text-on-surface">{{ item.trigger }}</span>
+                  <span v-if="item.triggerMessage" class="italic"> — "{{ item.triggerMessage }}"</span>
+                </p>
+
+                <p class="text-[13px] leading-relaxed text-on-surface">{{ item.body }}</p>
+
+                <div v-if="item.imageUrl" class="mt-2.5 overflow-hidden rounded-lg border border-outline-variant/60 bg-surface-variant/10">
+                  <img :src="item.imageUrl" :alt="t('activity.replyImageAlt')" class="max-h-40 w-auto max-w-full object-contain" loading="lazy" />
+                </div>
+
+                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div class="flex gap-4 font-mono text-[10px] text-on-surface-variant/60">
+                    <span>{{ item.latency }}ms</span>
+                    <span>{{ item.tokens }} tok</span>
+                  </div>
+                  <HelpTooltip
+                    :title="item.flagged ? t('activity.revertFlagTooltipTitle') : t('activity.flagAsMissTooltipTitle')"
+                    :body="item.flagged ? t('activity.revertFlagTooltipBody') : t('activity.flagAsMissTooltipBody')"
                   >
-                    <span class="material-symbols-outlined text-[14px]">{{ item.flagged ? 'undo' : 'flag' }}</span>
-                    {{ flaggingId === item.id ? t('activity.flagging') : item.flagged ? t('activity.revertFlag') : t('activity.flagAsMiss') }}
-                  </button>
-                </HelpTooltip>
+                    <button
+                      type="button"
+                      class="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                      :class="item.flagged ? 'border-outline-variant text-on-surface-variant hover:bg-on-surface/[0.04]' : 'border-error/30 text-error hover:bg-error/[0.08]'"
+                      :disabled="flaggingId === item.id"
+                      @click="toggleFlag(item)"
+                    >
+                      <span class="material-symbols-outlined text-[14px]">{{ item.flagged ? 'undo' : 'flag' }}</span>
+                      {{ flaggingId === item.id ? t('activity.flagging') : item.flagged ? t('activity.revertFlag') : t('activity.flagAsMiss') }}
+                    </button>
+                  </HelpTooltip>
+                </div>
               </div>
             </div>
           </div>
+
+          <template v-if="repliesStore.hasMore">
+            <div v-if="repliesStore.loadingMore" class="divide-y divide-on-surface/[0.04]">
+              <div v-for="i in 3" :key="i" class="flex items-start gap-4 px-5 py-4 opacity-60">
+                <div class="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-lg bg-on-surface/10" />
+                <div class="min-w-0 flex-1 space-y-2 pt-1">
+                  <div class="h-3 w-1/3 animate-pulse rounded bg-on-surface/10" />
+                  <div class="h-3 w-full animate-pulse rounded bg-on-surface/10" />
+                  <div class="h-3 w-4/5 animate-pulse rounded bg-on-surface/10" />
+                </div>
+              </div>
+            </div>
+            <div ref="sentinel" class="h-1" aria-hidden="true" />
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Failed tab ────────────────────────────────────────── -->
+      <template v-else>
+        <div v-if="failures.length === 0" class="mx-auto mt-16 max-w-[520px] rounded-xl border border-outline-variant bg-surface-container p-10 text-center">
+          <div class="relative mx-auto mb-6 inline-block">
+            <div class="absolute inset-0 animate-neon-pulse rounded-full bg-primary opacity-20 blur-xl" />
+            <div class="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-surface-container shadow-wavi-ring">
+              <span class="material-symbols-outlined text-2xl text-primary">task_alt</span>
+            </div>
+          </div>
+          <h2 class="mb-2 font-sora text-[18px] font-semibold text-on-surface">
+            {{ hasActiveFilters ? t('activity.failed.emptyFilteredTitle') : t('activity.failed.empty.title') }}
+          </h2>
+          <p class="text-[13px] leading-relaxed text-on-surface-variant">
+            {{ hasActiveFilters ? t('activity.failed.emptyFilteredBody') : t('activity.failed.empty.body') }}
+          </p>
         </div>
 
-        <!-- load-more sentinel + inline skeleton rows -->
-        <template v-if="store.hasMore">
-          <div v-if="store.loadingMore" class="divide-y divide-on-surface/[0.04]">
-            <div v-for="i in 3" :key="i" class="flex items-start gap-4 px-5 py-4 opacity-60">
-              <div class="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-lg bg-on-surface/10" />
-              <div class="min-w-0 flex-1 space-y-2 pt-1">
-                <div class="h-3 w-1/3 animate-pulse rounded bg-on-surface/10" />
-                <div class="h-3 w-full animate-pulse rounded bg-on-surface/10" />
-                <div class="h-3 w-4/5 animate-pulse rounded bg-on-surface/10" />
+        <div v-else class="overflow-hidden rounded-xl border border-error/20 bg-surface-container">
+          <div class="flex items-center gap-2 border-b border-error/15 bg-error/[0.05] px-5 py-3">
+            <span class="material-symbols-outlined text-[15px] text-error">warning</span>
+            <span class="font-mono text-[11px] text-error">
+              {{ t('activity.failed.count', failures.length) }}
+            </span>
+          </div>
+
+          <div class="divide-y divide-error/[0.07]">
+            <div v-for="item in failedItems" :key="item.id" class="relative px-5 py-4 transition-colors hover:bg-error/[0.03]">
+              <span class="absolute inset-y-0 left-0 w-[3px] bg-error/60" aria-hidden="true" />
+              <div class="flex items-start gap-4">
+                <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-error/15">
+                  <span class="material-symbols-outlined text-[15px] text-error">{{ item.icon }}</span>
+                </div>
+
+                <div class="min-w-0 flex-1">
+                  <div class="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h3 class="text-[13px] font-semibold text-on-surface">{{ item.groupName }}</h3>
+                      <span class="rounded-full border border-error/30 bg-error/[0.1] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-error">
+                        {{ item.stageLabel }}
+                      </span>
+                      <span class="rounded-full border border-outline-variant px-2 py-0.5 font-mono text-[10px] text-on-surface-variant">
+                        {{ t('activity.failed.attempts', item.attempts) }}
+                      </span>
+                    </div>
+                    <span class="log-timestamp">{{ item.time }}</span>
+                  </div>
+
+                  <p v-if="item.trigger" class="mb-2 text-[12px] text-on-surface-variant">
+                    {{ t('activity.triggeredBy') }}
+                    <span class="text-on-surface">{{ item.trigger }}</span>
+                    <span v-if="item.triggerMessage" class="italic"> — "{{ item.triggerMessage }}"</span>
+                  </p>
+
+                  <div class="rounded-lg border border-error/15 bg-error/[0.05] px-3 py-2">
+                    <span class="mb-0.5 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-error/70">
+                      {{ t('activity.failed.errorLabel') }}
+                    </span>
+                    <p class="break-words font-mono text-[12px] leading-relaxed text-error">{{ item.error }}</p>
+                  </div>
+
+                  <div v-if="item.attemptedBody" class="mt-2 border-l-2 border-outline-variant pl-3">
+                    <span class="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/60">
+                      {{ t('activity.failed.attemptedLabel') }}
+                    </span>
+                    <p class="text-[12px] leading-relaxed text-on-surface-variant">{{ item.attemptedBody }}</p>
+                  </div>
+
+                  <div class="mt-3 flex items-center gap-3">
+                    <button
+                      type="button"
+                      class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-error/30 px-3 py-1 text-[11px] font-semibold text-error transition-colors hover:bg-error/[0.1] disabled:opacity-50"
+                      :disabled="retryingId === item.id"
+                      @click="retryFailed(item.id)"
+                    >
+                      <span class="material-symbols-outlined text-[14px]" :class="retryingId === item.id ? 'animate-spin' : ''">
+                        {{ retryingId === item.id ? 'progress_activity' : 'refresh' }}
+                      </span>
+                      {{ retryingId === item.id ? t('activity.failed.retrying') : t('activity.failed.retry') }}
+                    </button>
+                    <span class="font-mono text-[10px] uppercase tracking-wide text-on-surface-variant/60">
+                      {{ item.stage === 'delivery' ? t('activity.failed.retryHintDelivery') : t('activity.failed.retryHintGeneration') }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div ref="sentinel" class="h-1" aria-hidden="true" />
-        </template>
-      </div>
+
+          <template v-if="failuresStore.hasMore">
+            <div v-if="failuresStore.loadingMore" class="divide-y divide-error/[0.07]">
+              <div v-for="i in 3" :key="i" class="flex items-start gap-4 px-5 py-4 opacity-60">
+                <div class="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-lg bg-error/10" />
+                <div class="min-w-0 flex-1 space-y-2 pt-1">
+                  <div class="h-3 w-1/3 animate-pulse rounded bg-error/10" />
+                  <div class="h-3 w-full animate-pulse rounded bg-error/10" />
+                </div>
+              </div>
+            </div>
+            <div ref="sentinel" class="h-1" aria-hidden="true" />
+          </template>
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useRepliesStore } from '../stores/replies';
+import { useFailuresStore } from '../stores/failures';
 import { useGroupsStore } from '../stores/groups';
 import { useFlowsStore } from '../stores/flows';
 import { formatRelativeTime } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import ActiveFlowsIndicator from '../components/ActiveFlowsIndicator.vue';
 import HelpTooltip from '../components/HelpTooltip.vue';
-import type { Reply } from '@wavi/shared';
+import type { Reply, FailedReply } from '@wavi/shared';
 
 const { t, locale } = useI18n();
+const route = useRoute();
+
+type ActivityTab = 'replies' | 'failed';
 
 type ReplyRow = Reply & {
   messages?: { sender_name?: string; body?: string } | null;
   groups?: { name?: string } | null;
 };
 
-const store = useRepliesStore();
+const repliesStore = useRepliesStore();
+const failuresStore = useFailuresStore();
 const groupsStore = useGroupsStore();
 const flowsStore = useFlowsStore();
 const { groups } = storeToRefs(groupsStore);
+const { failures } = storeToRefs(failuresStore);
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
 const error = ref<string | null>(null);
+const tab = ref<ActivityTab>(route.query.tab === 'failed' ? 'failed' : 'replies');
 const selectedGroupId = ref('');
 const flaggedOnly = ref(false);
 const flaggingId = ref<string | null>(null);
+const retryingId = ref<string | null>(null);
 const sentinel = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 
-const loading = computed(() => store.loading);
-const hasActiveFilters = computed(() => selectedGroupId.value !== '' || flaggedOnly.value);
+const tabs = computed(() => [
+  { id: 'replies' as const, label: t('activity.tabs.replies') },
+  { id: 'failed' as const, label: t('activity.tabs.failed') },
+]);
+
+const loading = computed(() => (tab.value === 'failed' ? failuresStore.loading : repliesStore.loading));
+const failureCount = computed(() => failures.value.length);
+const hasActiveFilters = computed(() => selectedGroupId.value !== '' || (tab.value === 'replies' && flaggedOnly.value));
+
+function truncate(text?: string | null): string | undefined {
+  if (!text) return undefined;
+  return text.length > 120 ? `${text.slice(0, 120)}…` : text;
+}
 
 const items = computed(() =>
-  store.replies.map((reply) => {
+  repliesStore.replies.map((reply) => {
     const row = reply as ReplyRow;
     const groupName = row.group_name ?? row.groups?.name ?? 'Unknown group';
     const trigger = row.triggered_by_name ?? row.messages?.sender_name;
@@ -205,7 +347,7 @@ const items = computed(() =>
       body: reply.body,
       imageUrl: reply.image_url ?? null,
       trigger,
-      triggerMessage: triggerMessage && triggerMessage.length > 120 ? `${triggerMessage.slice(0, 120)}…` : triggerMessage,
+      triggerMessage: truncate(triggerMessage),
       time: formatRelativeTime(reply.created_at, locale.value),
       latency: reply.latency_ms,
       tokens: reply.prompt_tokens + reply.completion_tokens,
@@ -214,12 +356,30 @@ const items = computed(() =>
   }),
 );
 
+const failedItems = computed(() =>
+  failures.value.map((f: FailedReply) => ({
+    id: f.id,
+    groupName: f.group_name ?? 'Unknown group',
+    stage: f.stage,
+    stageLabel: t(`activity.failed.stage.${f.stage}`),
+    icon: f.stage === 'delivery' ? 'cloud_off' : 'bolt',
+    error: f.error_message ?? t('activity.failed.unknownError'),
+    attemptedBody: f.attempted_body,
+    attempts: f.attempts,
+    trigger: f.trigger_name,
+    triggerMessage: truncate(f.trigger_body),
+    time: formatRelativeTime(f.created_at, locale.value),
+  })),
+);
+
 function attachObserver() {
   observer?.disconnect();
   if (!sentinel.value) return;
   observer = new IntersectionObserver(
     (entries) => {
-      if (entries[0].isIntersecting) store.loadMore();
+      if (!entries[0].isIntersecting) return;
+      if (tab.value === 'failed') failuresStore.loadMore();
+      else repliesStore.loadMore();
     },
     { rootMargin: '300px' },
   );
@@ -230,9 +390,9 @@ async function toggleFlag(item: { id: string; flagged: boolean }) {
   flaggingId.value = item.id;
   error.value = null;
   try {
-    await store.flagMiss(item.id, !item.flagged);
+    await repliesStore.flagMiss(item.id, !item.flagged);
     if (flaggedOnly.value && item.flagged) {
-      await loadActivity();
+      await load();
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('activity.failedFlag');
@@ -241,13 +401,29 @@ async function toggleFlag(item: { id: string; flagged: boolean }) {
   }
 }
 
-async function loadActivity() {
+async function retryFailed(id: string) {
+  retryingId.value = id;
   error.value = null;
   try {
-    await store.fetchReplies({
-      groupId: selectedGroupId.value || undefined,
-      flagged: flaggedOnly.value || undefined,
-    });
+    await failuresStore.retry(id);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('activity.failed.retryFailed');
+  } finally {
+    retryingId.value = null;
+  }
+}
+
+async function load() {
+  error.value = null;
+  try {
+    if (tab.value === 'failed') {
+      await failuresStore.fetchFailures({ groupId: selectedGroupId.value || undefined });
+    } else {
+      await repliesStore.fetchReplies({
+        groupId: selectedGroupId.value || undefined,
+        flagged: flaggedOnly.value || undefined,
+      });
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('activity.failedLoad');
   }
@@ -258,19 +434,22 @@ function clearFilters() {
   flaggedOnly.value = false;
 }
 
-// Re-attach observer whenever sentinel mounts/unmounts (toggled by hasMore)
 watch(sentinel, (el) => {
   if (el) attachObserver();
   else observer?.disconnect();
 });
 
-watch([selectedGroupId, flaggedOnly], loadActivity);
+watch([tab, selectedGroupId, flaggedOnly], load);
 
 onMounted(async () => {
   if (groups.value.length === 0) {
     await groupsStore.fetchGroups();
   }
-  await loadActivity();
+  await load();
+  // Prime the failure count badge so it shows up without opening the tab.
+  if (tab.value !== 'failed') {
+    failuresStore.fetchFailures().catch(() => {});
+  }
 });
 
 onUnmounted(() => {

@@ -88,6 +88,10 @@
       "messagesToday": "הודעות היום",
       "repliesToday": "תשובות היום"
     },
+    "failures": {
+      "title": "תשובה אחת נכשלה היום | {count} תשובות נכשלו היום",
+      "body": "תשובה נוצרה אך לא הגיעה לקבוצה. הקישו לבדיקה."
+    },
     "health": {
       "title": "בריאות הסשן",
       "offline": "וואטסאפ לא מחובר. התחבר כדי לראות את מצב הדפדפן.",
@@ -405,7 +409,34 @@
     "flagging": "שומר…",
     "failedFlag": "עדכון הסימון נכשל",
     "failedLoad": "טעינת הפעילות נכשלה",
-    "replyImageAlt": "תמונה שנוצרה בתשובה"
+    "replyImageAlt": "תמונה שנוצרה בתשובה",
+    "tabs": {
+      "label": "סוג פעילות",
+      "replies": "תשובות",
+      "failed": "נכשלו"
+    },
+    "failed": {
+      "count": "כשל אחד | {count} כשלים",
+      "empty": {
+        "title": "אין כשלים",
+        "body": "כל תשובה ש-Wavi יצרה הגיעה לקבוצה. שגיאות שליחה או יצירה יופיעו כאן."
+      },
+      "emptyFilteredTitle": "אין כשלים כאן",
+      "emptyFilteredBody": "אין תשובות שנכשלו שתואמות את סינון הקבוצה.",
+      "stage": {
+        "delivery": "שליחה",
+        "generation": "יצירה"
+      },
+      "attempts": "ניסיון אחד | {count} ניסיונות",
+      "errorLabel": "שגיאה",
+      "attemptedLabel": "תשובה שניסתה להישלח",
+      "unknownError": "שגיאה לא ידועה",
+      "retry": "שליחה מחדש",
+      "retrying": "שולח מחדש…",
+      "retryFailed": "השליחה מחדש נכשלה",
+      "retryHintDelivery": "שולח שוב את אותה התשובה",
+      "retryHintGeneration": "מחולל את התשובה מחדש"
+    }
   },
   "liveLog": {
     "title": "לוג חי",

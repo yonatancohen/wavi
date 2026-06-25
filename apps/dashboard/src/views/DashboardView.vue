@@ -8,6 +8,22 @@
     </header>
 
     <div class="page-content py-7">
+      <!-- Failures-today alert: only shown when replies didn't reach their group -->
+      <RouterLink
+        v-if="failuresToday > 0"
+        to="/activity?tab=failed"
+        class="mb-6 flex items-center gap-3 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 no-underline transition-colors hover:bg-error/[0.11]"
+      >
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-error/15">
+          <span class="material-symbols-outlined text-[16px] text-error">error</span>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-semibold text-error">{{ t('dashboard.failures.title', failuresToday) }}</p>
+          <p class="text-[12px] text-on-surface-variant">{{ t('dashboard.failures.body') }}</p>
+        </div>
+        <span class="material-symbols-outlined shrink-0 text-[16px] text-error rtl:scale-x-[-1]">arrow_forward</span>
+      </RouterLink>
+
       <!-- Hero: greeting + KPI row -->
       <section class="mb-8 animate-slide-up">
         <div class="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -211,6 +227,7 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useGroupsStore } from '../stores/groups';
 import { useFlowsStore } from '../stores/flows';
+import { useFailuresStore } from '../stores/failures';
 import { useAgentStore } from '../stores/agent';
 import { statusBadgeClass, statusLabel } from '../lib/ui';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
@@ -223,9 +240,11 @@ import GroupInlineStats from '../components/GroupInlineStats.vue';
 const { t } = useI18n();
 const store = useGroupsStore();
 const flowsStore = useFlowsStore();
+const failuresStore = useFailuresStore();
 const agentStore = useAgentStore();
 const { groups, loading } = storeToRefs(store);
 const { total: activeFlowTotal, flows: activeFlows } = storeToRefs(flowsStore);
+const { todayCount: failuresToday } = storeToRefs(failuresStore);
 const { connected: agentConnected, healthTier, connecting } = storeToRefs(agentStore);
 
 const activeGroups = computed(() => groups.value.filter((g) => g.status === 'active'));
@@ -315,5 +334,6 @@ onMounted(async () => {
   try {
     await store.fetchGroups();
   } catch {}
+  failuresStore.fetchTodayCount().catch(() => {});
 });
 </script>
