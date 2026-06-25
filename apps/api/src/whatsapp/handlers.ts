@@ -11,7 +11,7 @@ import { addProfileAliases, findProfileByNameOrAlias, findProfileForReconciliati
 import { extractMentionLabels, mergeAliases, pairMentionLabelsWithIds } from '../lib/identity.js';
 import type { UserProfileData } from '@wavi/shared';
 import { parseReminderInput, formatFireTime } from '../lib/time-parser.js';
-import { createReminder, getPendingReminders, cancelReminder } from '../lib/reminder-store.js';
+import { createReminder, getPendingReminders, cancelReminder, deleteReminderById } from '../lib/reminder-store.js';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 
@@ -586,10 +586,13 @@ async function tryHandleReminderCommand(params: {
     sender_wa_id: params.senderWaId,
   });
 
+  // Auto-replace the oldest reminder when the cap is reached so the user is
+  // never blocked — just informed which one was dropped.
+  let droppedText: string | null = null;
   if (pending.length >= 10) {
-    const reply = isHebrew ? `כבר יש לך 10 תזכורות ממתינות 😅 בטל אחת לפני שתוסיף חדשה.` : `You already have 10 pending reminders 😅 Cancel one before adding a new one.`;
-    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
-    return true;
+    const oldest = pending[0]; // getPendingReminders returns ASC by fire_at → oldest first
+    await deleteReminderById(oldest.id);
+    droppedText = oldest.reminder_text;
   }
 
   const parsed = parseReminderInput(cmd.payload);
@@ -617,7 +620,13 @@ async function tryHandleReminderCommand(params: {
   } else {
     const when = formatFireTime(parsed.fireAt, isHebrew);
     const text = parsed.reminderText;
-    reply = isHebrew ? `⏰ סבבה! אזכיר לך "${text}" ${when}` : `⏰ Got it! I'll remind you "${text}" ${when}`;
+    if (droppedText) {
+      reply = isHebrew
+        ? `⏰ סבבה! אזכיר לך "${text}" ${when}. (הסרתי את הישנה ביותר שלך — "${droppedText}" — כי הגעת לגבול)`
+        : `⏰ Got it! I'll remind you "${text}" ${when}. (Dropped your oldest reminder — "${droppedText}" — to make room)`;
+    } else {
+      reply = isHebrew ? `⏰ סבבה! אזכיר לך "${text}" ${when}` : `⏰ Got it! I'll remind you "${text}" ${when}`;
+    }
   }
 
   await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
