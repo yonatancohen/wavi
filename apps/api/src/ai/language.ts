@@ -15,10 +15,23 @@ export function getLanguageName(code: LanguageMode): string {
 
 /** Instruction fragment for synthesis/summary LLM calls. */
 export function synthesisLanguageInstruction(languageMode: LanguageMode): string {
-  if (languageMode === 'he') return 'Write ALL output in natural Hebrew.';
+  if (languageMode === 'he')
+    return 'Write ALL output in natural Israeli spoken Hebrew (עברית מדוברת). Use the register a real Israeli uses in WhatsApp — colloquial, direct, without formal connectors (כפי ש, לפיכך, אשר, על מנת ל) or translated-sounding phrases. Loanwords and English brand names are fine where Israelis actually use them.';
   if (languageMode === 'en') return 'Write ALL output in natural English.';
   if (languageMode === 'auto') return 'Write in the same language the group chat uses most (Hebrew or English).';
   return `Write ALL output in natural ${getLanguageName(languageMode)}.`;
+}
+
+/**
+ * Returns true when a Hebrew-mode reply contains suspiciously high Latin content —
+ * a signal the model may have replied in the wrong language. Used for logging only.
+ */
+export function containsExcessiveLatin(text: string, threshold = 0.4): boolean {
+  if (!text.trim()) return false;
+  const letters = text.replace(/[^a-zA-Z\u0590-\u05FF]/g, '');
+  if (letters.length === 0) return false;
+  const latinCount = (text.match(/[a-zA-Z]/g) ?? []).length;
+  return latinCount / letters.length > threshold;
 }
 
 /** Detect Hebrew Unicode in text (for auto language rules). */

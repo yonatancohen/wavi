@@ -2,7 +2,7 @@ import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js';
 import { embedBatch, embed } from '../lib/embeddings.js';
-import { generateEpisodeSummary, generateGroupContext } from '../ai/summarizer.js';
+import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
 import { buildRelationshipMap } from '../ai/relationships.js';
@@ -92,10 +92,11 @@ function prepareResolvedMessages(
   return { resolved, realCount, alignmentMatches };
 }
 
-async function embedMessageChunks(groupId: string, realMessages: ResolvedExportMessage[], setProgress: (p: Partial<IngestionProgress>) => Promise<void>) {
+async function embedMessageChunks(groupId: string, realMessages: ResolvedExportMessage[], languageMode: LanguageMode, setProgress: (p: Partial<IngestionProgress>) => Promise<void>) {
   const chunks = chunkMessages(realMessages, 50, 25);
   const BATCH_SIZE = 10;
   let chunksEmbedded = 0;
+  const summarizeChunks = process.env.SUMMARIZE_CHUNKS === 'true';
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -107,10 +108,13 @@ async function embedMessageChunks(groupId: string, realMessages: ResolvedExportM
       pairs.map((p) => p.content),
       { groupId },
     );
+
+    const summaries = summarizeChunks ? await Promise.all(pairs.map((p) => generateChunkSummary(p.content, languageMode, { groupId }))) : pairs.map(() => null);
+
     const rows = pairs.map(({ chunk, content }, idx) => ({
       group_id: groupId,
       content,
-      summary: null,
+      summary: summaries[idx] ?? null,
       embedding: JSON.stringify(embeddings[idx]),
       msg_from: chunk[0]?.timestamp.toISOString(),
       msg_to: chunk[chunk.length - 1]?.timestamp.toISOString(),
@@ -147,7 +151,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   for (let i = 0; i < realMessages.length; i += 100) {
     const slice = realMessages.slice(i, i + 100);
     const content = slice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
-    const summary = await generateEpisodeSummary(content, languageMode, { groupId });
+    const summary = await generateEpisodeSummary(content, resolveEffectiveLang(languageMode), { groupId });
     episodeSummaries.push(summary);
 
     const embedding = await embed(summary, { groupId });
@@ -172,7 +176,7 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
     groupName: group?.name ?? 'the group',
     recentContent,
     previousContext: prevCtx?.summary_text ?? '',
-    languageMode,
+    languageMode: resolveEffectiveLang(languageMode),
     usageContext: { groupId },
   });
 
@@ -187,6 +191,10 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   await synthesizeCharacterForGroup(groupId);
 
   await setProgress({ stage: 'done' });
+}
+
+function resolveEffectiveLang(mode: LanguageMode): LanguageMode {
+  return mode === 'auto' ? 'he' : mode;
 }
 
 function resolveIngestionMode(options?: IngestionOptions): IngestionMode {
@@ -204,10 +212,11 @@ export async function runIngestionFromExport(groupId: string, raw: string, suppl
 
     await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realCount });
     const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
-    const chunksEmbedded = await embedMessageChunks(groupId, realMessages, setProgress);
 
     const { data: groupMeta } = await db.from('groups').select('language_mode').eq('id', groupId).single();
     const languageMode = (groupMeta?.language_mode ?? 'he') as LanguageMode;
+
+    const chunksEmbedded = await embedMessageChunks(groupId, realMessages, languageMode, setProgress);
 
     await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded, mode);
   } catch (err: unknown) {
@@ -291,10 +300,11 @@ export async function runRebuildFromStoredMessages(groupId: string, options?: In
     await setIngestionProgress(groupId, { stage: 'embedding', total_messages: realMessages.length });
 
     const setProgress = (p: Partial<IngestionProgress>) => setIngestionProgress(groupId, p);
-    const chunksEmbedded = await embedMessageChunks(groupId, realMessages, setProgress);
 
     const { data: groupMeta } = await db.from('groups').select('language_mode').eq('id', groupId).single();
     const languageMode = (groupMeta?.language_mode ?? 'he') as LanguageMode;
+
+    const chunksEmbedded = await embedMessageChunks(groupId, realMessages, languageMode, setProgress);
 
     await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded, mode);
   } catch (err: unknown) {

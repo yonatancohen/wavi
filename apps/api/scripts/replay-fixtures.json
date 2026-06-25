@@ -12,6 +12,27 @@
       "sender": "Alice",
       "message": "@wavi hey what's up?",
       "skipClaude": true
+    },
+    {
+      "name": "Hebrew deictic — who is this?",
+      "groupId": "be1765a9-ab05-4629-bc24-81e38a62fe6b",
+      "sender": "Yoni Cohen",
+      "message": "@wavi מי זה?",
+      "skipClaude": true
+    },
+    {
+      "name": "Hebrew plan recall",
+      "groupId": "be1765a9-ab05-4629-bc24-81e38a62fe6b",
+      "sender": "Yoni Cohen",
+      "message": "@wavi מה היה הפלאן שסיכמנו?",
+      "skipClaude": true
+    },
+    {
+      "name": "English tag in Hebrew thread",
+      "groupId": "be1765a9-ab05-4629-bc24-81e38a62fe6b",
+      "sender": "Yoni Cohen",
+      "message": "@wavi what's going on?",
+      "skipClaude": true
     }
   ]
 }

@@ -54,7 +54,8 @@ function resolveProfile(profiles: ProfileRow[], senderLabel: string): ProfileRow
   return profiles.find((p) => profileMatchesLabel(p, senderLabel)) ?? null;
 }
 
-async function fetchAllChunks(db: ReturnType<typeof createClient>, groupId: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAllChunks(db: any, groupId: string) {
   const rows: Array<{ content: string | null }> = [];
   let from = 0;
 

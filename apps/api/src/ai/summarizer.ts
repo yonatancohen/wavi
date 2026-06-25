@@ -136,22 +136,26 @@ export async function generateGroupContext(params: {
   const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 200,
+    max_tokens: 300,
     messages: [
       {
         role: 'user',
-        content: `${lang}\n\nYou are analyzing a WhatsApp group called "${params.groupName}".
+        content: `${lang}
 
-Previous context: ${params.previousContext || 'None'}
+You are capturing the living memory of a WhatsApp group called "${params.groupName}" for an AI group member that needs to participate naturally.
+
+Previous context (what was known before): ${params.previousContext || 'None'}
 
 Recent conversation:
 ${params.recentContent.slice(0, 3000)}
 
-Write a SHORT context summary (max 150 words) covering:
-- What topics are currently active
-- The current tone/energy of the group
-- Any ongoing threads or unresolved discussions
-- Any memorable recent moments`,
+Write a SHORT context block (max 150 words) IN THE SAME LANGUAGE as the group (${lang}) covering:
+1. Active threads: what are people planning, discussing, or waiting for right now?
+2. Group mood: what's the energy — excited, annoyed, joking around?
+3. Open loops: any unresolved questions, unanswered messages, or pending decisions?
+4. Recent callbacks: inside jokes, references, or events that came up and might be referenced again
+
+Be specific (names, places, events). Skip generic observations. Write as if briefing someone who was away for a week and needs to jump back into the chat naturally.`,
       },
     ],
   });
