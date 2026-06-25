@@ -224,6 +224,26 @@ AS $$
   LIMIT p_limit;
 $$;
 
+-- ── Reminders ─────────────────────────────────────────────────
+-- Scheduled messages set by group members via "@wavi remind me ..."
+-- or Hebrew equivalents. The reminder worker polls this table every
+-- 30 s and fires due rows by sending a WA message to wa_group_id.
+
+CREATE TABLE reminders (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id       uuid REFERENCES groups(id) ON DELETE CASCADE,
+  wa_group_id    text NOT NULL,
+  sender_wa_id   text NOT NULL,
+  sender_name    text,
+  reminder_text  text NOT NULL,
+  fire_at        timestamptz NOT NULL,
+  sent_at        timestamptz,
+  created_at     timestamptz DEFAULT now()
+);
+-- Partial index: only unsent reminders need to be scanned by the worker.
+CREATE INDEX idx_reminders_due ON reminders (fire_at) WHERE sent_at IS NULL;
+CREATE INDEX idx_reminders_sender ON reminders (group_id, sender_wa_id) WHERE sent_at IS NULL;
+
 -- ── Supabase Realtime ─────────────────────────────────────────
 -- Enable realtime on tables the dashboard subscribes to
 

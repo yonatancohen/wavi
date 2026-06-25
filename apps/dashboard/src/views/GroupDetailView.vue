@@ -6,21 +6,11 @@
       </div>
 
       <div class="border-b border-outline-variant lg:hidden">
-        <button
-          type="button"
-          class="flex w-full items-center justify-between px-margin-mobile py-3 text-start"
-          :aria-expanded="statsExpanded"
-          @click="statsExpanded = !statsExpanded"
-        >
+        <button type="button" class="flex w-full items-center justify-between px-margin-mobile py-3 text-start" :aria-expanded="statsExpanded" @click="statsExpanded = !statsExpanded">
           <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
             {{ t('groupDetail.overview.title') }}
           </span>
-          <span
-            class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-200"
-            :class="statsExpanded ? 'rotate-180' : ''"
-          >
-            expand_more
-          </span>
+          <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-200" :class="statsExpanded ? 'rotate-180' : ''"> expand_more </span>
         </button>
         <div v-if="statsExpanded" class="px-margin-mobile pb-4">
           <GroupDetailStatsGrid :group="group" />

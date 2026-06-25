@@ -10,6 +10,7 @@ import { flowsRoute } from './routes/flows.js';
 import { healthRoute } from './routes/health.js';
 import { twilioRoute } from './routes/twilio.js';
 import { startReplyWorker } from './ai/worker.js';
+import { startReminderWorker } from './jobs/reminder-worker.js';
 import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js';
 import { allowedDashboardOrigins, isOriginAllowed } from './lib/cors.js';
 import { isAuthRequired, requireAuth, getLastAuthReject } from './lib/auth.js';
@@ -101,6 +102,10 @@ try {
   // Start reply worker in background
   startReplyWorker();
   server.log.info('Reply worker started');
+
+  // Start reminder delivery worker in background
+  startReminderWorker();
+  server.log.info('Reminder worker started');
 
   // Start WhatsApp client
   startWhatsAppClient();
