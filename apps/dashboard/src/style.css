@@ -240,21 +240,18 @@
     @apply w-full flex-1 px-margin-mobile lg:px-margin-desktop;
   }
 
+  /* On mobile the bottom nav is position:fixed (3.25rem + safe area).
+     Add that clearance to every page-content so the last row is
+     always fully scrollable above the nav bar. */
   @media (max-width: 1023px) {
     .page-content {
-      padding-bottom: 1.25rem;
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
     }
   }
 
   /* ── Main content area ── */
   .main-content {
     @apply min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain;
-  }
-
-  @media (max-width: 1023px) {
-    .main-content {
-      padding-bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
-    }
   }
 
   /* ── Mobile top bar ──────────────────────────── */

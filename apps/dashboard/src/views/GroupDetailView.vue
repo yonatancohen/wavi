@@ -5,9 +5,27 @@
         <GroupDetailStatusBar :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
       </div>
 
-      <div class="border-b border-outline-variant px-margin-mobile py-4 lg:hidden">
-        <GroupDetailStatsGrid :group="group" />
-        <GroupUsagePanel class="mt-4" :group-id="group.id" />
+      <div class="border-b border-outline-variant lg:hidden">
+        <button
+          type="button"
+          class="flex w-full items-center justify-between px-margin-mobile py-3 text-start"
+          :aria-expanded="statsExpanded"
+          @click="statsExpanded = !statsExpanded"
+        >
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            {{ t('groupDetail.overview.title') }}
+          </span>
+          <span
+            class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-200"
+            :class="statsExpanded ? 'rotate-180' : ''"
+          >
+            expand_more
+          </span>
+        </button>
+        <div v-if="statsExpanded" class="px-margin-mobile pb-4">
+          <GroupDetailStatsGrid :group="group" />
+          <GroupUsagePanel class="mt-4" :group-id="group.id" />
+        </div>
       </div>
 
       <nav class="group-tabs-mobile" role="tablist" :aria-label="group.name">
@@ -161,6 +179,7 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const hasIngestedData = ref(false);
+const statsExpanded = ref(false);
 
 /** Derived from URL hash — survives refresh and is shareable. */
 const activeTab = computed(() => tabFromHash(route.hash));
