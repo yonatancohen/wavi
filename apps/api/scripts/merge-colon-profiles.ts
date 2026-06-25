@@ -8,7 +8,7 @@
  *   bun scripts/merge-colon-profiles.ts -- --group-id <uuid> --dry-run
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { db } from '../src/db/client.js';
 import { getProfileAliases } from '../src/lib/alias-store.js';
 import { mergeAliases } from '../src/lib/identity.js';
 import type { UserProfileData } from '@wavi/shared';
@@ -21,6 +21,19 @@ type ProfileRow = {
   msg_count: number | null;
   profile_data: UserProfileData | null;
   behavioral_summary: string | null;
+};
+
+type RelationshipRow = {
+  id: string;
+  user_a_wa_id: string;
+  user_b_wa_id: string;
+  user_a_name: string | null;
+  user_b_name: string | null;
+  interaction_score: number | null;
+  conflict_score: number | null;
+  solidarity_score: number | null;
+  signals: unknown;
+  narrative: string | null;
 };
 
 function parseArgs(argv: string[]) {
@@ -52,7 +65,7 @@ function isColonPhantom(profile: ProfileRow): boolean {
   return profile.display_name.includes(':') || profile.wa_user_id.includes(':');
 }
 
-async function resolveGroupId(db: Pick<ReturnType<typeof createClient>, 'from'>, args: { groupId: string | null; name: string | null }): Promise<string> {
+async function resolveGroupId(args: { groupId: string | null; name: string | null }): Promise<string> {
   if (args.groupId) return args.groupId;
 
   if (args.name) {
@@ -81,7 +94,7 @@ async function resolveGroupId(db: Pick<ReturnType<typeof createClient>, 'from'>,
   return rows[0]!.id;
 }
 
-async function mergeProfiles(db: ReturnType<typeof createClient>, groupId: string, keep: ProfileRow, merge: ProfileRow, dryRun: boolean) {
+async function mergeProfiles(groupId: string, keep: ProfileRow, merge: ProfileRow, dryRun: boolean) {
   const keepData = (keep.profile_data ?? {}) as UserProfileData;
   const mergeData = (merge.profile_data ?? {}) as UserProfileData;
   const mergedAliases = mergeAliases(getProfileAliases(keepData), merge.display_name, merge.wa_user_id, ...getProfileAliases(mergeData));
@@ -116,9 +129,9 @@ async function mergeProfiles(db: ReturnType<typeof createClient>, groupId: strin
   ]);
   if (relAErr) throw relAErr;
   if (relBErr) throw relBErr;
-  const relRows = [...(relRowsA ?? []), ...(relRowsB ?? [])].filter((row, idx, arr) => arr.findIndex((r) => r.id === row.id) === idx);
+  const relRows = [...((relRowsA ?? []) as RelationshipRow[]), ...((relRowsB ?? []) as RelationshipRow[])].filter((row, idx, arr) => arr.findIndex((r) => r.id === row.id) === idx);
 
-  for (const row of relRows ?? []) {
+  for (const row of relRows) {
     let userA = row.user_a_wa_id === oldId ? newId : row.user_a_wa_id;
     let userB = row.user_b_wa_id === oldId ? newId : row.user_b_wa_id;
     if (userA === userB) {
@@ -167,8 +180,7 @@ async function main() {
   }
 
   requireEnv();
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const groupId = await resolveGroupId(db, args);
+  const groupId = await resolveGroupId(args);
 
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
   const { data: profiles, error } = await db.from('user_profiles').select('*').eq('group_id', groupId);
@@ -209,7 +221,7 @@ async function main() {
   }
 
   for (const { keep, merge } of plan) {
-    await mergeProfiles(db, groupId, keep, merge, args.dryRun);
+    await mergeProfiles(groupId, keep, merge, args.dryRun);
   }
 
   if (!args.dryRun) {
