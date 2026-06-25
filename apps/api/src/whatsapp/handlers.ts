@@ -10,8 +10,7 @@ import type { LanguageMode } from '@wavi/shared';
 import { addProfileAliases, findProfileByNameOrAlias, findProfileForReconciliation, getProfileAliases } from '../lib/alias-store.js';
 import { extractMentionLabels, mergeAliases, pairMentionLabelsWithIds } from '../lib/identity.js';
 import type { UserProfileData } from '@wavi/shared';
-import { parseReminderInput, formatFireTime } from '../lib/time-parser.js';
-import { createReminder, getPendingReminders, cancelReminder, deleteReminderById } from '../lib/reminder-store.js';
+import { resolveReminderCommand } from '../lib/reminder-handler.js';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 
@@ -474,57 +473,6 @@ async function tryHandleMemoryCommand(params: {
 
 // ── Reminder commands ─────────────────────────────────────────
 
-type ReminderSubcmd = 'create' | 'list' | 'cancel';
-
-interface ReminderCommand {
-  sub: ReminderSubcmd;
-  /** Raw text after the command keyword — used by create + cancel. */
-  payload: string;
-}
-
-function detectReminderCommand(body: string): ReminderCommand | null {
-  // Strip all @mentions before matching so "@wavi remind me …" works regardless
-  // of where the mention appears.
-  const stripped = body.replace(/@\S+/g, '').trim();
-
-  // ── List ──────────────────────────────────────────────────
-  if (/^(?:my\s+reminders?|what(?:'s|\s+are)?\s+my\s+reminders?|list\s+reminders?|show\s+reminders?)/i.test(stripped) || /^(?:התזכורות\s+שלי|מה\s+התזכורות|הראה\s+תזכורות)/.test(stripped)) {
-    return { sub: 'list', payload: '' };
-  }
-
-  // ── Cancel ────────────────────────────────────────────────
-  const cancelEnMatch = stripped.match(/^(?:cancel|delete|remove)\s+reminder[:\s]+(.+)/i);
-  if (cancelEnMatch) return { sub: 'cancel', payload: cancelEnMatch[1].trim() };
-
-  const cancelHeMatch = stripped.match(/^(?:בטל|מחק)\s+תזכורת[:\s]*(.+)/);
-  if (cancelHeMatch) return { sub: 'cancel', payload: cancelHeMatch[1].trim() };
-
-  // ── Create ────────────────────────────────────────────────
-  // English: "remind me …" / "remind us …" / "/reminder …"
-  const createEnMatch = stripped.match(/^(?:remind\s+(?:me|us)|\/reminder)[:\s]+(.+)/i);
-  if (createEnMatch) return { sub: 'create', payload: createEnMatch[1].trim() };
-
-  // Hebrew: "תזכיר לי …" / "תזכור לי …" / "הזכר לי …" / "/reminder …"
-  const createHeMatch = stripped.match(/^(?:תזכיר\s+לי|תזכיר\s+לנו|תזכור\s+לי|הזכר\s+לי|הזכירו\s+לי|\/reminder)[:\s]*(.+)/);
-  if (createHeMatch) return { sub: 'create', payload: createHeMatch[1].trim() };
-
-  return null;
-}
-
-const GROUP_TIMEZONE = process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem';
-
-function formatAbsoluteTime(fireAt: Date, isHebrew: boolean): string {
-  return fireAt.toLocaleString(isHebrew ? 'he-IL' : 'en-US', {
-    timeZone: GROUP_TIMEZONE,
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-}
-
 async function tryHandleReminderCommand(params: {
   groupId: string;
   waGroupId: string;
@@ -534,101 +482,14 @@ async function tryHandleReminderCommand(params: {
   waMsgId: string;
   messageId?: string | null;
 }): Promise<boolean> {
-  const cmd = detectReminderCommand(params.body);
-  if (!cmd) return false;
-
-  const isHebrew = /[\u0590-\u05FF]/.test(params.body) || /[\u0590-\u05FF]/.test(params.senderName);
+  const { handled, reply } = await resolveReminderCommand(params);
+  if (!handled) return false;
 
   const ctx = {
     messageId: params.messageId,
     triggerName: params.senderName,
     triggerBody: params.body,
   };
-
-  // ── List ────────────────────────────────────────────────────
-  if (cmd.sub === 'list') {
-    const pending = await getPendingReminders({
-      group_id: params.groupId,
-      sender_wa_id: params.senderWaId,
-    });
-
-    let reply: string;
-    if (!pending.length) {
-      reply = isHebrew ? 'אין לך תזכורות ממתינות 🙂' : "You don't have any pending reminders 🙂";
-    } else {
-      const lines = pending.map((r, i) => {
-        const when = formatAbsoluteTime(new Date(r.fire_at), isHebrew);
-        return `${i + 1}. ${r.reminder_text} — ${when}`;
-      });
-      reply = isHebrew ? `התזכורות שלך:\n${lines.join('\n')}` : `Your reminders:\n${lines.join('\n')}`;
-    }
-    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
-    return true;
-  }
-
-  // ── Cancel ──────────────────────────────────────────────────
-  if (cmd.sub === 'cancel') {
-    const cancelled = await cancelReminder({
-      group_id: params.groupId,
-      sender_wa_id: params.senderWaId,
-      textFragment: cmd.payload,
-    });
-
-    const reply = cancelled ? (isHebrew ? `בוטלה תזכורת: "${cancelled}" ✅` : `Cancelled reminder: "${cancelled}" ✅`) : isHebrew ? `לא מצאתי תזכורת כזו 😕` : `Couldn't find that reminder 😕`;
-
-    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
-    return true;
-  }
-
-  // ── Create ──────────────────────────────────────────────────
-  const pending = await getPendingReminders({
-    group_id: params.groupId,
-    sender_wa_id: params.senderWaId,
-  });
-
-  // Auto-replace the oldest reminder when the cap is reached so the user is
-  // never blocked — just informed which one was dropped.
-  let droppedText: string | null = null;
-  if (pending.length >= 10) {
-    const oldest = pending[0]; // getPendingReminders returns ASC by fire_at → oldest first
-    await deleteReminderById(oldest.id);
-    droppedText = oldest.reminder_text;
-  }
-
-  const parsed = parseReminderInput(cmd.payload);
-
-  if (!parsed) {
-    const reply = isHebrew
-      ? `לא הצלחתי להבין את הזמן 😅 נסה משהו כמו "בעוד 10 דקות", "מחר ב-9", "בשעה 18:00"`
-      : `Couldn't understand the time 😅 Try something like "in 10 minutes", "tomorrow at 9am", "at 18:00"`;
-    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
-    return true;
-  }
-
-  const saved = await createReminder({
-    group_id: params.groupId,
-    wa_group_id: params.waGroupId,
-    sender_wa_id: params.senderWaId,
-    sender_name: params.senderName,
-    reminder_text: parsed.reminderText,
-    fire_at: parsed.fireAt,
-  });
-
-  let reply: string;
-  if (!saved) {
-    reply = isHebrew ? 'משהו השתבש, נסה שוב 😅' : 'Something went wrong, please try again 😅';
-  } else {
-    const when = formatFireTime(parsed.fireAt, isHebrew);
-    const text = parsed.reminderText;
-    if (droppedText) {
-      reply = isHebrew
-        ? `⏰ סבבה! אזכיר לך "${text}" ${when}. (הסרתי את הישנה ביותר שלך — "${droppedText}" — כי הגעת לגבול)`
-        : `⏰ Got it! I'll remind you "${text}" ${when}. (Dropped your oldest reminder — "${droppedText}" — to make room)`;
-    } else {
-      reply = isHebrew ? `⏰ סבבה! אזכיר לך "${text}" ${when}` : `⏰ Got it! I'll remind you "${text}" ${when}`;
-    }
-  }
-
   await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
   return true;
 }
