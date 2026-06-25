@@ -95,7 +95,7 @@
               class="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-0.5 text-[11px] text-secondary"
             >
               {{ alias }}
-              <button type="button" class="opacity-50 transition-opacity hover:opacity-100" :title="t('members.removeAlias')" @click="removeAlias(member, alias)">×</button>
+              <button type="button" class="opacity-50 transition-opacity hover:opacity-100" :title="t('members.removeAlias')" @click.stop="removeAlias(member, alias)">×</button>
             </span>
           </div>
           <p v-else class="mb-2 text-[11px] italic text-on-surface-variant/50">
@@ -251,6 +251,20 @@ function applyAliasesLocally(memberId: string, newAliases: string[]) {
   });
 }
 
+function removeAliasesLocally(memberId: string, aliasesToRemove: string[]) {
+  const removeNorms = new Set(aliasesToRemove.map((a) => a.toLowerCase()));
+  members.value = members.value.map((m) => {
+    if (m.id !== memberId) return m;
+    return {
+      ...m,
+      profile_data: {
+        ...m.profile_data,
+        aliases: memberAliases(m).filter((a) => !removeNorms.has(a.toLowerCase())),
+      },
+    };
+  });
+}
+
 function restoreAliases(memberId: string, aliases: string[]) {
   members.value = members.value.map((m) => {
     if (m.id !== memberId) return m;
@@ -390,37 +404,24 @@ async function clearAllAliases(member: UserProfile) {
   restoreAliases(member.id, []);
   delete aliasErrors[member.id];
 
-  try {
-    const updated = await patchMember(member.id, { clear_aliases: true });
-    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
-  } catch (e) {
+  void patchMember(member.id, { clear_aliases: true }).catch((e) => {
     restoreAliases(member.id, previous);
     aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
-  }
+  });
 }
 
-async function removeAlias(member: UserProfile, alias: string) {
+function removeAlias(member: UserProfile, alias: string) {
+  const memberId = member.id;
   const previous = [...memberAliases(member)];
-  const removeNorm = alias.toLowerCase();
-  members.value = members.value.map((m) => {
-    if (m.id !== member.id) return m;
-    return {
-      ...m,
-      profile_data: {
-        ...m.profile_data,
-        aliases: memberAliases(m).filter((a) => a.toLowerCase() !== removeNorm),
-      },
-    };
-  });
-  delete aliasErrors[member.id];
+  if (!previous.some((a) => a.toLowerCase() === alias.toLowerCase())) return;
 
-  try {
-    const updated = await patchMember(member.id, { remove_alias: alias });
-    members.value = members.value.map((m) => (m.id === member.id ? updated : m));
-  } catch (e) {
-    restoreAliases(member.id, previous);
-    aliasErrors[member.id] = e instanceof Error ? e.message : t('members.failedSave');
-  }
+  removeAliasesLocally(memberId, [alias]);
+  delete aliasErrors[memberId];
+
+  void patchMember(memberId, { remove_alias: alias }).catch((e) => {
+    restoreAliases(memberId, previous);
+    aliasErrors[memberId] = e instanceof Error ? e.message : t('members.failedSave');
+  });
 }
 
 async function mergeMember(member: UserProfile) {
