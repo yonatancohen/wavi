@@ -8,7 +8,7 @@ Wavi is a configurable AI agent that lives inside WhatsApp group chats. It inges
 
 ## Tech stack
 
-- **Runtime / package manager:** [Bun](https://bun.sh) (`>=1.4.0`). Bun runs TypeScript natively and loads `.env` automatically — no `dotenv`, no build step for the server.
+- **Runtime / package manager:** [Bun](https://bun.sh) (`>=1.3.14`). Bun runs TypeScript natively and loads `.env` automatically — no `dotenv`, no build step for the server.
 - **Monorepo:** Bun workspaces (`apps/*`, `packages/*`).
 - **API:** Node-style + Fastify 4, TypeScript ESM (`apps/api`).
 - **Dashboard:** Vue 3 + Vite + Pinia + vue-router + vue-i18n + Tailwind (`apps/dashboard`).

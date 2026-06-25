@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-4">
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-2">
       <div class="stat-cell">
         <span class="stat-cell-label">{{ t('usage.live.inFlight') }}</span>
         <span class="stat-cell-value text-secondary">{{ liveInFlight }}</span>
@@ -12,14 +12,6 @@
         <span class="stat-cell-label">{{ t('usage.live.peakToday') }}</span>
         <span class="stat-cell-value">{{ livePeakToday }}</span>
       </div>
-      <div class="stat-cell">
-        <span class="stat-cell-label">{{ t('usage.period.requests') }}</span>
-        <span class="stat-cell-value text-primary">{{ activePeriod.requests.toLocaleString() }}</span>
-      </div>
-      <div class="stat-cell">
-        <span class="stat-cell-label">{{ t('usage.period.estimatedSpend') }}</span>
-        <span class="stat-cell-value text-primary">${{ activePeriod.spent_usd_estimate.toFixed(2) }}</span>
-      </div>
     </div>
 
     <div class="rounded-xl border p-4" :class="stats?.budget_exceeded ? 'border-error/30 bg-error/[0.06]' : 'border-outline-variant bg-surface-container'">
@@ -28,24 +20,21 @@
           <span class="material-symbols-outlined text-[18px]" :class="stats?.budget_exceeded ? 'text-error' : 'text-primary'"> payments </span>
           <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('usage.title') }}</h3>
         </div>
-        <div class="flex flex-wrap gap-1 rounded-full border border-outline-variant bg-surface-container-high/50 p-1">
-          <button
-            v-for="tab in periodTabs"
-            :key="tab.id"
-            type="button"
-            class="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
-            :class="activePeriodId === tab.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'"
-            @click="activePeriodId = tab.id"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+        <UsagePeriodToggle v-model="activePeriodId" />
       </div>
 
       <div v-if="loading" class="text-[13px] text-on-surface-variant">{{ t('loading.default') }}</div>
 
       <template v-else-if="stats">
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div :key="activePeriodId" class="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.requests') }}</p>
+            <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ activePeriod.requests.toLocaleString() }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.estimatedSpend') }}</p>
+            <p class="font-mono text-[15px] font-semibold tabular-nums text-primary">${{ activePeriod.spent_usd_estimate.toFixed(2) }}</p>
+          </div>
           <div>
             <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.inputTokens') }}</p>
             <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ activePeriod.input_tokens.toLocaleString() }}</p>
@@ -54,16 +43,14 @@
             <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.outputTokens') }}</p>
             <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ activePeriod.output_tokens.toLocaleString() }}</p>
           </div>
-          <div>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.avgLatency') }}</p>
-            <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">
-              {{ activePeriod.avg_latency_ms != null ? `${activePeriod.avg_latency_ms}ms` : '—' }}
-            </p>
-          </div>
-          <div>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.weekNote') }}</p>
-            <p class="text-[12px] text-on-surface-variant">{{ t('usage.period.weekStartsSunday') }}</p>
-          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-on-surface-variant">
+          <span>
+            {{ t('usage.period.avgLatency') }}:
+            <span class="font-mono text-on-surface">{{ activePeriod.avg_latency_ms != null ? `${activePeriod.avg_latency_ms}ms` : '—' }}</span>
+          </span>
+          <span>{{ t('usage.period.weekStartsSunday') }}</span>
         </div>
 
         <div class="mt-5 grid gap-4 lg:grid-cols-2">
@@ -90,7 +77,7 @@
           </div>
 
           <div class="space-y-4">
-            <div>
+            <div v-if="activePeriodId === 'month'">
               <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.topGroups.title') }}</h4>
               <ul v-if="stats.top_groups.length" class="space-y-2">
                 <li
@@ -110,7 +97,7 @@
               <p v-else class="text-[12px] text-on-surface-variant">{{ t('usage.topGroups.empty') }}</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div v-if="activePeriodId === 'month'" class="grid grid-cols-2 gap-3">
               <div class="rounded-lg border border-on-surface/[0.05] bg-surface-container-high/40 p-3">
                 <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.extremes.min') }}</p>
                 <template v-if="stats.min_reply">
@@ -149,9 +136,9 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { apiFetch } from '../lib/api';
 import { useFlowsStore } from '../stores/flows';
-import type { AgentUsageStats, UsagePeriodStats } from '@wavi/shared';
-
-type PeriodId = 'today' | 'week' | 'month' | 'all_time';
+import { useUsagePeriod } from '../composables/useUsagePeriod';
+import UsagePeriodToggle from './UsagePeriodToggle.vue';
+import type { AgentUsageStats } from '@wavi/shared';
 
 const { t } = useI18n();
 const flowsStore = useFlowsStore();
@@ -160,28 +147,7 @@ const { total: liveInFlight, flows: liveFlows, queueDepth: liveQueueDepth, peakI
 const stats = ref<AgentUsageStats | null>(null);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
-const activePeriodId = ref<PeriodId>('month');
-
-const periodTabs = computed(() => [
-  { id: 'today' as const, label: t('usage.periods.today') },
-  { id: 'week' as const, label: t('usage.periods.week') },
-  { id: 'month' as const, label: t('usage.periods.month') },
-  { id: 'all_time' as const, label: t('usage.periods.allTime') },
-]);
-
-const activePeriod = computed<UsagePeriodStats>(() => {
-  if (!stats.value) {
-    return {
-      requests: 0,
-      input_tokens: 0,
-      output_tokens: 0,
-      spent_usd_estimate: 0,
-      avg_latency_ms: null,
-      breakdown: [],
-    };
-  }
-  return stats.value[activePeriodId.value];
-});
+const { activePeriodId, activePeriod } = useUsagePeriod(stats);
 
 const liveProcessing = computed(() => liveFlows.value.filter((flow) => flow.status === 'processing').length);
 const liveQueued = computed(() => liveFlows.value.filter((flow) => flow.status === 'queued').length);

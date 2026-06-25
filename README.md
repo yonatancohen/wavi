@@ -15,7 +15,7 @@ wavi/
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) >= 1.4.0 (`curl -fsSL https://bun.sh/install | bash`)
+- [Bun](https://bun.sh) >= 1.3.14 (`curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"`)
 - Supabase project (free tier works)
 - Anthropic API key
 - OpenAI API key (embeddings only)

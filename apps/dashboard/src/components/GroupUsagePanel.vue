@@ -5,24 +5,13 @@
         <span class="material-symbols-outlined text-[18px] text-primary">monitoring</span>
         <h3 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('usage.groupTitle') }}</h3>
       </div>
-      <div class="flex flex-wrap gap-1 rounded-full border border-outline-variant bg-surface-container-high/50 p-1">
-        <button
-          v-for="tab in periodTabs"
-          :key="tab.id"
-          type="button"
-          class="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
-          :class="activePeriodId === tab.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'"
-          @click="activePeriodId = tab.id"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
+      <UsagePeriodToggle v-model="activePeriodId" />
     </div>
 
     <div v-if="loading" class="text-[13px] text-on-surface-variant">{{ t('loading.default') }}</div>
 
     <template v-else-if="stats">
-      <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div :key="activePeriodId" class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
           <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('usage.period.requests') }}</p>
           <p class="font-mono text-[15px] font-semibold tabular-nums text-on-surface">{{ activePeriod.requests.toLocaleString() }}</p>
@@ -81,6 +70,7 @@
             </template>
             <p v-else class="mt-1 text-[12px] text-on-surface-variant">—</p>
           </div>
+          <p class="col-span-2 text-[10px] text-on-surface-variant/70">{{ t('usage.extremes.allTimeNote') }}</p>
         </div>
       </div>
     </template>
@@ -90,12 +80,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
-import type { GroupUsageStats, UsagePeriodStats } from '@wavi/shared';
-
-type PeriodId = 'today' | 'week' | 'month' | 'all_time';
+import { useUsagePeriod } from '../composables/useUsagePeriod';
+import UsagePeriodToggle from './UsagePeriodToggle.vue';
+import type { GroupUsageStats } from '@wavi/shared';
 
 const props = defineProps<{
   groupId: string;
@@ -105,28 +95,7 @@ const { t } = useI18n();
 const stats = ref<GroupUsageStats | null>(null);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
-const activePeriodId = ref<PeriodId>('month');
-
-const periodTabs = computed(() => [
-  { id: 'today' as const, label: t('usage.periods.today') },
-  { id: 'week' as const, label: t('usage.periods.week') },
-  { id: 'month' as const, label: t('usage.periods.month') },
-  { id: 'all_time' as const, label: t('usage.periods.allTime') },
-]);
-
-const activePeriod = computed<UsagePeriodStats>(() => {
-  if (!stats.value) {
-    return {
-      requests: 0,
-      input_tokens: 0,
-      output_tokens: 0,
-      spent_usd_estimate: 0,
-      avg_latency_ms: null,
-      breakdown: [],
-    };
-  }
-  return stats.value[activePeriodId.value];
-});
+const { activePeriodId, activePeriod } = useUsagePeriod(stats);
 
 async function load() {
   loading.value = true;
