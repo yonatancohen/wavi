@@ -34,6 +34,7 @@
     "logs": "bash scripts/logs.sh",
     "ingest:status": "bash scripts/ingest-status.sh",
     "resynthesize:character": "bash scripts/resynthesize-character.sh",
+    "regenerate:group-context": "bash scripts/regenerate-group-context.sh",
     "reprofile:from-chunks": "bash scripts/reprofile-from-chunks.sh",
     "merge:colon-profiles": "bash scripts/merge-colon-profiles.sh",
     "test:parser": "bun scripts/test-parser.mjs",
