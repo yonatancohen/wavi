@@ -44,9 +44,12 @@
           <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
             {{ t('character.voiceHint') }}
           </p>
-          <p class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2.5 text-[13px] leading-relaxed text-on-surface-variant">
-            {{ localConfig.voice }}
-          </p>
+          <textarea
+            v-model="localConfig.voice"
+            rows="3"
+            :placeholder="t('character.voicePlaceholder')"
+            class="w-full resize-none rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] leading-relaxed text-on-surface outline-none transition-colors focus:border-primary/50"
+          />
         </div>
 
         <div>

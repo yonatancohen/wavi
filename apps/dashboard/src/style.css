@@ -247,10 +247,17 @@
     @apply w-full flex-1 px-margin-mobile lg:px-margin-desktop;
   }
 
-  /* On mobile the bottom nav is position:fixed (3.25rem + safe area).
-     Pad page-content generously so the last element scrolls fully above
-     the nav bar. The ::after approach is used as a belt-and-suspenders
-     fallback for WebKit's known padding-bottom-in-scroll-container bug. */
+  /* On mobile/tablet the bottom nav is position:fixed (≥3.25rem + safe area).
+     Two-pronged approach:
+     1. page-content::after — a block spacer appended after the tab content so
+        the last element scrolls clear of the fixed nav. Works for setup/character
+        tabs that are regular block flow inside main-content.
+     2. group-panel padding-bottom — group-panel has overflow-y:auto on all
+        widths, so its inner scroll area doesn't inherit the ::after spacer.
+        We add explicit padding-bottom there for the range where the bottom nav
+        is fixed (<lg). Uses padding-bottom rather than ::after because the
+        panel is itself a scroll container (WebKit bug doesn't apply here since
+        we are padding the panel, not the outer scroll root). */
   @media (max-width: 1023px) {
     .page-content {
       padding-bottom: 0;
@@ -258,7 +265,10 @@
     .page-content::after {
       content: '';
       display: block;
-      height: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+      height: calc(6rem + env(safe-area-inset-bottom, 0px));
+    }
+    .group-panel {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
     }
   }
 
