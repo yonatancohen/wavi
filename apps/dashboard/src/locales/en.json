@@ -770,6 +770,10 @@
     "done": "Done",
     "failed": "Sync failed",
     "ops": {
+      "chunkDates": {
+        "title": "Patch chunk dates",
+        "desc": "Add date headers to existing message chunks so Wavi can answer 'when was the last time…' questions. Safe to run once per group — skips already-patched chunks."
+      },
       "dynamics": {
         "title": "Rebuild dynamics",
         "desc": "Re-compute relationship pairs and narratives from stored messages."

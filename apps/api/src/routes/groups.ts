@@ -852,6 +852,58 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     await synthesizeCharacterForGroup(id);
     return { ok: true, message: 'Character re-synthesized' };
   });
+
+  // Patch existing chunks: prepend [date] header and re-embed.
+  // Targets only chunks whose content doesn't already start with '[' — safe to
+  // run multiple times. Batches embedding calls to stay within OpenAI rate limits.
+  fastify.post<{ Params: { id: string } }>('/:id/sync-chunk-dates', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { embedBatch } = await import('../lib/embeddings.js');
+
+    // Fetch chunks that haven't been patched yet (content doesn't start with '[').
+    const { data: chunks, error: fetchErr } = await db.from('message_chunks').select('id, content, msg_from, msg_to').eq('group_id', id).not('content', 'like', '[%');
+
+    if (fetchErr) return reply.code(500).send({ error: fetchErr.message });
+    if (!chunks || chunks.length === 0) return { ok: true, message: 'All chunks already have date headers.', patched: 0 };
+
+    type ChunkRow = { id: string; content: string | null; msg_from: string | null; msg_to: string | null };
+    const rows = chunks as ChunkRow[];
+
+    const fmt = (iso: string) => {
+      const d = new Date(iso);
+      return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    const dateHeader = (r: ChunkRow) => {
+      if (!r.msg_from) return '';
+      const from = fmt(r.msg_from);
+      const to = r.msg_to ? fmt(r.msg_to) : '';
+      return !to || from === to ? `[${from}]\n` : `[${from} – ${to}]\n`;
+    };
+
+    const BATCH = 10;
+    let patched = 0;
+
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      const newContents = batch.map((r) => `${dateHeader(r)}${r.content ?? ''}`);
+      const embeddings = await embedBatch(newContents, { groupId: id });
+
+      await Promise.all(
+        batch.map((r, idx) =>
+          db
+            .from('message_chunks')
+            .update({ content: newContents[idx], embedding: JSON.stringify(embeddings[idx]) })
+            .eq('id', r.id),
+        ),
+      );
+      patched += batch.length;
+    }
+
+    return { ok: true, message: `Patched ${patched} chunk(s) with date headers.`, patched };
+  });
 };
 
 // ── Replies route ─────────────────────────────────────────────
