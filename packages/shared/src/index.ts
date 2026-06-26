@@ -535,6 +535,10 @@ export interface MentionedPerson {
   behavioral_summary: string;
   sensitivity_flags: string[];
   relationships: string[];
+  activity_level?: string;
+  dominant_topics?: string[];
+  /** Last few messages sent by this person (oldest first), for recent-activity context. */
+  recent_messages?: string[];
 }
 
 export interface WebSearchSnippet {

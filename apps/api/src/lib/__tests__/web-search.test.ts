@@ -23,4 +23,12 @@ describe('shouldUseWebSearch', () => {
   it('returns false for very short messages', () => {
     expect(shouldUseWebSearch('lol ok')).toBe(false);
   });
+
+  it('returns true for explicit search commands even without a question mark', () => {
+    expect(shouldUseWebSearch('תבדוק באינטרנט בבקשה')).toBe(true);
+    expect(shouldUseWebSearch('תחפש את זה בגוגל')).toBe(true);
+    expect(shouldUseWebSearch('search for the latest news')).toBe(true);
+    expect(shouldUseWebSearch('check the internet for me')).toBe(true);
+    expect(shouldUseWebSearch('תגגל את זה')).toBe(true);
+  });
 });

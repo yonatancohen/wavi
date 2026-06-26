@@ -19,6 +19,16 @@ const QUESTION_PATTERNS = [
   /\b(?:היום|עכשיו|מזג|תוצאה|חדשות|מחיר|שער)\b/u,
 ];
 
+// Explicit requests to search — match even without question marks or factual keywords.
+// Note: \b is ASCII-only so Hebrew patterns use (?:^|[\s,]) or bare substring matches instead.
+const EXPLICIT_SEARCH_PATTERNS = [
+  /\b(?:search|google|look.?up|check.?(?:the\s+)?(?:web|internet|online)|browse)\b/i,
+  /(?:^|[\s,])(?:תחפש|חפש|תגגל|גגל|תחפשי|חפשי)(?:[\s,]|$)/u,
+  // "אינטרנט" anywhere in the message (covers "תבדוק באינטרנט", "יש לך אינטרנט?" etc.)
+  /אינטרנט/u,
+  /\b(?:internet|online|web)\b/i,
+];
+
 /** Strip agent tag and WA mentions before building a search query. */
 export function normalizeWebSearchQuery(message: string): string {
   return message
@@ -28,11 +38,12 @@ export function normalizeWebSearchQuery(message: string): string {
     .trim();
 }
 
-/** Heuristic: skip banter/commands; search when the message looks like a factual question. */
+/** Heuristic: skip banter/commands; search when the message looks like a factual question or an explicit search request. */
 export function shouldUseWebSearch(message: string): boolean {
   const q = normalizeWebSearchQuery(message);
   if (q.length < 8) return false;
   if (SKIP_PATTERNS.some((p) => p.test(q))) return false;
+  if (EXPLICIT_SEARCH_PATTERNS.some((p) => p.test(q))) return true;
   return QUESTION_PATTERNS.some((p) => p.test(q));
 }
 

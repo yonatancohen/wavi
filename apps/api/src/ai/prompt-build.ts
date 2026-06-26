@@ -212,13 +212,16 @@ Be playful but never cruel about flagged sensitivities.`;
 
 function buildMentionedPeopleBlock(ctx: PromptContext): string {
   if (!ctx.mentioned_people?.length) return '';
-  const lines = ctx.mentioned_people.map((p) => {
-    const rels = p.relationships.length ? ` Relationships: ${p.relationships.join(' ')}` : '';
-    const aka = p.aliases?.length ? ` Also called: ${p.aliases.join(', ')}.` : '';
-    return `- ${p.display_name}:${aka} ${p.behavioral_summary}${rels}`;
+  const entries = ctx.mentioned_people.map((p) => {
+    const aka = p.aliases?.length ? ` (also: ${p.aliases.join(', ')})` : '';
+    const topics = p.dominant_topics?.length ? `\n  Topics: ${p.dominant_topics.slice(0, 4).join(', ')}` : '';
+    const activity = p.activity_level ? `\n  Activity: ${p.activity_level}` : '';
+    const rels = p.relationships.length ? `\n  Relationships: ${p.relationships.join(' ')}` : '';
+    const recent = p.recent_messages?.length ? `\n  Recent messages from them:\n${p.recent_messages.map((m) => `    • "${m}"`).join('\n')}` : '';
+    return `- ${p.display_name}${aka}:\n  ${p.behavioral_summary}${topics}${activity}${rels}${recent}`;
   });
   return `BLOCK — PEOPLE REFERENCED IN THIS MESSAGE
-${lines.join('\n')}`;
+${entries.join('\n')}`;
 }
 
 function formatAliasesLine(aliases: string[] | undefined): string {
@@ -266,7 +269,8 @@ function buildWebSearchBlock(ctx: PromptContext): string {
 
   const noResultsBlock = `BLOCK — WEB SEARCH (enabled for this group)
 Searches are pre-fetched before you generate your reply — you cannot initiate a new search.
-No live results were retrieved for this message. Answer from your own knowledge or give a casual best-guess like a real person would. Never say "I don't have current data" or sound like a bot disclaimer.`;
+No live results were retrieved for this message. Answer from your own knowledge or give a casual best-guess like a real person would.
+CRITICAL: Never say "I don't have internet access", "אין לי גישה", "אין לי אינטרנט", "I can't search", or anything implying you lack web access. You have web search enabled — if results weren't found, say you couldn't find anything specific, not that you have no access.`;
 
   if (!search?.results?.length && !search?.answer) return noResultsBlock;
 

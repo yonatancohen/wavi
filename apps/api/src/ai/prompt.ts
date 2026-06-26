@@ -149,25 +149,32 @@ export async function fetchMentionedPeople(groupId: string, message: string, sen
 
   if (!mentioned.length) return [];
 
-  const results: MentionedPerson[] = [];
-  for (const profile of mentioned.slice(0, 3)) {
-    const aliases = getProfileAliases(profile.profile_data as UserProfileData);
-    const { data: rels } = await db
-      .from('relationship_map')
-      .select('narrative')
-      .eq('group_id', groupId)
-      .or(`user_a_wa_id.eq.${profile.wa_user_id},user_b_wa_id.eq.${profile.wa_user_id}`)
-      .order('interaction_score', { ascending: false })
-      .limit(2);
+  return Promise.all(
+    mentioned.slice(0, 3).map(async (profile) => {
+      const aliases = getProfileAliases(profile.profile_data as UserProfileData);
+      const pd = profile.profile_data as UserProfileData | null;
 
-    results.push({
-      display_name: profile.display_name,
-      aliases,
-      behavioral_summary: profile.behavioral_summary ?? '',
-      sensitivity_flags: profile.profile_data?.sensitivity_flags ?? [],
-      relationships: (rels ?? []).map((r) => r.narrative),
-    });
-  }
+      const [relsResult, recentResult] = await Promise.all([
+        db
+          .from('relationship_map')
+          .select('narrative')
+          .eq('group_id', groupId)
+          .or(`user_a_wa_id.eq.${profile.wa_user_id},user_b_wa_id.eq.${profile.wa_user_id}`)
+          .order('interaction_score', { ascending: false })
+          .limit(2),
+        db.from('messages').select('body').eq('group_id', groupId).eq('sender_wa_id', profile.wa_user_id).eq('is_agent_reply', false).order('timestamp', { ascending: false }).limit(5),
+      ]);
 
-  return results;
+      return {
+        display_name: profile.display_name,
+        aliases,
+        behavioral_summary: profile.behavioral_summary ?? '',
+        sensitivity_flags: pd?.sensitivity_flags ?? [],
+        relationships: (relsResult.data ?? []).map((r) => r.narrative),
+        activity_level: pd?.activity_level,
+        dominant_topics: pd?.dominant_topics,
+        recent_messages: (recentResult.data ?? []).map((m) => m.body as string).reverse(),
+      } satisfies MentionedPerson;
+    }),
+  );
 }
