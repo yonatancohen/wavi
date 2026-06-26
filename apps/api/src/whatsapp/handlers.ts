@@ -1,4 +1,4 @@
-import type { InboundMessage } from './provider.js';
+import type { InboundMessage, InboundReaction } from './provider.js';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { appendToChunkBuffer } from '../jobs/chunker.js';
@@ -185,6 +185,11 @@ export async function handleIncomingMessage(msg: InboundMessage) {
 
   const tagged = isAgentTagged(msg, body);
   if (!tagged) {
+    // Detect text-based negative reactions to recent Wavi replies (e.g. "wtf wavi, that was off")
+    import('../ai/worker.js')
+      .then(({ checkForNegativeReaction }) => checkForNegativeReaction({ groupId: group.id, senderWaId, body, waGroupId }))
+      .catch((err) => console.error('[NegativeReaction] Check failed:', err));
+
     if (resolvedNameEarly && resolvedNameEarly !== senderWaId) {
       reconcileUserIdentity(group.id, senderWaId, resolvedNameEarly).catch((err) => {
         console.error('[Reconcile] Failed:', err);
@@ -532,5 +537,61 @@ function getRateLimitResponse(characterConfig: { sliders?: { humor?: number } } 
     return `That's 20 for this hour. Give me a break and try again later.`;
   } else {
     return `You've reached the request limit (20/hour). I'll respond again when the window resets.`;
+  }
+}
+
+// ── Emoji reaction handler (called by WA providers) ───────────
+
+const NEGATIVE_EMOJIS = new Set(['👎', '😡', '🤮', '💩']);
+const POSITIVE_EMOJIS = new Set(['👍', '❤️', '🔥', '😂', '🥰', '😍', '🎉']);
+
+export async function handleReaction(reaction: InboundReaction) {
+  if (!reaction.waGroupId.endsWith('@g.us')) return;
+  if (!reaction.emoji) return; // empty string = reaction removed
+
+  const isNegative = NEGATIVE_EMOJIS.has(reaction.emoji);
+  const isPositive = POSITIVE_EMOJIS.has(reaction.emoji);
+  if (!isNegative && !isPositive) return;
+
+  const { data: group } = await db.from('groups').select('id').eq('wa_group_id', reaction.waGroupId).maybeSingle();
+  if (!group) return;
+
+  // Find pending reply windows for this group
+  const keys: string[] = [];
+  let cursor = 0;
+  do {
+    const [nextCursor, batch] = await redis.scan(cursor, {
+      match: `pending_reaction:${group.id}:*`,
+      count: 100,
+    });
+    cursor = Number(nextCursor);
+    keys.push(...batch);
+  } while (cursor !== 0);
+
+  if (!keys.length) return;
+
+  const { autoInsertMissMemory } = await import('../ai/worker.js');
+
+  if (isNegative) {
+    for (const key of keys) {
+      const parts = key.split(':');
+      const replyId = parts[parts.length - 1];
+      const raw = await redis.get(key);
+      const { reply_body } = raw ? (JSON.parse(raw as string) as { wa_group_id: string; reply_body: string }) : { reply_body: '' };
+
+      await db.from('replies').update({ flagged_miss: true }).eq('id', replyId);
+      if (reply_body) {
+        await autoInsertMissMemory(group.id, reply_body, 'emoji-reaction').catch((err) => {
+          console.error('[Reaction] Failed to insert miss memory:', err);
+        });
+      }
+      await redis.del(key);
+    }
+    console.log(`[Reaction] ${reaction.emoji} — flagged ${keys.length} reply(ies) for group ${group.id}`);
+  } else {
+    // Positive reaction — clear the pending window (reply landed well)
+    for (const key of keys) {
+      await redis.del(key);
+    }
   }
 }

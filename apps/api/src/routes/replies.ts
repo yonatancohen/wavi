@@ -107,6 +107,14 @@ export const repliesRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch<{ Params: { id: string }; Body: { flagged_miss: boolean } }>('/:id/flag', async (req) => {
     const { data } = await db.from('replies').update({ flagged_miss: req.body.flagged_miss }).eq('id', req.params.id).select().single().throwOnError();
+
+    if (req.body.flagged_miss && data?.body && data?.group_id) {
+      const { autoInsertMissMemory } = await import('../ai/worker.js');
+      autoInsertMissMemory(data.group_id, data.body, 'dashboard').catch((err) => {
+        console.error('[Replies] Failed to insert miss memory:', err);
+      });
+    }
+
     const [resolved] = await resolveReplyImageUrls([data]);
     return resolved;
   });

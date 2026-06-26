@@ -6,7 +6,7 @@ import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageTypes, MessageMedia } = pkg;
 import qrcode from 'qrcode';
 import { db } from '../../db/client.js';
-import { handleIncomingMessage } from '../handlers.js';
+import { handleIncomingMessage, handleReaction } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 import { participantCountFromWa } from '../../lib/participant-count.js';
@@ -489,6 +489,23 @@ export function createWwebjsProvider(): WhatsAppProvider {
     await db.from('agents').update({ phone_number: null }).eq('id', process.env.AGENT_ID!);
 
     scheduleReconnect();
+  });
+
+  waClient.on('message_reaction', async (reaction) => {
+    // reaction.msgId.remote is the group/chat JID; fromMe indicates the original message was ours
+    const raw = reaction as unknown as {
+      msgId: { _serialized: string; remote: string; fromMe: boolean };
+      senderId: string;
+      reaction: string;
+    };
+    if (!raw.msgId?.remote?.endsWith('@g.us')) return;
+    handleReaction({
+      waGroupId: raw.msgId.remote,
+      reactorWaId: raw.senderId ?? '',
+      targetMsgId: raw.msgId._serialized ?? '',
+      emoji: raw.reaction ?? '',
+      fromMe: raw.msgId.fromMe ?? false,
+    }).catch((err) => console.error('[WA] Reaction handler error', err));
   });
 
   waClient.on('message', async (msg) => {

@@ -1,4 +1,4 @@
-import type { PromptContext, LanguageMode } from '@wavi/shared';
+import type { PromptContext, LanguageMode, UserProfileData } from '@wavi/shared';
 import { emojiUsagePromptHint, normalizeEmojiUsage, normalizePersonalitySliders } from '@wavi/shared';
 import { isQuotedAgent } from '../whatsapp/agent-identity.js';
 import { effectiveReplyLanguage, getLanguageName } from './language.js';
@@ -69,7 +69,7 @@ ${ctx.group_context_summary || 'No group context available yet.'}
 BLOCK 6 — SENDER PROFILE
 ${
   ctx.sender_profile
-    ? `The person tagging you is ${ctx.sender_profile.display_name}.${formatAliasesLine(ctx.sender_profile.profile_data?.aliases)} ${ctx.sender_profile.behavioral_summary}`
+    ? `The person tagging you is ${ctx.sender_profile.display_name}.${formatAliasesLine(ctx.sender_profile.profile_data?.aliases)} ${ctx.sender_profile.behavioral_summary}${buildSenderToneHints(ctx.sender_profile.profile_data)}`
     : 'You do not have a profile for this person yet — treat them neutrally.'
 }
 </sender_profile>
@@ -280,6 +280,43 @@ No live results were retrieved for this message. Answer from your own knowledge 
 Weave the answer into a casual reply — don't list sources or sound like a search engine.
 Query: "${search.query}"
 ${lines.join('\n')}`;
+}
+
+/**
+ * Translates profiled signal data into concrete, actionable tone instructions
+ * for the sender. Called only when a profile exists.
+ */
+function buildSenderToneHints(profileData: UserProfileData | undefined | null): string {
+  if (!profileData) return '';
+
+  const hints: string[] = [];
+
+  if (profileData.avg_message_length === 'terse' || profileData.avg_message_length === 'short') {
+    hints.push('keep your reply brief — they send short messages');
+  } else if (profileData.avg_message_length === 'long') {
+    hints.push('you can be more elaborate — they write long messages themselves');
+  }
+
+  if (profileData.humor_score >= 70) {
+    hints.push('match their high energy — they appreciate humor');
+  } else if (profileData.humor_score <= 25) {
+    hints.push('tone down the humor — they tend to be more serious');
+  }
+
+  if (profileData.formality_score >= 70) {
+    hints.push('be a bit more formal with them');
+  } else if (profileData.formality_score <= 25) {
+    hints.push('stay casual and loose');
+  }
+
+  if (profileData.emoji_usage === 'heavy') {
+    hints.push('feel free to use emojis');
+  } else if (profileData.emoji_usage === 'none') {
+    hints.push('skip emojis — they never use them');
+  }
+
+  if (!hints.length) return '';
+  return `\nTone for this person: ${hints.join(', ')}.`;
 }
 
 function buildImageGenerationBlock(enabled: boolean): string {

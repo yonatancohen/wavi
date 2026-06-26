@@ -2,7 +2,7 @@ import qrcode from 'qrcode';
 import { rm } from 'node:fs/promises';
 import { participantCountFromWa } from '../../lib/participant-count.js';
 import { db } from '../../db/client.js';
-import { handleIncomingMessage } from '../handlers.js';
+import { handleIncomingMessage, handleReaction } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 
@@ -239,6 +239,22 @@ export function createBaileysProvider(): WhatsAppProvider {
       if (type !== 'notify') return;
 
       for (const msg of messages) {
+        // Handle emoji reactions (reactionMessage is a special message type in Baileys)
+        const reactionMsg = msg.message?.reactionMessage as { key?: { id?: string; fromMe?: boolean }; text?: string } | undefined;
+        if (reactionMsg) {
+          const waGroupId = msg.key.remoteJid ?? '';
+          if (waGroupId.endsWith('@g.us')) {
+            handleReaction({
+              waGroupId,
+              reactorWaId: msg.key.participant ?? '',
+              targetMsgId: reactionMsg.key?.id ?? '',
+              emoji: reactionMsg.text ?? '',
+              fromMe: reactionMsg.key?.fromMe ?? false,
+            }).catch((err) => console.error('[Baileys] Reaction handler error', err));
+          }
+          continue;
+        }
+
         // Skip non-group, own messages, and non-text
         if (!msg.key.remoteJid?.endsWith('@g.us')) continue;
         if (msg.key.fromMe) continue;

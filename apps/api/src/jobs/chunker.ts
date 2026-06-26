@@ -121,6 +121,13 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
   });
 
   await maybeGenerateGroupContext(groupId);
+
+  // Detached: slide character sliders based on recent misses + refresh voice examples
+  setImmediate(() => {
+    import('../ai/character-drift.js')
+      .then(({ maybeDriftCharacter, maybeCaptureExamples }) => Promise.all([maybeDriftCharacter(groupId), maybeCaptureExamples(groupId)]))
+      .catch((err) => console.error('[Chunker] Character drift/examples failed:', err));
+  });
 }
 
 async function maybeGenerateGroupContext(groupId: string) {

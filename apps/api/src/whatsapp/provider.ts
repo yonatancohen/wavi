@@ -31,6 +31,18 @@ export type InboundMessage = {
   resolvePushName(): Promise<string>;
 };
 
+/** An emoji reaction to a group message, normalised across providers. */
+export type InboundReaction = {
+  waGroupId: string;
+  reactorWaId: string;
+  /** WA message ID of the message being reacted to */
+  targetMsgId: string;
+  /** Emoji used — empty string means the reaction was removed */
+  emoji: string;
+  /** True when the reacted-to message was originally sent by the agent */
+  fromMe: boolean;
+};
+
 export type WaHealthState = {
   consecutive_cdp_failures: number;
   last_forced_restart_at: string | null;

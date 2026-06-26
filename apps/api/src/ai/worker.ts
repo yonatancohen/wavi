@@ -271,9 +271,34 @@ export async function checkForNegativeReaction(params: { groupId: string; sender
   for (const key of keys) {
     const parts = key.split(':');
     const replyId = parts[parts.length - 1];
+
+    const raw = await redis.get(key);
+    const { reply_body } = raw ? (JSON.parse(raw as string) as { wa_group_id: string; reply_body: string }) : { reply_body: '' };
+
     await db.from('replies').update({ flagged_miss: true }).eq('id', replyId);
+
+    if (reply_body) {
+      await autoInsertMissMemory(params.groupId, reply_body, 'text-reaction').catch((err) => {
+        console.error('[NegativeReaction] Failed to insert miss memory:', err);
+      });
+    }
+
     await redis.del(key);
   }
+}
+
+/**
+ * Inserts a group_memories row so future replies avoid the same style of miss.
+ * Called both by text-based detection and emoji-reaction handling.
+ */
+export async function autoInsertMissMemory(groupId: string, replyBody: string, source: string): Promise<void> {
+  const snippet = replyBody.slice(0, 150).replace(/\n/g, ' ');
+  await db.from('group_memories').insert({
+    group_id: groupId,
+    memory_text: `[auto-learning] Avoid this type of reply: "${snippet}"`,
+    added_by_wa_id: 'system',
+    added_by_name: `wavi-learning:${source}`,
+  });
 }
 
 function sleep(ms: number) {

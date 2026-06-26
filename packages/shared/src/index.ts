@@ -104,7 +104,7 @@ export interface PersonalitySliders {
 
 export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
 
-export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-haiku-4-5';
+export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-sonnet-4-6';
 
 /** A single few-shot exchange that shows how Wavi sounds in this group. */
 export interface VoiceExample {

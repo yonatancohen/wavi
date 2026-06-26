@@ -194,8 +194,9 @@ flowchart TD
 3. **Insert message** into `messages`
 4. **`appendToChunkBuffer`** — feeds the live embedding pipeline
 5. **Mine mention aliases** — `@labels` in text → profile aliases
-6. **If not tagged** → reconcile identity (export name ↔ live WA ID) and **return**
-7. **If tagged:**
+6. **If not tagged** → fire `checkForNegativeReaction` (text-based: "wtf wavi", "לא בסדר" etc.) and reconcile identity (export name ↔ live WA ID), then **return**
+7. **Emoji reactions** (from `message_reaction` / `messages.upsert`) → `handleReaction`: 👎/😡 flags recent replies + inserts miss memory; 👍/❤️ clears the pending window
+8. **If tagged:**
    - Memory commands (`remember` / `forget` / `recall`) → direct DB reply, no Claude
    - Alias commands (`@wavi alias "X" is Y`) → direct reply
    - Reminder commands (`remind me` / `תזכיר לי` / `my reminders` / `cancel reminder`) → direct DB reply, no Claude (see §G)
@@ -213,9 +214,16 @@ flowchart TD
 5. **Set `pending_reaction:*`** in Redis (2 min) for recovery monitoring
 6. On delivery failure → re-queue up to 5 times with generated text preserved
 
-### A3. Recovery (`checkForNegativeReaction`)
+### A3. Recovery (`checkForNegativeReaction` + `handleReaction`)
 
-If someone sends a negative reaction within 2 minutes of a reply, Wavi sends an **in-character apology** and flags the reply as `flagged_miss`.
+Two paths — both fully wired:
+
+- **Text-based:** any non-tagged message matching negative patterns ("wtf wavi", "לא בסדר", "delete that", etc.) within 2 minutes of a reply → in-character apology sent, reply flagged `flagged_miss`, miss memory auto-inserted into `group_memories`.
+- **Emoji reaction:** 👎/😡/🤮 on a message in the pending-reaction window → same outcome without a text match.
+- **Positive emoji** (👍/❤️/🔥) → clears the pending window silently (reply landed well).
+- **Dashboard manual flag** (`PATCH /replies/:id/flag`) → also auto-inserts a miss memory.
+
+In all miss cases, `autoInsertMissMemory` writes a `group_memories` row so future prompts avoid similar replies.
 
 ---
 
@@ -252,23 +260,23 @@ The **embedding query** is not the raw `@wavi` tag — it's the semantic intent 
 
 ### B2. System prompt blocks (`prompt-build.ts`)
 
-| Block               | Content                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1 — Identity        | Agent name + group name                                                                              |
-| 2 — Role boundary   | "Group member, not dev assistant" + jailbreak refusal                                                |
-| 3 — Character       | `voice`, `opinions`, `signature_behavior`                                                            |
-| 4 — Personality     | 6 sliders with interpreted labels (formality, humor, verbosity, assertiveness, empathy, emoji usage) |
-| 5 — Group context   | `group_context_summary`                                                                              |
-| 6 — Sender profile  | Display name, aliases, `behavioral_summary`                                                          |
-| 7 — Relationships   | Top 3 narratives for sender                                                                          |
-| — Mentioned people  | Extra block if names detected in message                                                             |
-| — Memories          | Up to 10 `group_memories`                                                                            |
-| 8 — RAG history     | Chunk summaries + episode summaries                                                                  |
-| — Quoted reply      | If user replied to a specific message                                                                |
-| — Sensitivity       | Flags for sender + mentioned people                                                                  |
-| — Datetime          | Current time in `GROUP_TIMEZONE`                                                                     |
-| 9 — WhatsApp format | Short, no markdown, ~280 chars default                                                               |
-| 10 — Language       | Hebrew/English/auto rules                                                                            |
+| Block               | Content                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Identity        | Agent name + group name                                                                                                                 |
+| 2 — Role boundary   | "Group member, not dev assistant" + jailbreak refusal                                                                                   |
+| 3 — Character       | `voice`, `opinions`, `signature_behavior`                                                                                               |
+| 4 — Personality     | 6 sliders with interpreted labels (formality, humor, verbosity, assertiveness, empathy, emoji usage)                                    |
+| 5 — Group context   | `group_context_summary`                                                                                                                 |
+| 6 — Sender profile  | Display name, aliases, `behavioral_summary`, adaptive tone hints (message length, humor, formality, emoji style from `UserProfileData`) |
+| 7 — Relationships   | Top 3 narratives for sender                                                                                                             |
+| — Mentioned people  | Extra block if names detected in message                                                                                                |
+| — Memories          | Up to 10 `group_memories`                                                                                                               |
+| 8 — RAG history     | Chunk summaries + episode summaries                                                                                                     |
+| — Quoted reply      | If user replied to a specific message                                                                                                   |
+| — Sensitivity       | Flags for sender + mentioned people                                                                                                     |
+| — Datetime          | Current time in `GROUP_TIMEZONE`                                                                                                        |
+| 9 — WhatsApp format | Short, no markdown, ~280 chars default                                                                                                  |
+| 10 — Language       | Hebrew/English/auto rules                                                                                                               |
 
 ### B3. Claude API call (`generate.ts`)
 
@@ -292,8 +300,8 @@ anthropic.messages.create({
 For each active member:
 
 - Collect their messages + messages **addressed to** them (proximity replies within 90s, name references)
-- Claude (Haiku) extracts **aliases** (nicknames, transliterations)
-- Claude synthesizes **behavioral_summary** (humor style, topics, tone)
+- Claude (Sonnet) extracts **aliases** (nicknames, transliterations)
+- Claude (Sonnet) synthesizes **behavioral_summary** (humor style, topics, tone) and structured `UserProfileData` (humor score, formality score, avg message length, emoji usage) — these fields feed the per-sender tone adaptation in Block 6
 - **sensitivity_flags** (topics to avoid roasting)
 
 ### C2. Relationship map (`relationships.ts`)
@@ -315,7 +323,7 @@ After every message:
 
 - Buffer in Redis until 50 messages
 - Flush: embed full content → `message_chunks`; optional per-chunk LLM summary (set `SUMMARIZE_CHUNKS=true`; runs at ingest/rebuild only)
-- Every 100 messages: new episode summary
+- Every 100 messages: new episode summary → then triggers character drift + examples capture (see §H)
 - Queue **live re-profiling** for active speakers
 
 ---
@@ -334,12 +342,13 @@ After every message:
 
 ---
 
-## E. Mental model: two clocks
+## E. Mental model: three clocks
 
-| Clock          | When                                       | What runs                                                                |
-| -------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
-| **Slow clock** | Export upload, rebuild, every 50 live msgs | Embed, profile, relationships, summaries, character                      |
-| **Fast clock** | Every `@wavi` tag                          | Parallel Postgres + one embed + vector search → prompt → Claude (~2–10s) |
+| Clock             | When                                       | What runs                                                                          |
+| ----------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **Slow clock**    | Export upload, rebuild, every 50 live msgs | Embed, profile, relationships, summaries, character                                |
+| **Fast clock**    | Every `@wavi` tag                          | Parallel Postgres + one embed + vector search → prompt → Claude (~2–10s)           |
+| **Feedback loop** | Every reaction / every ~100 live msgs      | Flags misses → auto-memory, character slider drift, voice example capture (Sonnet) |
 
 **Replay** only exercises the **fast clock**, assuming the **slow clock** already ran.
 
@@ -445,19 +454,47 @@ Railway process (always running)
 
 ---
 
+---
+
+## H. Learning loop (`character-drift.ts`)
+
+After each episode summary generation (~every 100 live messages), two background tasks run:
+
+### H1. Character slider drift (`maybeDriftCharacter`)
+
+- Counts flagged misses (text + emoji reactions + manual flags) in the last 7 days
+- If ≥ 3 misses: asks Claude Sonnet to suggest small slider adjustments (±5–15 points) based on the failed reply bodies
+- Writes the updated `character_config` back — `version` is incremented
+- Rate-limited to once per day per group; honours `character_locked`
+
+### H2. Voice example capture (`maybeCaptureExamples`)
+
+- Queries the 20 most recent non-flagged (trigger → reply) pairs
+- Stores the top 3 as `character_config.examples[]` — shown to Claude in Block 3 (`<voice_examples>`) so it has concrete style demonstrations
+- Rate-limited to once per day per group
+
+### H3. Auto-memory on miss
+
+Every flagged miss (any source) inserts a `group_memories` row:
+`[auto-learning] Avoid this type of reply: "…"` — this appears in every future prompt's Memories block, steering the model away from similar misfires.
+
+---
+
 ## Key source files
 
-| File                                      | Role                                     |
-| ----------------------------------------- | ---------------------------------------- |
-| `apps/api/src/whatsapp/handlers.ts`       | Inbound message routing, guards, queue   |
-| `apps/api/src/ai/worker.ts`               | Reply worker loop + delivery             |
-| `apps/api/src/ai/prompt.ts`               | `buildPromptContext` — context assembly  |
-| `apps/api/src/ai/prompt-build.ts`         | `buildSystemPrompt` + conversation turns |
-| `apps/api/src/ai/generate.ts`             | Claude API call                          |
-| `apps/api/src/lib/reminder-handler.ts`    | Reminder command detection + resolution  |
-| `apps/api/src/lib/time-parser.ts`         | EN + HE natural-language time parser     |
-| `apps/api/src/jobs/reminder-worker.ts`    | 60-second reminder delivery poll         |
-| `apps/api/scripts/replay.ts`              | Offline replay harness                   |
-| `apps/api/src/jobs/ingestion-pipeline.ts` | Export ingest + intelligence stages      |
-| `apps/api/src/jobs/chunker.ts`            | Live message chunking + embed            |
-| `docs/SPEC.md`                            | Full product specification               |
+| File                                      | Role                                                   |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `apps/api/src/whatsapp/handlers.ts`       | Inbound routing, guards, queue, reaction handling      |
+| `apps/api/src/ai/worker.ts`               | Reply worker loop, delivery, `autoInsertMissMemory`    |
+| `apps/api/src/ai/character-drift.ts`      | `maybeDriftCharacter` + `maybeCaptureExamples`         |
+| `apps/api/src/ai/recovery.ts`             | `detectNegativeReaction`, `generateApology`            |
+| `apps/api/src/ai/prompt.ts`               | `buildPromptContext` — context assembly                |
+| `apps/api/src/ai/prompt-build.ts`         | `buildSystemPrompt` + conversation turns + tone hints  |
+| `apps/api/src/ai/generate.ts`             | Claude API call                                        |
+| `apps/api/src/lib/reminder-handler.ts`    | Reminder command detection + resolution                |
+| `apps/api/src/lib/time-parser.ts`         | EN + HE natural-language time parser                   |
+| `apps/api/src/jobs/reminder-worker.ts`    | 60-second reminder delivery poll                       |
+| `apps/api/scripts/replay.ts`              | Offline replay harness                                 |
+| `apps/api/src/jobs/ingestion-pipeline.ts` | Export ingest + intelligence stages                    |
+| `apps/api/src/jobs/chunker.ts`            | Live message chunking, embed, drift + examples trigger |
+| `docs/SPEC.md`                            | Full product specification                             |

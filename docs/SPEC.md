@@ -282,7 +282,7 @@ ASSEMBLE PROMPT → CALL CLAUDE → SEND REPLY
 
 ### 4.7 Prompt Token Budget
 
-Target: ~3,000 tokens per reply. Keeps cost at ~$0.001/reply on Haiku.
+Target: ~3,000 tokens per reply. Keeps cost at ~$0.008/reply on Sonnet (default); groups can opt down to Haiku via `character_config.reply_model`.
 
 | Block                                    | Tokens     |
 | ---------------------------------------- | ---------- |
@@ -595,21 +595,21 @@ $$;
 
 ## 7. Technical Stack
 
-| Layer            | Technology                    | Free tier    | Notes                                                  |
-| ---------------- | ----------------------------- | ------------ | ------------------------------------------------------ |
-| Frontend         | Vue 3 + Vite + Pinia          | Unlimited    | Pinia for global state; Vue Router for dashboard pages |
-| UI               | shadcn-vue + Tailwind         | Unlimited    | Clean design system, low overhead                      |
-| Backend          | Bun + Fastify                 | —            | Runs TypeScript natively, no build step; fast startup  |
-| WhatsApp (MVP)   | whatsapp-web.js               | Free         | QR-based, no Meta approval; runs on Railway            |
-| WhatsApp (v2)    | Meta Cloud API                | 1k convos/mo | Migrate post-traction; needs Meta approval             |
-| Database         | Supabase Postgres             | 500MB        | Realtime subscriptions for dashboard live feed         |
-| Vector store     | pgvector (Supabase)           | Included     | Native Postgres extension; no extra service            |
-| Embeddings       | OpenAI text-embedding-3-small | $5 credit    | ~$0.02/1M tokens; negligible at this scale             |
-| AI replies       | Anthropic Claude API          | $5 credit    | Haiku for replies; Sonnet for synthesis jobs           |
-| Cache / Queue    | Upstash Redis                 | 10k req/day  | Chunk buffer + reply queue + rate limiting             |
-| Auth             | Supabase Auth                 | 50k users    | Google OAuth, zero config                              |
-| Backend hosting  | Railway                       | 500 hrs/mo   | Persistent WA session; always-on process               |
-| Frontend hosting | Vercel                        | Unlimited    | Static deploys; env vars for API keys                  |
+| Layer            | Technology                    | Free tier    | Notes                                                       |
+| ---------------- | ----------------------------- | ------------ | ----------------------------------------------------------- |
+| Frontend         | Vue 3 + Vite + Pinia          | Unlimited    | Pinia for global state; Vue Router for dashboard pages      |
+| UI               | shadcn-vue + Tailwind         | Unlimited    | Clean design system, low overhead                           |
+| Backend          | Bun + Fastify                 | —            | Runs TypeScript natively, no build step; fast startup       |
+| WhatsApp (MVP)   | whatsapp-web.js               | Free         | QR-based, no Meta approval; runs on Railway                 |
+| WhatsApp (v2)    | Meta Cloud API                | 1k convos/mo | Migrate post-traction; needs Meta approval                  |
+| Database         | Supabase Postgres             | 500MB        | Realtime subscriptions for dashboard live feed              |
+| Vector store     | pgvector (Supabase)           | Included     | Native Postgres extension; no extra service                 |
+| Embeddings       | OpenAI text-embedding-3-small | $5 credit    | ~$0.02/1M tokens; negligible at this scale                  |
+| AI replies       | Anthropic Claude API          | $5 credit    | Sonnet for replies + profiling + drift; Haiku for summaries |
+| Cache / Queue    | Upstash Redis                 | 10k req/day  | Chunk buffer + reply queue + rate limiting                  |
+| Auth             | Supabase Auth                 | 50k users    | Google OAuth, zero config                                   |
+| Backend hosting  | Railway                       | 500 hrs/mo   | Persistent WA session; always-on process                    |
+| Frontend hosting | Vercel                        | Unlimited    | Static deploys; env vars for API keys                       |
 
 ### 7.1 Service Responsibilities
 
@@ -638,7 +638,7 @@ $$;
       → every 100 messages: generate episode summary → embed → store
       → every 50 msgs per user: regenerate user profile
       → every 100 msgs: regenerate group context summary
-      → every 200 msgs: check for character drift
+      → every 100 msgs: check for character drift + capture voice examples (if ≥3 misses in 7d)
 
 ──── REPLY WORKER ────────────────────────────────────────────────
 7.  Worker pulls job from Redis reply queue
@@ -647,16 +647,19 @@ $$;
                     relationship pairs, memories, group context
       [B] pgvector: embed query → top 5 chunks + top 3 summaries
 9.  Assemble 8-block prompt (~3,000 tokens)
-10. Call Claude Haiku API
+10. Call Claude Sonnet API (default; per-group override possible)
 11. Receive reply text
 12. Send via whatsapp-web.js (quoted reply)
 13. Store in replies table
 14. Supabase Realtime pushes update to dashboard
 
 ──── ERROR RECOVERY ──────────────────────────────────────────────
-15. Monitor for negative reactions (60s window after each reply)
+15. Monitor for negative reactions (120s window after each reply)
+    → Text-based: "wtf wavi", "לא בסדר", "delete that", etc.
+    → Emoji: 👎/😡/🤮 reaction on agent message
 16. If detected: generate in-character apology → send immediately
-17. Flag original reply as 'miss' in DB → notify owner on dashboard
+17. Flag original reply as 'miss' in DB + auto-insert group_memories row
+18. Every ~100 msgs: character slider drift (Sonnet) + voice example capture
 ```
 
 ### 7.3 Monorepo Structure
@@ -694,23 +697,28 @@ wavi/
 
 _Estimate: 5 groups · ~30 agent replies/day · 1,000 new messages/day_
 
-| Line item                               | Daily cost                    |
-| --------------------------------------- | ----------------------------- |
-| Claude Haiku replies (30 × ~3k tokens)  | ~$0.07                        |
-| OpenAI embeddings (1k msgs × 20 tokens) | ~$0.0004                      |
-| Supabase, Redis, Railway, Vercel        | $0 (free tiers)               |
-| **Total**                               | **~$0.08/day → ~$2.50/month** |
+| Line item                               | Daily cost                     |
+| --------------------------------------- | ------------------------------ |
+| Claude Sonnet replies (30 × ~3k tokens) | ~$0.35                         |
+| OpenAI embeddings (1k msgs × 20 tokens) | ~$0.0004                       |
+| Supabase, Redis, Railway, Vercel        | $0 (free tiers)                |
+| **Total**                               | **~$0.35/day → ~$10.50/month** |
+
+> Groups can opt down to Haiku via `character_config.reply_model` for ~$0.03/day per group.
 
 ### 8.2 LLM Routing Strategy
 
-| Task                   | Model                    | Reason                                |
-| ---------------------- | ------------------------ | ------------------------------------- |
-| Tag & Reply            | `claude-haiku-4-5`       | Fast, cheap, good enough              |
-| Character synthesis    | `claude-sonnet-4-6`      | Only on setup + periodic re-synthesis |
-| Episode summaries      | `claude-haiku-4-5`       | Background job, not latency-sensitive |
-| User profile synthesis | `claude-haiku-4-5`       | Background job                        |
-| In-character apology   | `claude-haiku-4-5`       | Needs to be fast                      |
-| Embeddings             | `text-embedding-3-small` | Claude has no embedding API           |
+| Task                   | Model                    | Reason                                               |
+| ---------------------- | ------------------------ | ---------------------------------------------------- |
+| Tag & Reply (default)  | `claude-sonnet-4-6`      | Best quality; per-group opt-down to Haiku available  |
+| Character synthesis    | `claude-sonnet-4-6`      | High-stakes, one-time; quality over cost             |
+| User profile synthesis | `claude-sonnet-4-6`      | Richer profiles → better adaptive tone per sender    |
+| Character drift        | `claude-sonnet-4-6`      | Consequential + low-frequency (at most daily)        |
+| Episode summaries      | `claude-haiku-4-5`       | High-volume background job; simple summarization     |
+| Chunk summaries        | `claude-haiku-4-5`       | Very high volume (every 50 msgs); 1-sentence output  |
+| Rolling group context  | `claude-haiku-4-5`       | Template-style task, quality gap negligible          |
+| In-character apology   | `claude-haiku-4-5`       | Needs to be fast; templates used for most characters |
+| Embeddings             | `text-embedding-3-small` | Claude has no embedding API                          |
 
 ### 8.3 Cost Optimization Tactics
 
@@ -738,14 +746,18 @@ _Estimate: 5 groups · ~30 agent replies/day · 1,000 new messages/day_
 - ✅ User profiling (background job)
 - ✅ Relationship mapping (pair signals)
 - ✅ Episode summaries (background job)
-- ✅ Negative reaction detection + in-character apology
+- ✅ Negative reaction detection + in-character apology (text + emoji reactions)
+- ✅ Auto-memory insertion on flagged misses
+- ✅ Character slider drift from accumulated misses (Sonnet, daily, per group)
+- ✅ Voice example capture from good replies → `character_config.examples`
+- ✅ Per-sender adaptive tone from `UserProfileData` in Block 6
 - ✅ Group memory (remember / forget)
 - ✅ Vue dashboard: group mgmt, character editor, activity feed, member profiles
 
 **Deferred:**
 
 - ❌ Scheduled posts (v2)
-- ❌ Character drift notifications (v2)
+- ❌ Character drift dashboard visibility / notifications (v2)
 - ❌ Relationship map visualization in dashboard (v2)
 - ❌ Multi-owner support (v3)
 
@@ -757,7 +769,7 @@ _Estimate: 5 groups · ~30 agent replies/day · 1,000 new messages/day_
 | **1 — WhatsApp core**       | whatsapp-web.js client, QR connect, message storage, tag detection            | Messages stored in DB; tags detected; chunk buffer running in Redis     |
 | **2 — Ingestion + RAG**     | History upload UI, .txt parser, chunking, OpenAI embeddings, pgvector storage | Owner uploads history; chunks embedded and searchable                   |
 | **3 — Character synthesis** | Synthesis prompt, character card UI, owner review + edit flow, go-live button | Owner sees generated character, tweaks it, activates group              |
-| **4 — AI replies**          | 8-block prompt builder, parallel fetch, Claude Haiku call, reply sender       | Agent replies in WA when tagged; RAG context visibly influences replies |
+| **4 — AI replies**          | 10-block prompt builder, parallel fetch, Claude Sonnet call, reply sender     | Agent replies in WA when tagged; RAG context visibly influences replies |
 | **5 — Intelligence jobs**   | User profiling cron, relationship mapping cron, group context refresh         | Profiles and relationships updating in background                       |
 | **6 — Recovery**            | Negative reaction detection, apology generator, miss flagging                 | Bad replies trigger in-character recovery                               |
 | **7 — Dashboard + polish**  | Full character editor, member profiles, activity feed, memory manager         | All features accessible from dashboard; ready for daily use             |
