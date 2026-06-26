@@ -66,6 +66,12 @@ interface Op {
 
 const OPS: Op[] = [
   {
+    key: 'chunkDates',
+    icon: 'calendar_month',
+    iconColor: 'text-secondary',
+    endpoint: 'sync-chunk-dates',
+  },
+  {
     key: 'dynamics',
     icon: 'hub',
     iconColor: 'text-tertiary',
