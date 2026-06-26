@@ -31,7 +31,7 @@
             v-model="localConfig.reply_model"
             class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
           >
-            <option :value="DEFAULT_REPLY_MODEL">{{ t('character.modelHaiku') }}</option>
+            <option value="claude-haiku-4-5">{{ t('character.modelHaiku') }}</option>
             <option value="claude-sonnet-4-6">{{ t('character.modelSonnet') }}</option>
           </select>
           <p class="mt-1.5 text-[11px] text-on-surface-variant">{{ t('character.replyModelHint') }}</p>
