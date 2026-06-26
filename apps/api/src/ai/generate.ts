@@ -42,7 +42,8 @@ export async function generateReplyText(params: {
     model: replyModel,
     max_tokens: MAX_TOKENS,
     system: systemPrompt,
-    messages: [...conversationTurns, ...(params.extraTurns ?? []), { role: 'user', content: `${params.senderName}: ${params.body}` }],
+    // Use ctx.current_message (mention @digits already rewritten to @DisplayName).
+    messages: [...conversationTurns, ...(params.extraTurns ?? []), { role: 'user', content: `${params.senderName}: ${ctx.current_message}` }],
   });
 
   const rawReply = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
