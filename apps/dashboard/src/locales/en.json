@@ -485,6 +485,7 @@
     "saving": "Saving…",
     "voice": "Voice",
     "voiceHint": "How Wavi talks and their overall personality in this group — auto-generated from chat history.",
+    "voicePlaceholder": "e.g. A sharp, sarcastic regular who's been in this group forever, knows everyone's habits, and never misses a chance to roast someone with affection.",
     "opinions": "Opinions",
     "opinionsHint": "Short takes Wavi can drop in replies — group inside jokes, hot takes, or recurring themes. Up to 3.",
     "opinionPlaceholder": "e.g. Pineapple belongs on pizza",
