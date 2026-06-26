@@ -244,6 +244,48 @@ CREATE TABLE reminders (
 CREATE INDEX idx_reminders_due ON reminders (fire_at) WHERE sent_at IS NULL;
 CREATE INDEX idx_reminders_sender ON reminders (group_id, sender_wa_id) WHERE sent_at IS NULL;
 
+-- ── Group automations ─────────────────────────────────────────
+-- Proactive wake-up messages: silence nudge, daily digest, scheduled post.
+-- Polled by the automation worker; configurable from the dashboard.
+
+CREATE TABLE group_automations (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id     uuid REFERENCES groups(id) ON DELETE CASCADE,
+  type         text NOT NULL,          -- 'silence_nudge' | 'daily_digest' | 'scheduled_post'
+  enabled      boolean DEFAULT false,
+  config       jsonb NOT NULL DEFAULT '{}',
+  -- silence_nudge: { threshold_hours: 24 }
+  -- daily_digest:  { time: "09:00", timezone: "Asia/Jerusalem", frequency: "daily"|"weekly", weekday?: 0-6 }
+  -- scheduled_post:{ time: "09:00", frequency: "daily"|"weekly", weekday?: 0-6, template?: string }
+  last_fired_at  timestamptz,
+  next_fire_at   timestamptz,
+  created_at     timestamptz DEFAULT now(),
+  UNIQUE (group_id, type)
+);
+CREATE INDEX idx_automations_due ON group_automations (next_fire_at)
+  WHERE enabled = true AND next_fire_at IS NOT NULL;
+
+-- ── Group Automations ─────────────────────────────────────────
+-- Owner-configured proactive automations (silence nudge, digest, scheduled post).
+-- The automation worker polls next_fire_at every 5 minutes.
+
+CREATE TABLE group_automations (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id     uuid REFERENCES groups(id) ON DELETE CASCADE,
+  type         text NOT NULL,          -- 'silence_nudge' | 'daily_digest' | 'scheduled_post'
+  enabled      boolean DEFAULT false,
+  config       jsonb NOT NULL DEFAULT '{}',
+  -- silence_nudge: { threshold_hours: 24 }
+  -- daily_digest:  { time: "09:00", timezone: "Asia/Jerusalem", frequency: "daily"|"weekly", weekday?: 0-6 }
+  -- scheduled_post:{ time: "09:00", frequency: "daily"|"weekly", weekday?: 0-6, template?: string }
+  last_fired_at  timestamptz,
+  next_fire_at   timestamptz,          -- precomputed; polled by worker
+  created_at     timestamptz DEFAULT now(),
+  UNIQUE (group_id, type)
+);
+CREATE INDEX idx_automations_due ON group_automations (next_fire_at)
+  WHERE enabled = true AND next_fire_at IS NOT NULL;
+
 -- ── Supabase Realtime ─────────────────────────────────────────
 -- Enable realtime on tables the dashboard subscribes to
 

@@ -285,7 +285,8 @@
       "people": "People",
       "dynamics": "Dynamics",
       "messages": "Messages",
-      "testChat": "Test Chat"
+      "testChat": "Test Chat",
+      "automations": "Automations"
     },
     "setup": {
       "title": "Setup",
@@ -721,5 +722,42 @@
     "navigate": "to navigate",
     "select": "to select",
     "close": "to close"
+  },
+  "automations": {
+    "title": "Wake-up automations",
+    "hint": "Proactive messages Wavi sends on its own to keep the group alive — all AI-generated in character.",
+    "loading": "Loading automations…",
+    "saving": "Saving…",
+    "failedLoad": "Failed to load automations",
+    "failedSave": "Failed to save automation",
+    "silenceTitle": "Silence nudge",
+    "silenceHint": "When the group has been quiet for too long, Wavi starts a natural conversation.",
+    "silenceThreshold": "Quiet for",
+    "digestTitle": "Daily / weekly digest",
+    "digestHint": "A short in-character summary of what's been happening in the group.",
+    "scheduledTitle": "Scheduled post",
+    "scheduledHint": "A recurring in-character post at a set time — optionally guided by a template hint.",
+    "hours": "{n} hours",
+    "time": "Send at",
+    "frequency": "Frequency",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "weekday": "Day of week",
+    "template": "Template hint (optional)",
+    "templatePlaceholder": "e.g. Ask everyone what they're doing this weekend",
+    "triggerNow": "Trigger now",
+    "triggering": "Sending…",
+    "triggerSuccess": "Sent: \"{preview}\"",
+    "triggerFailed": "Failed to trigger automation",
+    "lastSent": "Last sent: {time}",
+    "weekdays": {
+      "sun": "Sunday",
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday"
+    }
   }
 }

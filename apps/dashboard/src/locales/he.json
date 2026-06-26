@@ -285,7 +285,8 @@
       "people": "אנשים",
       "dynamics": "דינמיקה",
       "messages": "הודעות",
-      "testChat": "צ'אט בדיקה"
+      "testChat": "צ'אט בדיקה",
+      "automations": "אוטומציות"
     },
     "setup": {
       "title": "הגדרה",
@@ -721,5 +722,42 @@
     "navigate": "לניווט",
     "select": "לבחירה",
     "close": "לסגירה"
+  },
+  "automations": {
+    "title": "אוטומציות התעוררות",
+    "hint": "הודעות יזומות ש-Wavi שולח בעצמו כדי להחיות את הקבוצה — כולן נוצרות ב-AI ובאופי הקבוצה.",
+    "loading": "טוען אוטומציות…",
+    "saving": "שומר…",
+    "failedLoad": "טעינת האוטומציות נכשלה",
+    "failedSave": "שמירת האוטומציה נכשלה",
+    "silenceTitle": "דחיפה בשקט",
+    "silenceHint": "כשהקבוצה שקטה יותר מדי זמן, Wavi פותח שיחה טבעית.",
+    "silenceThreshold": "שקט במשך",
+    "digestTitle": "סיכום יומי / שבועי",
+    "digestHint": "סיכום קצר באופי הקבוצה של מה שקרה לאחרונה.",
+    "scheduledTitle": "פוסט מתוזמן",
+    "scheduledHint": "פוסט חוזר באופי הקבוצה בשעה קבועה — אפשר להנחות עם תבנית.",
+    "hours": "{n} שעות",
+    "time": "שלח בשעה",
+    "frequency": "תדירות",
+    "daily": "יומי",
+    "weekly": "שבועי",
+    "weekday": "יום בשבוע",
+    "template": "תבנית (אופציונלי)",
+    "templatePlaceholder": "למשל: שאלו את כולם מה התוכניות לסוף השבוע",
+    "triggerNow": "הפעל עכשיו",
+    "triggering": "שולח…",
+    "triggerSuccess": "נשלח: \"{preview}\"",
+    "triggerFailed": "הפעלת האוטומציה נכשלה",
+    "lastSent": "נשלח לאחרונה: {time}",
+    "weekdays": {
+      "sun": "ראשון",
+      "mon": "שני",
+      "tue": "שלישי",
+      "wed": "רביעי",
+      "thu": "חמישי",
+      "fri": "שישי",
+      "sat": "שבת"
+    }
   }
 }

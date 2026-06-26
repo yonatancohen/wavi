@@ -642,3 +642,39 @@ export interface TestImagePreviewResponse {
   image_base64: string;
   mimetype: string;
 }
+
+// ── Group automations ─────────────────────────────────────────
+
+export type AutomationType = 'silence_nudge' | 'daily_digest' | 'scheduled_post';
+
+export interface SilenceNudgeConfig {
+  threshold_hours: number;
+}
+
+export interface DigestConfig {
+  time: string;
+  frequency: 'daily' | 'weekly';
+  weekday?: number;
+  timezone?: string;
+}
+
+export interface ScheduledPostConfig {
+  time: string;
+  frequency: 'daily' | 'weekly';
+  weekday?: number;
+  timezone?: string;
+  template?: string;
+}
+
+export type AutomationConfig = SilenceNudgeConfig | DigestConfig | ScheduledPostConfig;
+
+export interface GroupAutomation {
+  id: string;
+  group_id: string;
+  type: AutomationType;
+  enabled: boolean;
+  config: AutomationConfig;
+  last_fired_at: string | null;
+  next_fire_at: string | null;
+  created_at: string;
+}

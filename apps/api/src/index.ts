@@ -10,8 +10,10 @@ import { flowsRoute } from './routes/flows.js';
 import { healthRoute } from './routes/health.js';
 import { twilioRoute } from './routes/twilio.js';
 import { remindersRoute } from './routes/reminders.js';
+import { automationsRoute } from './routes/automations.js';
 import { startReplyWorker } from './ai/worker.js';
 import { startReminderWorker } from './jobs/reminder-worker.js';
+import { startAutomationWorker } from './jobs/automation-worker.js';
 import { startWhatsAppClient, stopWhatsAppClient, recoverFromUnhandledWaError } from './whatsapp/client.js';
 import { allowedDashboardOrigins, isOriginAllowed } from './lib/cors.js';
 import { isAuthRequired, requireAuth, getLastAuthReject } from './lib/auth.js';
@@ -92,6 +94,7 @@ await server.register(ingestRoute, { prefix: '/api/ingest' });
 await server.register(repliesRoute, { prefix: '/api/replies' });
 await server.register(flowsRoute, { prefix: '/api/flows' });
 await server.register(remindersRoute, { prefix: '/api/reminders' });
+await server.register(automationsRoute, { prefix: '/api/automations' });
 await server.register(twilioRoute, { prefix: '/twilio' });
 
 // ── Start ─────────────────────────────────────────────────────
@@ -108,6 +111,10 @@ try {
   // Start reminder delivery worker in background
   startReminderWorker();
   server.log.info('Reminder worker started');
+
+  // Start proactive automation worker in background
+  startAutomationWorker();
+  server.log.info('Automation worker started');
 
   // Start WhatsApp client
   startWhatsAppClient();
