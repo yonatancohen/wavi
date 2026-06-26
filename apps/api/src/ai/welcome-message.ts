@@ -14,6 +14,8 @@ export interface WelcomeMessageOptions {
   characterConfig: CharacterConfig | null;
   imageGenerationEnabled: boolean;
   webSearchEnabled: boolean;
+  /** preview = short 3-4 sentence story; full = complete 8-10 sentence story */
+  mode?: 'preview' | 'full';
 }
 
 interface MemberProfile {
@@ -102,6 +104,8 @@ export async function generateWelcomeMessage(opts: WelcomeMessageOptions): Promi
 
   const bulletText = bullets.map((b) => `• ${b}`).join('\n');
 
+  const isPreview = (opts.mode ?? 'full') === 'preview';
+
   const memberSection = topMember
     ? `
 Member to profile: ${topMember.display_name}
@@ -126,10 +130,11 @@ Write the welcome message in this structure:
 
 1. A SHORT intro line (1 sentence) introducing ${AGENT_NAME} to the group — casual, in-character.
 
-2. A MEMBER SPOTLIGHT — a semi-long story (4–6 sentences) about the top group member below.
+2. A MEMBER SPOTLIGHT about the top group member below.
    Write it like a dramatic/funny roast-tribute in the group's exact voice.
    Reference their topics, quirks, a memorable quote or two if available.
    Do NOT make it generic — use the actual data. Make it feel like the group is nodding.
+   Length: ${isPreview ? '3–4 sentences (this is a quick preview)' : '8–10 sentences (full version — go deep, be specific, earn the laughs)'}.
 
 3. A HOW-TO-USE section titled appropriately. Use exactly these bullets (do not add or remove any):
 ${bulletText}
