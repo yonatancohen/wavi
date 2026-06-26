@@ -171,10 +171,11 @@
     </Teleport>
   </div>
 
+  <GroupSearchPalette :open="paletteOpen" @close="paletteOpen = false" />
   <ConfirmDialog />
 </template>
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
@@ -190,6 +191,7 @@ import AppNavFooter from './components/AppNavFooter.vue';
 import ActiveFlowsIndicator from './components/ActiveFlowsIndicator.vue';
 import AgentStatusBadge from './components/AgentStatusBadge.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import GroupSearchPalette from './components/GroupSearchPalette.vue';
 import { agentNavItems, isNavActive, mobileQuickNavItems, overviewNavItems } from './lib/nav-items';
 import { loginRedirectTarget } from './lib/login-redirect';
 
@@ -210,6 +212,7 @@ const { locale, toggleLocale } = useLocale();
 
 const settingsOpen = ref(false);
 const navMenuOpen = ref(false);
+const paletteOpen = ref(false);
 
 const isLoginRoute = computed(() => route.path === '/login');
 const showLoginPage = computed(() => isLoginRoute.value && !isAuthenticated.value);
@@ -281,14 +284,33 @@ watch(
   () => {
     settingsOpen.value = false;
     navMenuOpen.value = false;
+    paletteOpen.value = false;
   },
 );
 
-watch([settingsOpen, navMenuOpen], ([settings, menu]) => {
-  document.body.style.overflow = settings || menu ? 'hidden' : '';
+watch([settingsOpen, navMenuOpen, paletteOpen], ([settings, menu, palette]) => {
+  document.body.style.overflow = settings || menu || palette ? 'hidden' : '';
+});
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (e.key !== 'k' || !(e.metaKey || e.ctrlKey)) return;
+  if (!isAuthenticated.value || isLoginRoute.value) return;
+
+  const target = e.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable="true"]'))) {
+    return;
+  }
+
+  e.preventDefault();
+  paletteOpen.value = !paletteOpen.value;
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeydown);
 });
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeydown);
   flowsStore.stopPolling();
   agentStore.stopPolling();
 });
