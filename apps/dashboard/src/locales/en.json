@@ -762,6 +762,19 @@
       "sat": "Saturday"
     }
   },
+  "welcomeMsg": {
+    "sectionTitle": "Welcome message",
+    "sectionDesc": "Generate a Wavi intro with a member spotlight and how-to-use guide — ready to paste into the group.",
+    "generate": "Generate",
+    "title": "Welcome message preview",
+    "hint": "Copy and paste this into your WhatsApp group.",
+    "generating": "Generating…",
+    "regenerate": "Regenerate",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "error": "Failed to generate welcome message",
+    "needsCharacter": "Requires a synthesized character — run a rebuild first."
+  },
   "sync": {
     "title": "Individual sync operations",
     "subtitle": "Re-run a single intelligence stage without a full rebuild. Useful after editing member profiles, correcting dynamics, or when only one piece of context has drifted.",

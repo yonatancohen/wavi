@@ -99,7 +99,30 @@
           <div class="col-span-12 h-full lg:col-span-8">
             <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
           </div>
+
+          <div class="col-span-12">
+            <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+              <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-[18px] text-secondary">waving_hand</span>
+                  <div>
+                    <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('welcomeMsg.sectionTitle') }}</h2>
+                    <p class="mt-0.5 text-[12px] text-on-surface-variant">{{ t('welcomeMsg.sectionDesc') }}</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary flex items-center gap-2" :disabled="!group.character_config" @click="showWelcomeModal = true">
+                  <span class="material-symbols-outlined text-[16px]">waving_hand</span>
+                  {{ t('welcomeMsg.generate') }}
+                </button>
+              </div>
+              <p v-if="!group.character_config" class="mt-3 text-[11px] text-on-surface-variant">
+                {{ t('welcomeMsg.needsCharacter') }}
+              </p>
+            </section>
+          </div>
         </div>
+
+        <WelcomeMessageModal v-if="showWelcomeModal" :group-id="group.id" @close="showWelcomeModal = false" />
 
         <div v-show="activeTab === 'character'" class="space-y-4">
           <CharacterEditor :group="group" @updated="onCharacterUpdated" />
@@ -156,6 +179,7 @@ import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
 import GroupUsagePanel from '../components/GroupUsagePanel.vue';
 import SyncSection from '../components/SyncSection.vue';
+import WelcomeMessageModal from '../components/WelcomeMessageModal.vue';
 import GroupDetailStatusBar from '../components/GroupDetailStatusBar.vue';
 import GroupDetailStatsGrid from '../components/GroupDetailStatsGrid.vue';
 import type { GroupWithStats } from '@wavi/shared';
@@ -180,6 +204,7 @@ const saving = ref(false);
 const error = ref<string | null>(null);
 const hasIngestedData = ref(false);
 const statsExpanded = ref(false);
+const showWelcomeModal = ref(false);
 
 /** Derived from URL hash — survives refresh and is shareable. */
 const activeTab = computed(() => tabFromHash(route.hash));
