@@ -188,9 +188,28 @@ export function chunkMessages(messages: ParsedWAMessage[], windowSize = 50, over
 
 // ── Format chunk for embedding ────────────────────────────────
 
+function shortDate(d: Date): string {
+  return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/**
+ * Format a chunk for storage + embedding.
+ * Prepends a date-range header so Claude can answer temporal questions
+ * ("when was the last time we went to Eilat?") from the chunk text alone.
+ */
 export function formatChunkForEmbedding(messages: ParsedWAMessage[]): string {
-  return messages
-    .filter((m) => !m.is_system_message && !m.is_media_omitted)
-    .map((m) => `${m.sender_name}: ${m.body}`)
-    .join('\n');
+  const real = messages.filter((m) => !m.is_system_message && !m.is_media_omitted);
+  if (real.length === 0) return '';
+
+  const from = real[0]?.timestamp;
+  const to = real[real.length - 1]?.timestamp;
+
+  let header = '';
+  if (from) {
+    const fromStr = shortDate(from);
+    const toStr = to ? shortDate(to) : '';
+    header = !toStr || fromStr === toStr ? `[${fromStr}]\n` : `[${fromStr} – ${toStr}]\n`;
+  }
+
+  return header + real.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
 }

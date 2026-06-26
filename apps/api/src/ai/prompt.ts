@@ -110,6 +110,19 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
 
 // ── Layer 2: pgvector RAG fetch ───────────────────────────────
 
+/** Format the msg_from / msg_to range as a concise date label for Claude. */
+function formatChunkDateRange(msgFrom?: string | null, msgTo?: string | null): string {
+  if (!msgFrom) return '';
+  const fmt = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const from = fmt(msgFrom);
+  if (!msgTo) return `[${from}]`;
+  const to = fmt(msgTo);
+  return from === to ? `[${from}]` : `[${from} – ${to}]`;
+}
+
 async function fetchRAGContext(groupId: string, query: string, recentMessageBodies: string[] = []) {
   const queryEmbedding = await embed(query, { groupId });
 
@@ -133,18 +146,29 @@ async function fetchRAGContext(groupId: string, query: string, recentMessageBodi
     return recentMessageBodies.some((body) => body.includes(head) || head.includes(body.slice(0, 80)));
   };
 
-  const rag_chunks = ((chunksResult.data ?? []) as { similarity: number; summary?: string; content?: string }[])
+  type ChunkRow = { similarity: number; summary?: string; content?: string; msg_from?: string | null; msg_to?: string | null };
+  type EpisodeRow = { similarity: number; summary: string; msg_from?: string | null; msg_to?: string | null };
+
+  const rag_chunks = ((chunksResult.data ?? []) as ChunkRow[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary ?? r.content ?? ''))
     .slice(0, 7)
-    .map((r) => r.summary ?? r.content)
+    .map((r) => {
+      const text = r.summary ?? r.content;
+      if (!text) return undefined;
+      const dateLabel = formatChunkDateRange(r.msg_from, r.msg_to);
+      return dateLabel ? `${dateLabel}\n${text}` : text;
+    })
     .filter((s): s is string => s !== undefined);
 
-  const rag_episode_summaries = ((episodesResult.data ?? []) as { similarity: number; summary: string }[])
+  const rag_episode_summaries = ((episodesResult.data ?? []) as EpisodeRow[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary))
     .slice(0, 4)
-    .map((r) => r.summary);
+    .map((r) => {
+      const dateLabel = formatChunkDateRange(r.msg_from, r.msg_to);
+      return dateLabel ? `${dateLabel}\n${r.summary}` : r.summary;
+    });
 
   return { rag_chunks, rag_episode_summaries };
 }
