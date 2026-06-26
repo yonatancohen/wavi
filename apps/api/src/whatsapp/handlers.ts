@@ -218,6 +218,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   const aliasHandled = await tryHandleAliasCommand({
     groupId: group.id,
     waGroupId,
+    senderWaId,
     body,
     languageMode: (group.language_mode ?? 'he') as LanguageMode,
     waMsgId: msg.waMsgId,
@@ -349,20 +350,49 @@ function detectAliasCommand(body: string): { alias: string; person: string } | n
   return null;
 }
 
+/**
+ * Detect self-introduction phrases: the sender is telling Wavi their own name.
+ * EN: "my name is X" / "call me X"
+ * HE: "השם שלי הוא X" / "קוראים לי X" / "הכינוי שלי הוא X" / "כינוי שלי הוא X"
+ * Returns the claimed name or null.
+ */
+function detectSelfAliasCommand(body: string): string | null {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+
+  const enMatch = stripped.match(/^(?:my\s+name\s+is|call\s+me)\s+(.+)$/i);
+  if (enMatch) return enMatch[1].trim();
+
+  const heMatch = stripped.match(/^(?:השם\s+שלי\s+הוא|קוראים\s+לי|הכינוי\s+שלי\s+הוא|כינוי\s+שלי\s+הוא)\s+(.+)$/);
+  if (heMatch) return heMatch[1].trim();
+
+  return null;
+}
+
 async function tryHandleAliasCommand(params: {
   groupId: string;
   waGroupId: string;
+  senderWaId: string;
   body: string;
   languageMode: LanguageMode;
   waMsgId: string;
   messageId?: string | null;
   senderName?: string | null;
 }): Promise<boolean> {
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+
+  // Self-introduction: "my name is X" / "קוראים לי X" — add alias to sender's own profile.
+  const selfName = detectSelfAliasCommand(params.body);
+  if (selfName) {
+    await addProfileAliases(params.groupId, waUserId(params.senderWaId), selfName);
+    const reply = he ? `סבבה, אזכור שקוראים לך "${selfName}" 👍` : `Got it — I'll remember you as "${selfName}" 👍`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
   const parsed = detectAliasCommand(params.body);
   if (!parsed) return false;
 
-  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
-  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
   const profile = await findProfileByNameOrAlias(params.groupId, parsed.person);
 
   if (!profile) {
