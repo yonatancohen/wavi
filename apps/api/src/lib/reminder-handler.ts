@@ -32,7 +32,7 @@ export function detectReminderCommand(body: string): ReminderCommand | null {
   const createEnMatch = stripped.match(/^(?:remind\s+(?:me|us)|\/reminder)[:\s]+(.+)/i);
   if (createEnMatch) return { sub: 'create', payload: createEnMatch[1].trim() };
 
-  const createHeMatch = stripped.match(/^(?:תזכיר\s+לי|תזכיר\s+לנו|תזכור\s+לי|הזכר\s+לי|הזכירו\s+לי|\/reminder)[:\s]*(.+)/);
+  const createHeMatch = stripped.match(/^(?:תזכיר\s+לי|תזכיר\s+לנו|תזכיר|תזכור\s+לי|תזכור|הזכר\s+לי|הזכירו\s+לי|הוסף\s+תזכורת|צור\s+תזכורת|\/reminder)[:\s]*(.+)/);
   if (createHeMatch) return { sub: 'create', payload: createHeMatch[1].trim() };
 
   return null;
