@@ -17,7 +17,33 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   const { groupId, senderWaId, currentMessage, quotedMessage } = params;
 
   const structured = await fetchStructuredContext(groupId, senderWaId);
-  const ragQuery = normalizeRagQuery(currentMessage, structured.recent_messages);
+
+  // Resolve @digits mention tokens in the body to display names so Claude
+  // sees "@שלומי" instead of "@193209254826011".
+  const mentionNumericIds = [...currentMessage.matchAll(/@(\d{5,})/g)].map((m) => m[1]);
+  // Try common JID suffix variants so we hit profiles stored from live messages.
+  const mentionJidVariants = mentionNumericIds.flatMap((id) => [id, `${id}@c.us`, `${id}@lid`, `${id}@s.whatsapp.net`]);
+
+  const resolvedNames = await resolveDisplayNames(groupId, [
+    ...structured.recent_messages.map((m) => m.sender_wa_id),
+    senderWaId,
+    ...(quotedMessage ? [quotedMessage.sender_wa_id] : []),
+    ...mentionJidVariants,
+  ]);
+
+  // Build a digits-only → displayName map covering all JID formats.
+  const numericToName: Record<string, string> = {};
+  for (const [fullId, name] of Object.entries(resolvedNames)) {
+    numericToName[fullId.split('@')[0]] = name;
+  }
+
+  // Rewrite @digits to @DisplayName before the message reaches Claude.
+  const normalizedMessage = currentMessage.replace(/@(\d{5,})/g, (_, id) => {
+    const name = numericToName[id as string];
+    return name ? `@${name}` : `@${id}`;
+  });
+
+  const ragQuery = normalizeRagQuery(normalizedMessage, structured.recent_messages);
   const rag = await fetchRAGContext(
     groupId,
     ragQuery,
@@ -25,13 +51,11 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   );
 
   let web_search = null;
-  if (structured.web_search_enabled && shouldUseWebSearch(currentMessage)) {
-    web_search = await searchWeb(normalizeWebSearchQuery(currentMessage));
+  if (structured.web_search_enabled && shouldUseWebSearch(normalizedMessage)) {
+    web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
   }
 
-  const resolvedNames = await resolveDisplayNames(groupId, [...structured.recent_messages.map((m) => m.sender_wa_id), senderWaId, ...(quotedMessage ? [quotedMessage.sender_wa_id] : [])]);
-
-  const mentionedPeople = await fetchMentionedPeople(groupId, currentMessage, senderWaId);
+  const mentionedPeople = await fetchMentionedPeople(groupId, normalizedMessage, senderWaId);
 
   return {
     ...structured,
@@ -39,7 +63,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     mentioned_people: mentionedPeople,
     resolved_display_names: resolvedNames,
     quoted_message: quotedMessage ?? null,
-    current_message: currentMessage,
+    current_message: normalizedMessage,
     web_search,
   };
 }
