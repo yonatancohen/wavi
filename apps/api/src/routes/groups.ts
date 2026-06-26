@@ -840,7 +840,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return { ok: true, message: 'Context regenerated' };
   });
 
-  fastify.post<{ Params: { id: string } }>('/:id/welcome-message', async (req, reply) => {
+  fastify.post<{ Params: { id: string }; Body: { mode?: 'preview' | 'full' } }>('/:id/welcome-message', async (req, reply) => {
     const { id } = req.params;
     const { data: group } = await db
       .from('groups')
@@ -858,6 +858,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       characterConfig: (group as { character_config: unknown }).character_config as import('@wavi/shared').CharacterConfig | null,
       imageGenerationEnabled: Boolean((group as { image_generation_enabled: boolean }).image_generation_enabled),
       webSearchEnabled: Boolean((group as { web_search_enabled: boolean }).web_search_enabled),
+      mode: req.body?.mode === 'full' ? 'full' : 'preview',
     });
 
     return { message };

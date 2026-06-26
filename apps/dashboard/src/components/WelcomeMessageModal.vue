@@ -17,6 +17,20 @@
         </button>
       </div>
 
+      <!-- Mode toggle -->
+      <div class="flex shrink-0 gap-1 border-b border-outline-variant bg-surface-variant/10 px-5 py-2.5">
+        <button
+          v-for="m in MODES"
+          :key="m.value"
+          type="button"
+          class="rounded-full px-3 py-1 text-[12px] font-medium transition-colors"
+          :class="mode === m.value ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:text-on-surface'"
+          @click="switchMode(m.value)"
+        >
+          {{ t(m.label) }}
+        </button>
+      </div>
+
       <!-- Body -->
       <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <!-- Generating state -->
@@ -64,6 +78,14 @@ const { t } = useI18n();
 const props = defineProps<{ groupId: string }>();
 const emit = defineEmits<{ close: [] }>();
 
+type Mode = 'preview' | 'full';
+
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'preview', label: 'welcomeMsg.modePreview' },
+  { value: 'full', label: 'welcomeMsg.modeFull' },
+];
+
+const mode = ref<Mode>('preview');
 const loading = ref(false);
 const error = ref<string | null>(null);
 const message = ref<string | null>(null);
@@ -73,13 +95,23 @@ async function generate() {
   loading.value = true;
   error.value = null;
   try {
-    const res = await apiFetch<{ message: string }>(`/groups/${props.groupId}/welcome-message`, { method: 'POST' });
+    const res = await apiFetch<{ message: string }>(`/groups/${props.groupId}/welcome-message`, {
+      method: 'POST',
+      body: JSON.stringify({ mode: mode.value }),
+    });
     message.value = res.message;
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('welcomeMsg.error');
   } finally {
     loading.value = false;
   }
+}
+
+function switchMode(m: Mode) {
+  if (mode.value === m) return;
+  mode.value = m;
+  message.value = null;
+  generate();
 }
 
 async function copy() {

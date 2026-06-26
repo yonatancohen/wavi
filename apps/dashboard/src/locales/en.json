@@ -773,7 +773,9 @@
     "copy": "Copy",
     "copied": "Copied!",
     "error": "Failed to generate welcome message",
-    "needsCharacter": "Requires a synthesized character — run a rebuild first."
+    "needsCharacter": "Requires a synthesized character — run a rebuild first.",
+    "modePreview": "Quick preview",
+    "modeFull": "Full message"
   },
   "sync": {
     "title": "Individual sync operations",
