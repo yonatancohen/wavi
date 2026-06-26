@@ -51,7 +51,7 @@ flowchart LR
 1. Message arrives in WhatsApp group
 2. Saved to `messages` table + added to chunk buffer (for future RAG)
 3. Is @wavi tagged?  →  No: stop (but message is still stored)
-4. Special commands? (remember / alias)  →  handle directly, stop
+4. Special commands? (remember / alias / reminder)  →  handle directly, stop
 5. Guards: bot-loop, rate limit, jailbreak/code abuse  →  maybe deflect, stop
 6. Job pushed to Redis queue
 7. Worker picks up job → buildPromptContext() → Claude → send reply
@@ -198,6 +198,7 @@ flowchart TD
 7. **If tagged:**
    - Memory commands (`remember` / `forget` / `recall`) → direct DB reply, no Claude
    - Alias commands (`@wavi alias "X" is Y`) → direct reply
+   - Reminder commands (`remind me` / `תזכיר לי` / `my reminders` / `cancel reminder`) → direct DB reply, no Claude (see §G)
    - **Bot-loop guard** — skip if last 5 messages are all agent
    - **Rate limit** — 20/hour per sender (character-aware deflection)
    - **`checkInputGuard`** — block long messages, code dumps, jailbreaks (no Claude)
@@ -361,6 +362,89 @@ Run `bun run replay -- --fixtures` with your env to see the **exact** prompt for
 
 ---
 
+## G. Reminders
+
+Wavi supports scheduled reminders set directly in the group chat. Unlike AI replies, reminders are **command-handled synchronously** — no Claude call, no Redis queue.
+
+### G1. How a reminder is set
+
+```
+Member: "@wavi remind me at 16 to leave"
+        "@wavi תזכיר לי בעוד 20 דקות לצאת"
+
+  ▼ resolveReminderCommand()          (apps/api/src/lib/reminder-handler.ts)
+  │  detectReminderCommand() matches the trigger phrase
+  │  parseReminderInput() extracts the time expression via regex
+  │    EN patterns: "in N min/hr/day", "at HH[:MM] [am/pm]", "at 16", "tomorrow [at …]"
+  │    HE patterns: "בעוד N דקות/שעות/ימים", "בשעה HH", "ב-16", "מחר [ב-…]", "חצי שעה", …
+  │  Returns: { fireAt: Date, reminderText: "leave" }
+  │
+  ▼ INSERT INTO reminders
+      group_id      ← which group (UUID)
+      wa_group_id   ← WA group JID ("123@g.us") — delivery address
+      sender_wa_id  ← who asked
+      sender_name   ← display name for the reminder message
+      reminder_text ← "leave"
+      fire_at       ← absolute UTC timestamp
+      sent_at       ← NULL (not yet fired)
+
+  ▼ Wavi replies: "⏰ Got it! I'll remind you "leave" in 5h 8m"
+```
+
+**10-reminder cap:** if the sender already has 10 pending reminders, the oldest is auto-deleted and the user is told which one was dropped. They are never blocked from setting a new one.
+
+### G2. How a reminder fires — no DB triggers
+
+The `reminders` table is **passive**. Nothing in Postgres fires automatically. Delivery is handled by a polling loop started at server boot alongside the reply worker:
+
+```
+apps/api/src/jobs/reminder-worker.ts
+  startReminderWorker()
+    └── while(true):
+          SELECT * FROM reminders
+            WHERE fire_at <= now()
+            AND sent_at IS NULL        ← partial index keeps this fast
+          → for each row:
+              sendReply(wa_group_id, "⏰ {sender_name}, reminder: {text}")
+              UPDATE reminders SET sent_at = now()
+          sleep(60 000ms)
+```
+
+The worker wakes every **60 seconds**. Max delivery lag is ±60 s.
+
+```
+Railway process (always running)
+  ├── Fastify HTTP server
+  ├── startReplyWorker()        ← AI replies via Claude
+  └── startReminderWorker()     ← reminder delivery, polls Supabase every 60s
+```
+
+### G3. Other reminder commands
+
+| Trigger                              | Action                                             |
+| ------------------------------------ | -------------------------------------------------- |
+| `my reminders` / `התזכורות שלי`      | List all pending reminders for that sender         |
+| `cancel reminder X` / `בטל תזכורת X` | Delete the first reminder matching text fragment X |
+
+### G4. Dashboard & test chat
+
+- **Reminders view** (`/reminders`): lists all pending reminders across all groups. Each row has an **edit** button (opens inline form to change text and/or time) and a **delete** button.
+- **Test chat**: reminder commands work identically — `resolveReminderCommand` runs before `generateReplyText`, so the confirmation is returned directly and the reminder is written to the DB. Real reminder, real delivery when it fires.
+
+### G5. Key files
+
+| File                                         | Role                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------- |
+| `apps/api/src/lib/reminder-handler.ts`       | Command detection + resolution (shared by WA handler and test chat)  |
+| `apps/api/src/lib/time-parser.ts`            | Regex-based EN + HE time expression parser                           |
+| `apps/api/src/lib/reminder-store.ts`         | Supabase CRUD (create, get-due, mark-sent, update, cancel)           |
+| `apps/api/src/jobs/reminder-worker.ts`       | 60-second polling loop                                               |
+| `apps/api/src/routes/reminders.ts`           | `GET /api/reminders`, `PATCH /:id`, `DELETE /:id`                    |
+| `apps/dashboard/src/views/RemindersView.vue` | Dashboard reminders management UI                                    |
+| `supabase-schema.sql`                        | `reminders` table + partial index on `fire_at WHERE sent_at IS NULL` |
+
+---
+
 ## Key source files
 
 | File                                      | Role                                     |
@@ -370,6 +454,9 @@ Run `bun run replay -- --fixtures` with your env to see the **exact** prompt for
 | `apps/api/src/ai/prompt.ts`               | `buildPromptContext` — context assembly  |
 | `apps/api/src/ai/prompt-build.ts`         | `buildSystemPrompt` + conversation turns |
 | `apps/api/src/ai/generate.ts`             | Claude API call                          |
+| `apps/api/src/lib/reminder-handler.ts`    | Reminder command detection + resolution  |
+| `apps/api/src/lib/time-parser.ts`         | EN + HE natural-language time parser     |
+| `apps/api/src/jobs/reminder-worker.ts`    | 60-second reminder delivery poll         |
 | `apps/api/scripts/replay.ts`              | Offline replay harness                   |
 | `apps/api/src/jobs/ingestion-pipeline.ts` | Export ingest + intelligence stages      |
 | `apps/api/src/jobs/chunker.ts`            | Live message chunking + embed            |
