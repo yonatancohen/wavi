@@ -286,7 +286,8 @@
       "dynamics": "Dynamics",
       "messages": "Messages",
       "testChat": "Test Chat",
-      "automations": "Automations"
+      "automations": "Automations",
+      "sync": "Sync"
     },
     "setup": {
       "title": "Setup",
@@ -758,6 +759,32 @@
       "thu": "Thursday",
       "fri": "Friday",
       "sat": "Saturday"
+    }
+  },
+  "sync": {
+    "title": "Individual sync operations",
+    "subtitle": "Re-run a single intelligence stage without a full rebuild. Useful after editing member profiles, correcting dynamics, or when only one piece of context has drifted.",
+    "run": "Run",
+    "running": "Running…",
+    "done": "Done",
+    "failed": "Sync failed",
+    "ops": {
+      "dynamics": {
+        "title": "Rebuild dynamics",
+        "desc": "Re-compute relationship pairs and narratives from stored messages."
+      },
+      "profiles": {
+        "title": "Re-profile members",
+        "desc": "Rebuild behavioral summaries for all members from stored messages."
+      },
+      "context": {
+        "title": "Regenerate context",
+        "desc": "Refresh the group context summary from the most recent episode summaries."
+      },
+      "character": {
+        "title": "Re-synthesize character",
+        "desc": "Regenerate Wavi's voice, opinions, and signature from existing episode summaries and profiles."
+      }
     }
   }
 }
