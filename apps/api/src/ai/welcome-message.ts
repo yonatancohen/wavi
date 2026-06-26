@@ -14,7 +14,7 @@ export interface WelcomeMessageOptions {
   characterConfig: CharacterConfig | null;
   imageGenerationEnabled: boolean;
   webSearchEnabled: boolean;
-  /** preview = short 3-4 sentence story; full = complete 8-10 sentence story */
+  /** preview = 2-3 sentences per member; full = 4-5 sentences per member */
   mode?: 'preview' | 'full';
 }
 
@@ -28,30 +28,25 @@ interface MemberProfile {
   } | null;
 }
 
-async function fetchTopMember(groupId: string): Promise<MemberProfile | null> {
-  // Pick the member with the richest profile (longest behavioral summary — proxy for most data)
-  // and highest activity level, excluding any profile that looks like the agent itself.
-  const { data } = await db
-    .from('user_profiles')
-    .select('display_name, behavioral_summary, profile_data')
-    .eq('group_id', groupId)
-    .not('behavioral_summary', 'is', null)
-    .order('behavioral_summary', { ascending: false }) // longest first
-    .limit(10);
+const ACTIVITY_RANK: Record<string, number> = { very_high: 4, high: 3, medium: 2, low: 1 };
 
-  if (!data?.length) return null;
+async function fetchTopMembers(groupId: string, limit = 5): Promise<MemberProfile[]> {
+  const { data } = await db.from('user_profiles').select('display_name, behavioral_summary, profile_data').eq('group_id', groupId).not('behavioral_summary', 'is', null).limit(30);
 
-  // Prefer the member with 'high' or 'very_high' activity if available.
-  const high = data.find((p) => {
-    const pd = p.profile_data as { activity_level?: string } | null;
-    return pd?.activity_level === 'high' || pd?.activity_level === 'very_high';
+  if (!data?.length) return [];
+
+  // Sort: activity level first, then richness of behavioral summary.
+  const sorted = (data as MemberProfile[]).sort((a, b) => {
+    const aLevel = ACTIVITY_RANK[a.profile_data?.activity_level ?? ''] ?? 0;
+    const bLevel = ACTIVITY_RANK[b.profile_data?.activity_level ?? ''] ?? 0;
+    if (bLevel !== aLevel) return bLevel - aLevel;
+    return (b.behavioral_summary?.length ?? 0) - (a.behavioral_summary?.length ?? 0);
   });
 
-  const chosen = high ?? data[0];
-  return chosen as MemberProfile;
+  return sorted.slice(0, limit);
 }
 
-async function fetchTopMemberRecentQuotes(groupId: string, displayName: string): Promise<string[]> {
+async function fetchMemberQuotes(groupId: string, displayName: string, max = 2): Promise<string[]> {
   const { data } = await db
     .from('messages')
     .select('body')
@@ -63,93 +58,96 @@ async function fetchTopMemberRecentQuotes(groupId: string, displayName: string):
     .order('timestamp', { ascending: false })
     .limit(20);
 
-  // Return 3–5 short representative quotes
-  const quotes = (data ?? [])
+  return (data ?? [])
     .map((r) => (r.body as string).trim())
     .filter((b) => b.length > 10 && b.length < 120)
-    .slice(0, 4);
-
-  return quotes;
+    .slice(0, max);
 }
 
 export async function generateWelcomeMessage(opts: WelcomeMessageOptions): Promise<string> {
   const { groupId, groupName, languageMode, characterConfig, imageGenerationEnabled, webSearchEnabled } = opts;
+  const isPreview = (opts.mode ?? 'preview') === 'preview';
 
-  const topMember = await fetchTopMember(groupId);
-  const quotes = topMember ? await fetchTopMemberRecentQuotes(groupId, topMember.display_name) : [];
+  const members = await fetchTopMembers(groupId, 5);
+
+  // Fetch quotes for each member in parallel
+  const membersWithQuotes = await Promise.all(
+    members.map(async (m) => ({
+      ...m,
+      quotes: await fetchMemberQuotes(groupId, m.display_name, 2),
+    })),
+  );
 
   const langInstruction = synthesisLanguageInstruction(languageMode === 'auto' ? 'he' : languageMode);
   const isHebrew = (languageMode === 'auto' ? 'he' : languageMode) === 'he';
-
   const agentTag = `@${AGENT_NAME}`;
 
-  // Build the how-to-use bullets dynamically based on enabled features
   const bullets = isHebrew
     ? [
-        `**${agentTag} [שאלה/נושא]** — שאלות, ויכוחים, חוות דעת, בדיחות — אני בפנים`,
-        `**${agentTag} מתי הפעם האחרונה ש...** — אני זוכר את ההיסטוריה של הקבוצה`,
-        `**${agentTag} מי זה [שם]** — ספר לי על חברי הקבוצה`,
-        `**${agentTag} תזכיר לי [X] בעוד [זמן]** — reminders`,
-        ...(imageGenerationEnabled ? [`**${agentTag} צור תמונה של...** — יוצר תמונות לפי בקשה`] : []),
-        ...(webSearchEnabled ? [`**${agentTag} חפש [נושא]** — גישה לאינטרנט לשאלות עדכניות`] : []),
+        `*${agentTag} [שאלה/נושא]* — שאלות, ויכוחים, חוות דעת, בדיחות — אני בפנים`,
+        `*${agentTag} מתי הפעם האחרונה ש...* — אני זוכר את ההיסטוריה של הקבוצה`,
+        `*${agentTag} מי זה [שם]* — ספר לי על חברי הקבוצה`,
+        `*${agentTag} תזכיר לי [X] בעוד [זמן]* — reminders`,
+        ...(imageGenerationEnabled ? [`*${agentTag} צור תמונה של...* — יוצר תמונות לפי בקשה`] : []),
+        ...(webSearchEnabled ? [`*${agentTag} חפש [נושא]* — גישה לאינטרנט לשאלות עדכניות`] : []),
       ]
     : [
-        `**${agentTag} [question/topic]** — questions, banter, opinions, jokes — I'm in`,
-        `**${agentTag} last time we...** — I remember the group's history`,
-        `**${agentTag} who is [name]** — I know your group members`,
-        `**${agentTag} remind me [X] in [time]** — reminders`,
-        ...(imageGenerationEnabled ? [`**${agentTag} create an image of...** — generates images on request`] : []),
-        ...(webSearchEnabled ? [`**${agentTag} search [topic]** — live web access for current questions`] : []),
+        `*${agentTag} [question/topic]* — questions, banter, opinions, jokes — I'm in`,
+        `*${agentTag} last time we...* — I remember the group's history`,
+        `*${agentTag} who is [name]* — I know your group members`,
+        `*${agentTag} remind me [X] in [time]* — reminders`,
+        ...(imageGenerationEnabled ? [`*${agentTag} create an image of...* — generates images on request`] : []),
+        ...(webSearchEnabled ? [`*${agentTag} search [topic]* — live web access for current questions`] : []),
       ];
 
   const bulletText = bullets.map((b) => `• ${b}`).join('\n');
 
-  const isPreview = (opts.mode ?? 'full') === 'preview';
+  const sentencesPerMember = isPreview ? '2–3 sentences' : '4–5 sentences';
 
-  const memberSection = topMember
-    ? `
-Member to profile: ${topMember.display_name}
-Behavioral summary: ${topMember.behavioral_summary ?? 'N/A'}
-Dominant topics: ${(topMember.profile_data?.dominant_topics ?? []).join(', ') || 'N/A'}
-Activity level: ${topMember.profile_data?.activity_level ?? 'unknown'}
-Sample quotes from their messages: ${quotes.length ? quotes.map((q) => `"${q}"`).join(' | ') : 'none available'}
-`
-    : 'No member data available yet — skip the member spotlight section.';
-
-  const characterVoice = characterConfig?.voice ?? '';
-  const signatureBehavior = characterConfig?.signature_behavior ?? '';
+  const membersText =
+    membersWithQuotes.length > 0
+      ? membersWithQuotes
+          .map(
+            (m, i) => `
+[${i + 1}] ${m.display_name}
+Summary: ${m.behavioral_summary ?? 'N/A'}
+Topics: ${(m.profile_data?.dominant_topics ?? []).join(', ') || 'N/A'}
+Activity: ${m.profile_data?.activity_level ?? 'unknown'}
+Quotes: ${m.quotes.length ? m.quotes.map((q) => `"${q}"`).join(' | ') : 'none'}`,
+          )
+          .join('\n')
+      : 'No member data yet — skip the spotlight section.';
 
   const prompt = `${langInstruction}
 
 You are generating a WhatsApp welcome message for a group called "${groupName}".
-The message is sent by the AI group member named ${AGENT_NAME}, who has this character:
-Voice: ${characterVoice || 'casual, witty group member'}
-Signature behavior: ${signatureBehavior || 'jumps into conversations naturally'}
+Sender: ${AGENT_NAME} (the AI group member).
+Voice: ${characterConfig?.voice || 'casual, witty group member'}
+Signature: ${characterConfig?.signature_behavior || 'jumps into conversations naturally'}
 
-Write the welcome message in this structure:
+Write the welcome message in this exact structure:
 
-1. A SHORT intro line (1 sentence) introducing ${AGENT_NAME} to the group — casual, in-character.
+1. ONE intro sentence introducing ${AGENT_NAME} — casual, in-character, brief.
 
-2. A MEMBER SPOTLIGHT about the top group member below.
-   Write it like a dramatic/funny roast-tribute in the group's exact voice.
-   Reference their topics, quirks, a memorable quote or two if available.
-   Do NOT make it generic — use the actual data. Make it feel like the group is nodding.
-   Length: ${isPreview ? '3–4 sentences (this is a quick preview)' : '8–10 sentences (full version — go deep, be specific, earn the laughs)'}.
+2. MEMBER SPOTLIGHTS — write a mini roast-tribute for each member listed below.
+   ${sentencesPerMember} per person. Be specific, use their real data — topics, quirks, a quote if available.
+   Don't be generic. Each entry should make the group think "yep, that's exactly them."
+   Label each with their name in bold (*name*) on its own line before the story.
 
-3. A HOW-TO-USE section titled appropriately. Use exactly these bullets (do not add or remove any):
+3. HOW TO USE section — use exactly these bullets, no additions or removals:
 ${bulletText}
 
-4. A short closing line (1 sentence) — casual, in-character.
+4. ONE closing sentence — casual, in-character.
 
-${memberSection}
+Members to profile (in order of importance):
+${membersText}
 
-Output ONLY the WhatsApp message text. Use *bold* with asterisks for section headers and bullet labels.
-No markdown headers with #. Keep it WhatsApp-native (asterisks for bold, newlines between sections).
-Emojis are encouraged but not overdone.`;
+Output ONLY the WhatsApp message. Use *asterisks* for bold (WhatsApp format).
+No # headers. Separate sections with a blank line. Emojis welcome but not excessive.`;
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 800,
+    max_tokens: isPreview ? 900 : 1800,
     messages: [{ role: 'user', content: prompt }],
   });
 
