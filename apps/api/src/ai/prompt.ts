@@ -7,7 +7,11 @@ import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { normalizeRagQuery } from './rag-query.js';
 
-const RAG_SIMILARITY_THRESHOLD = 0.35;
+// Lowered from 0.35 — conversational Hebrew chunks about real events (trips,
+// restaurants, etc.) often score 0.28–0.33 against a memory-recall query even
+// after de-diluting the query. A false positive (slightly off-topic chunk) is
+// less harmful than silently dropping a genuine memory.
+const RAG_SIMILARITY_THRESHOLD = 0.28;
 
 export { normalizeRagQuery } from './rag-query.js';
 
@@ -113,13 +117,13 @@ async function fetchRAGContext(groupId: string, query: string, recentMessageBodi
     db.rpc('search_message_chunks', {
       p_group_id: groupId,
       p_embedding: JSON.stringify(queryEmbedding),
-      p_limit: 10,
+      p_limit: 15,
     }),
 
     db.rpc('search_episode_summaries', {
       p_group_id: groupId,
       p_embedding: JSON.stringify(queryEmbedding),
-      p_limit: 5,
+      p_limit: 8,
     }),
   ]);
 
@@ -132,14 +136,14 @@ async function fetchRAGContext(groupId: string, query: string, recentMessageBodi
   const rag_chunks = ((chunksResult.data ?? []) as { similarity: number; summary?: string; content?: string }[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary ?? r.content ?? ''))
-    .slice(0, 5)
+    .slice(0, 7)
     .map((r) => r.summary ?? r.content)
     .filter((s): s is string => s !== undefined);
 
   const rag_episode_summaries = ((episodesResult.data ?? []) as { similarity: number; summary: string }[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary))
-    .slice(0, 3)
+    .slice(0, 4)
     .map((r) => r.summary);
 
   return { rag_chunks, rag_episode_summaries };
