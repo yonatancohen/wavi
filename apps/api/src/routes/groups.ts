@@ -17,18 +17,24 @@ import type {
   MergeMembersRequest,
   UserProfileData,
   LinkGroupRequest,
+  LanguageMode,
+  ParsedWAMessage,
 } from '@wavi/shared';
 import { isDraftGroup } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { listGroupChats } from '../whatsapp/client.js';
 import { runRebuildFromStoredMessages, setIngestionProgress, clearIngestionProgress } from '../jobs/ingestion-pipeline.js';
+import { buildRelationshipMap } from '../ai/relationships.js';
+import { buildUserProfilesFromHistory, recomputeAliasesForMember } from '../ai/profiler.js';
+import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
+import { generateGroupContext } from '../ai/summarizer.js';
+import { resolveExportMessages, collectObservedAliasesByPerson } from '../lib/resolve-export-messages.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { getAgentUsageStats, getGroupUsageStats } from '../lib/usage.js';
 import { generateReplyText } from '../ai/generate.js';
 import { generateImage } from '../ai/generate-image.js';
 import { getProfileAliases, getSourceAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
-import { recomputeAliasesForMember } from '../ai/profiler.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
 import { friendlyDbError } from '../lib/db-errors.js';
 
@@ -749,6 +755,102 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{ Params: { id: string; memoryId: string } }>('/:id/memories/:memoryId', async (req) => {
     await db.from('group_memories').delete().eq('id', req.params.memoryId).eq('group_id', req.params.id).throwOnError();
     return { ok: true };
+  });
+
+  // ── Individual sync operations ────────────────────────────────────────────
+  // Each endpoint re-runs a single intelligence stage from stored messages /
+  // existing derived data, without the cost of a full re-embed.
+
+  function resolveEffectiveLang(mode: string | null): LanguageMode {
+    return (mode === 'auto' || !mode ? 'he' : mode) as LanguageMode;
+  }
+
+  async function fetchStoredMessages(groupId: string) {
+    const { data: rows, error } = await db
+      .from('messages')
+      .select('sender_name, sender_wa_id, body, timestamp')
+      .eq('group_id', groupId)
+      .eq('is_agent_reply', false)
+      .order('timestamp', { ascending: true });
+    if (error) throw error;
+    if (!rows || rows.length === 0) return null;
+
+    const parsed: ParsedWAMessage[] = (rows as Array<{ sender_name: string; sender_wa_id: string | null; body: string; timestamp: string }>).map((m) => ({
+      sender_name: m.sender_name,
+      sender_wa_id: m.sender_wa_id ?? undefined,
+      body: m.body,
+      timestamp: new Date(m.timestamp),
+      is_system_message: false,
+      is_media_omitted: false,
+    }));
+    return resolveExportMessages(parsed).filter((m) => !m.is_system_message);
+  }
+
+  fastify.post<{ Params: { id: string } }>('/:id/sync-dynamics', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id, language_mode').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const resolved = await fetchStoredMessages(id);
+    if (!resolved) return reply.code(400).send({ error: 'No stored messages — upload chat history first.' });
+
+    const languageMode = resolveEffectiveLang(group.language_mode);
+    const observedAliases = collectObservedAliasesByPerson(resolved);
+    await buildRelationshipMap(id, resolved, languageMode, observedAliases, { merge: true, pruneStale: true });
+    return { ok: true, message: 'Dynamics rebuilt' };
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/sync-profiles', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id, language_mode').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const resolved = await fetchStoredMessages(id);
+    if (!resolved) return reply.code(400).send({ error: 'No stored messages — upload chat history first.' });
+
+    const languageMode = resolveEffectiveLang(group.language_mode);
+    const observedAliases = collectObservedAliasesByPerson(resolved);
+    await buildUserProfilesFromHistory(id, resolved, languageMode, observedAliases, { merge: true });
+    return { ok: true, message: 'Profiles rebuilt' };
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/sync-context', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id, name, language_mode').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: episodes } = await db.from('episode_summaries').select('summary').eq('group_id', id).order('created_at', { ascending: false }).limit(5);
+    if (!episodes || episodes.length === 0) return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
+
+    const recentContent = (episodes as Array<{ summary: string }>)
+      .reverse()
+      .map((e) => e.summary)
+      .join('\n\n');
+    const { data: prevCtx } = await db.from('group_contexts').select('summary_text').eq('group_id', id).order('generated_at', { ascending: false }).limit(1).maybeSingle();
+    const languageMode = resolveEffectiveLang(group.language_mode);
+    const contextSummary = await generateGroupContext({
+      groupName: (group as { name: string }).name ?? 'the group',
+      recentContent,
+      previousContext: (prevCtx as { summary_text: string } | null)?.summary_text ?? '',
+      languageMode,
+      usageContext: { groupId: id },
+    });
+    await db.from('group_contexts').insert({ group_id: id, summary_text: contextSummary, character_version: 1 });
+    return { ok: true, message: 'Context regenerated' };
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/sync-character', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: summaryCount } = await db.from('episode_summaries').select('id', { count: 'exact', head: true }).eq('group_id', id);
+    if (!(summaryCount as unknown as { count: number } | null)?.count) {
+      return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
+    }
+
+    await synthesizeCharacterForGroup(id);
+    return { ok: true, message: 'Character re-synthesized' };
   });
 };
 

@@ -130,6 +130,10 @@
         <div v-show="activeTab === 'automations'" class="group-panel">
           <AutomationsSection :group="group" />
         </div>
+
+        <div v-show="activeTab === 'sync'" class="group-panel">
+          <SyncSection :group-id="group.id" @complete="onRebuildComplete" />
+        </div>
       </template>
     </div>
   </div>
@@ -151,13 +155,14 @@ import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
 import GroupUsagePanel from '../components/GroupUsagePanel.vue';
+import SyncSection from '../components/SyncSection.vue';
 import GroupDetailStatusBar from '../components/GroupDetailStatusBar.vue';
 import GroupDetailStatsGrid from '../components/GroupDetailStatsGrid.vue';
 import type { GroupWithStats } from '@wavi/shared';
 
-type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat' | 'automations';
+type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat' | 'automations' | 'sync';
 
-const GROUP_TABS: GroupTab[] = ['setup', 'character', 'people', 'dynamics', 'messages', 'testChat', 'automations'];
+const GROUP_TABS: GroupTab[] = ['setup', 'character', 'people', 'dynamics', 'messages', 'testChat', 'automations', 'sync'];
 
 function tabFromHash(hash: string): GroupTab {
   const id = hash.replace(/^#/, '') as GroupTab;
@@ -197,6 +202,7 @@ const tabs = computed(() => {
     { id: 'messages' as const, label: t('groupDetail.tabs.messages') },
     { id: 'testChat' as const, label: t('groupDetail.tabs.testChat') },
     { id: 'automations' as const, label: t('groupDetail.tabs.automations') },
+    { id: 'sync' as const, label: t('groupDetail.tabs.sync') },
   ];
 });
 
