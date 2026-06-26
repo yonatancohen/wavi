@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { isDeictic, normalizeRagQuery } from '../rag-query.js';
+import { isDeictic, isRecallQuery, normalizeRagQuery } from '../rag-query.js';
 
 describe('isDeictic', () => {
   it('returns true for a short Hebrew who-question', () => {
@@ -20,6 +20,40 @@ describe('isDeictic', () => {
 
   it('returns false for a longer statement without question words', () => {
     expect(isDeictic('תספר לי קצת על מה שקרה בשישי בלילה כי לא הייתי')).toBe(false);
+  });
+});
+
+describe('isRecallQuery', () => {
+  it('detects Hebrew "last time" pattern', () => {
+    expect(isRecallQuery('בפעם האחרונה הלכנו לים')).toBe(true);
+  });
+
+  it('detects Hebrew "went" pattern', () => {
+    expect(isRecallQuery('הלכנו למסעדה ביפו')).toBe(true);
+  });
+
+  it('detects Hebrew "flew" pattern', () => {
+    expect(isRecallQuery('טסנו לאמסטרדם')).toBe(true);
+  });
+
+  it('detects Hebrew "remind me" pattern', () => {
+    expect(isRecallQuery('תזכיר לי מתי הייתם בחו"ל')).toBe(true);
+  });
+
+  it('detects English "last time" pattern', () => {
+    expect(isRecallQuery('remind me last time abroad')).toBe(true);
+  });
+
+  it('detects English "went to" pattern', () => {
+    expect(isRecallQuery('went to restaurant with the group')).toBe(true);
+  });
+
+  it('does not match regular present-tense chat', () => {
+    expect(isRecallQuery('מה אתם עושים היום?')).toBe(false);
+  });
+
+  it('does not match general knowledge questions', () => {
+    expect(isRecallQuery('מי זה ביבי?')).toBe(false);
   });
 });
 
@@ -69,5 +103,27 @@ describe('normalizeRagQuery', () => {
     const q = normalizeRagQuery('מה קרה @972501234567', []);
     expect(q).not.toMatch(/@\d+/);
     expect(q).toContain('מה קרה');
+  });
+
+  it('does NOT prepend recent context for recall queries — avoids diluting the embedding', () => {
+    const recent = [
+      { sender_name: 'Bob', body: 'what are you doing tonight' },
+      { sender_name: 'Alice', body: 'nothing special just chilling' },
+    ];
+    const q = normalizeRagQuery('@wavi remind me last time abroad', recent);
+    // Recent messages about tonight's plans must not appear
+    expect(q).not.toContain('tonight');
+    expect(q).not.toContain('chilling');
+    expect(q).toContain('last time abroad');
+  });
+
+  it('does NOT prepend recent context for Hebrew recall queries', () => {
+    const recent = [
+      { sender_name: 'דן', body: 'מה נשמע אחי' },
+      { sender_name: 'יוני', body: 'בסדר גמור' },
+    ];
+    const q = normalizeRagQuery('@wavi הלכנו למסעדה שם בנמל', recent);
+    expect(q).not.toContain('בסדר גמור');
+    expect(q).toContain('מסעדה');
   });
 });
