@@ -198,6 +198,23 @@ describe('parseReminderInput — Hebrew', () => {
     expect(parseReminderInput('לצאת מהבית')).toBeNull();
   });
 
+  it('parses "עוד 10 דק׳" (abbreviation with geresh)', () => {
+    const r = parseReminderInput('עוד 10 דק׳ לצאת לקנות בשר');
+    expect(r).not.toBeNull();
+    const diff = r!.fireAt.getTime() - FIXED_NOW.getTime();
+    expect(diff).toBeGreaterThanOrEqual(9 * 60_000);
+    expect(diff).toBeLessThanOrEqual(11 * 60_000);
+    expect(r!.reminderText).toContain('לצאת');
+  });
+
+  it('parses "עוד 10 דק" (bare abbreviation, no geresh)', () => {
+    const r = parseReminderInput('עוד 10 דק לצאת לקנות בשר');
+    expect(r).not.toBeNull();
+    const diff = r!.fireAt.getTime() - FIXED_NOW.getTime();
+    expect(diff).toBeGreaterThanOrEqual(9 * 60_000);
+    expect(diff).toBeLessThanOrEqual(11 * 60_000);
+  });
+
   it('parses bare "ב-16" (Hebrew 24-hour, no colon)', () => {
     const r = parseReminderInput('תזכיר לי ב-16 לצאת');
     expect(r).not.toBeNull();

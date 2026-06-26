@@ -162,8 +162,9 @@ const HE_PATTERNS: TimePattern[] = [
     parse: (_m, now) => new Date(now.getTime() + 2 * 86_400_000),
   },
   // "בעוד X דקות/שעות/ימים/שבועות" (numeric)
+  // Accepts abbreviations: דק׳ / דק (without ות), שע׳ / שע (without ות/ה).
   {
-    regex: /(?:בעוד|עוד)\s+(\d+)\s+(דקות?|שעות?|ימים?|יום|שבועות?|שבוע)/,
+    regex: /(?:בעוד|עוד)\s+(\d+)\s+(דק(?:ות?|׳)?|שע(?:ות?|ה|׳)?|ימים?|יום|שבועות?|שבוע)/,
     parse: (m, now) => {
       const n = parseInt(m[1], 10);
       const u = m[2];
