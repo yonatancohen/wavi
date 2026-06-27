@@ -775,7 +775,13 @@
     "error": "Failed to generate welcome message",
     "needsCharacter": "Requires a synthesized character — run a rebuild first.",
     "modePreview": "Quick preview",
-    "modeFull": "Full message"
+    "modeFull": "Full message",
+    "send": "Send to group",
+    "sending": "Sending…",
+    "sent": "Sent!",
+    "sendError": "Failed to send to WhatsApp",
+    "sendConfirmTitle": "Send to WhatsApp group?",
+    "sendConfirmBody": "This will post the welcome message to the live WhatsApp group right now."
   },
   "sync": {
     "title": "Individual sync operations",

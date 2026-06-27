@@ -59,10 +59,23 @@
           <span class="material-symbols-outlined text-[16px]">refresh</span>
           {{ t('welcomeMsg.regenerate') }}
         </button>
-        <button v-if="message" type="button" class="btn btn-primary flex items-center gap-2" @click="copy">
-          <span class="material-symbols-outlined text-[16px]">{{ copied ? 'check' : 'content_copy' }}</span>
-          {{ copied ? t('welcomeMsg.copied') : t('welcomeMsg.copy') }}
-        </button>
+
+        <div v-if="message" class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-secondary flex items-center gap-2" @click="copy">
+            <span class="material-symbols-outlined text-[16px]">{{ copied ? 'check' : 'content_copy' }}</span>
+            {{ copied ? t('welcomeMsg.copied') : t('welcomeMsg.copy') }}
+          </button>
+          <button type="button" class="btn btn-primary flex items-center gap-2" :disabled="sending" @click="send">
+            <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': sending }">
+              {{ sending ? 'sync' : sendDone ? 'check' : 'send' }}
+            </span>
+            {{ sending ? t('welcomeMsg.sending') : sendDone ? t('welcomeMsg.sent') : t('welcomeMsg.send') }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="sendError" class="shrink-0 border-t border-error/20 bg-error/[0.05] px-5 py-3 text-[12px] text-error">
+        {{ sendError }}
       </div>
     </div>
   </Teleport>
@@ -72,8 +85,10 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
+import { useConfirm } from '../composables/useConfirm';
 
 const { t } = useI18n();
+const { confirm } = useConfirm();
 
 const props = defineProps<{ groupId: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -90,6 +105,9 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const message = ref<string | null>(null);
 const copied = ref(false);
+const sending = ref(false);
+const sendDone = ref(false);
+const sendError = ref<string | null>(null);
 
 async function generate() {
   loading.value = true;
@@ -119,6 +137,34 @@ async function copy() {
   await navigator.clipboard.writeText(message.value);
   copied.value = true;
   setTimeout(() => (copied.value = false), 2000);
+}
+
+async function send() {
+  if (!message.value) return;
+  const ok = await confirm({
+    title: t('welcomeMsg.sendConfirmTitle'),
+    message: t('welcomeMsg.sendConfirmBody'),
+    confirmLabel: t('welcomeMsg.send'),
+  });
+  if (!ok) return;
+
+  sending.value = true;
+  sendError.value = null;
+  try {
+    await apiFetch(`/groups/${props.groupId}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ message: message.value }),
+    });
+    sendDone.value = true;
+    setTimeout(() => {
+      sendDone.value = false;
+      emit('close');
+    }, 1500);
+  } catch (e) {
+    sendError.value = e instanceof Error ? e.message : t('welcomeMsg.sendError');
+  } finally {
+    sending.value = false;
+  }
 }
 
 onMounted(generate);
