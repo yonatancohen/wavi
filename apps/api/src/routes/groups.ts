@@ -840,6 +840,28 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return { ok: true, message: 'Context regenerated' };
   });
 
+  // Send an arbitrary message to the group's WhatsApp chat (manual broadcast).
+  // Used by the welcome-message Send button; can be reused for other manual sends.
+  fastify.post<{ Params: { id: string }; Body: { message: string } }>('/:id/send', async (req, reply) => {
+    const { id } = req.params;
+    const message = req.body?.message?.trim();
+    if (!message) return reply.code(400).send({ error: 'message is required' });
+
+    const { data: group } = await db.from('groups').select('id, wa_group_id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { isDraftGroup } = await import('@wavi/shared');
+    if (isDraftGroup((group as { wa_group_id: string }).wa_group_id)) {
+      return reply.code(400).send({ error: 'This group is not linked to WhatsApp yet.' });
+    }
+
+    const { sendReply } = await import('../whatsapp/client.js');
+    await sendReply((group as { wa_group_id: string }).wa_group_id, message);
+
+    return { ok: true };
+  });
+
   fastify.post<{ Params: { id: string }; Body: { mode?: 'preview' | 'full' } }>('/:id/welcome-message', async (req, reply) => {
     const { id } = req.params;
     const { data: group } = await db
