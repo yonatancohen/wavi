@@ -28,6 +28,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled);
   const examplesBlock = buildVoiceExamplesBlock(ctx);
   const humorDnaBlock = buildHumorDnaBlock(ctx);
+  const upcomingEventsBlock = buildUpcomingEventsBlock(ctx);
 
   return `
 <identity>
@@ -67,6 +68,8 @@ Emoji usage: ${emojiUsage} (${emojiUsagePromptHint(emojiUsage)})
 BLOCK 5 — GROUP CONTEXT
 ${ctx.group_context_summary || 'No group context available yet.'}
 </group_context>
+
+${upcomingEventsBlock ? `<upcoming_events>\n${upcomingEventsBlock}\n</upcoming_events>` : ''}
 
 <sender_profile>
 BLOCK 6 — SENDER PROFILE
@@ -282,6 +285,24 @@ function buildHumorDnaBlock(ctx: PromptContext): string {
   lines.push(`When being funny: draw on these patterns. Don't invent generic jokes — use what you know works here.`);
 
   return lines.join('\n');
+}
+
+function buildUpcomingEventsBlock(ctx: PromptContext): string {
+  if (!ctx.upcoming_events?.length) return '';
+
+  const lines = ctx.upcoming_events.map((e) => {
+    const when = new Date(e.next_fire_at).toLocaleString('he-IL', {
+      timeZone: GROUP_TIMEZONE,
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `• ${e.label} — ${when}`;
+  });
+
+  return `BLOCK — UPCOMING SCHEDULED EVENTS
+The following recurring events are scheduled for this group. Reference them naturally in conversation when relevant — don't announce them unprompted unless directly asked:
+${lines.join('\n')}`;
 }
 
 function buildWebSearchBlock(ctx: PromptContext): string {

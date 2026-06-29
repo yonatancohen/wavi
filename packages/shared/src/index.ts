@@ -585,6 +585,8 @@ export interface PromptContext {
   web_search_enabled: boolean;
   web_search?: WebSearchContext | null;
   image_generation_enabled: boolean;
+  /** Upcoming scheduled events/posts for this group — used for natural event awareness. */
+  upcoming_events?: UpcomingEvent[];
 }
 
 // ── Reminders ────────────────────────────────────────────────
@@ -691,4 +693,11 @@ export interface GroupAutomation {
   last_fired_at: string | null;
   next_fire_at: string | null;
   created_at: string;
+}
+
+/** A scheduled automation that Wavi should be aware of in conversation. */
+export interface UpcomingEvent {
+  label: string;
+  next_fire_at: string;
+  frequency: string;
 }

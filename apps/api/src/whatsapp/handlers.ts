@@ -276,6 +276,30 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   });
   if (rotationHandled) return;
 
+  const scheduleHandled = await tryHandleScheduleCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+  });
+  if (scheduleHandled) return;
+
+  const upcomingHandled = await tryHandleUpcomingCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+  });
+  if (upcomingHandled) return;
+
   // Bot-loop protection: skip if recent turns are all agent
   if (await isAgentOnlyLoop(group.id)) {
     console.log('[WA] Skipping reply — recent turns are all agent messages');
@@ -754,6 +778,102 @@ async function tryHandleRotationCommand(params: {
   }
 
   return false;
+}
+
+// ── Schedule commands ─────────────────────────────────────────
+
+async function tryHandleScheduleCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+}): Promise<boolean> {
+  const { detectScheduleCommand, parseScheduleCommand } = await import('../lib/schedule-parser.js');
+  if (!detectScheduleCommand(params.body, AGENT_NAME)) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+
+  const parsed = parseScheduleCommand(params.body, AGENT_NAME);
+  if (!parsed) {
+    const reply = he ? `לא הצלחתי להבין את הזמן. דוגמה: "@wavi תקבע כל שישי ב-18:00 מפגש שישי"` : `Couldn't parse that schedule. Example: "@wavi schedule every friday at 6pm friday meetup"`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  const { computeNextFireAt } = await import('../lib/automation-schedule.js');
+  const next_fire_at = computeNextFireAt('scheduled_post', parsed.config).toISOString();
+
+  await db.from('group_automations').upsert(
+    {
+      group_id: params.groupId,
+      type: 'scheduled_post',
+      enabled: true,
+      config: parsed.config,
+      next_fire_at,
+    },
+    { onConflict: 'group_id,type' },
+  );
+
+  const reply = he ? `סבבה, קבעתי 📅 ${parsed.label}` : `Done, scheduled 📅 ${parsed.label}`;
+  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+  return true;
+}
+
+// ── Upcoming commands ─────────────────────────────────────────
+
+async function tryHandleUpcomingCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+}): Promise<boolean> {
+  const { detectUpcomingCommand } = await import('../lib/schedule-parser.js');
+  if (!detectUpcomingCommand(params.body, AGENT_NAME)) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+
+  const { data: automations } = await db
+    .from('group_automations')
+    .select('type, config, next_fire_at, enabled')
+    .eq('group_id', params.groupId)
+    .eq('enabled', true)
+    .not('next_fire_at', 'is', null)
+    .order('next_fire_at', { ascending: true })
+    .limit(5);
+
+  if (!automations?.length) {
+    const reply = he ? 'אין דברים מתוכננים כרגע 📭' : 'Nothing scheduled right now 📭';
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  const lines = automations.map((a) => {
+    const cfg = a.config as { template?: string; time?: string; frequency?: string; weekday?: number };
+    const label = cfg.template ?? (a.type === 'daily_digest' ? (he ? 'סיכום יומי' : 'Daily digest') : he ? 'הודעה מתוזמנת' : 'Scheduled post');
+    const when = a.next_fire_at
+      ? new Date(a.next_fire_at as string).toLocaleString('he-IL', {
+          timeZone: process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem',
+          weekday: 'long',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : '?';
+    return `• ${label} — ${when}`;
+  });
+
+  const reply = he ? `הנה מה שמתוכנן:\n${lines.join('\n')}` : `Here's what's scheduled:\n${lines.join('\n')}`;
+  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+  return true;
 }
 
 function getRateLimitResponse(characterConfig: { sliders?: { humor?: number } } | null): string {
