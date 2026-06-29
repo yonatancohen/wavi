@@ -84,7 +84,7 @@ function detectRoastCommand(body: string): { target: string } | null {
   const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
   const en = stripped.match(/^roast\s+(.+)$/i);
   if (en) return { target: en[1].trim() };
-  const he = stripped.match(/^(?:תעשה\s+רוסט\s+על|רוסט\s+על)\s+(.+)$/);
+  const he = stripped.match(/^(?:תעשה\s+רוסט\s+על|רוסט\s+על|תצחק\s+על|תעלה\s+על|תדפוק\s+את)\s+(.+)$/);
   if (he) return { target: he[1].trim() };
   return null;
 }
@@ -299,6 +299,18 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     messageId: stored?.id,
   });
   if (upcomingHandled) return;
+
+  const helpHandled = await tryHandleHelpCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+  });
+  if (helpHandled) return;
 
   // Bot-loop protection: skip if recent turns are all agent
   if (await isAgentOnlyLoop(group.id)) {
@@ -872,6 +884,88 @@ async function tryHandleUpcomingCommand(params: {
   });
 
   const reply = he ? `הנה מה שמתוכנן:\n${lines.join('\n')}` : `Here's what's scheduled:\n${lines.join('\n')}`;
+  await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+  return true;
+}
+
+// ── Help command ──────────────────────────────────────────────
+
+function detectHelpCommand(body: string): boolean {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+  return /^(?:עזרה|מה\s+אתה\s+יודע|מה\s+את\s+יודעת|מה\s+אתה\s+יכול|מה\s+את\s+יכולה|פקודות|help|commands|what\s+can\s+you\s+do)[\s?？]?$/i.test(stripped);
+}
+
+async function tryHandleHelpCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+}): Promise<boolean> {
+  if (!detectHelpCommand(params.body)) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+
+  const reply = he
+    ? `הנה מה שאני יודע לעשות 👇
+
+*זיכרון*
+• @wavi תזכור: [משהו] — שמירת מידע
+• @wavi מה אתה זוכר? — כל הזיכרונות
+• @wavi שכח: [משהו] — מחיקה חכמה
+
+*תזכורות*
+• @wavi תזכיר לי בעוד 10 דקות [מה]
+• @wavi תזכיר לי מחר ב-9 [מה]
+• @wavi תזכורות — רשימה
+
+*לוח זמנים*
+• @wavi תקבע כל שישי ב-18:00 מפגש שישי
+• @wavi מה מתוכנן?
+
+*מי הביא מה*
+• @wavi דן הביא פיצה — רישום
+• @wavi מי הביא פיצה? — שאילתה
+• @wavi מי הבא בתור פיצה?
+
+*בידור*
+• @wavi תצחק על [שם] — רוסט
+• @wavi תסכם — סיכום 50 הודעות אחרונות
+
+*שאר*
+• @wavi [כל שאלה] — אני עונה מההיסטוריה של הקבוצה`
+    : `Here's what I can do 👇
+
+*Memory*
+• @wavi remember: [something] — store a fact
+• @wavi what do you remember? — list memories
+• @wavi forget: [something] — smart delete
+
+*Reminders*
+• @wavi remind me in 10 minutes [what]
+• @wavi remind me tomorrow at 9am [what]
+• @wavi reminders — list yours
+
+*Scheduling*
+• @wavi schedule every friday at 6pm friday meetup
+• @wavi what's scheduled?
+
+*Rotation tracking*
+• @wavi Dan brought pizza — record
+• @wavi who brought pizza? — query
+• @wavi whose turn for pizza?
+
+*Fun*
+• @wavi roast [name] — targeted roast
+• @wavi summarize — recap last 50 messages
+
+*Everything else*
+• @wavi [any question] — I answer from the group's history`;
+
   await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
   return true;
 }
