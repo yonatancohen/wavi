@@ -652,7 +652,8 @@
     "previewAgain": "Regenerate preview",
     "previewLoading": "Generating…",
     "previewFailed": "Image preview failed",
-    "previewAlt": "Generated image preview"
+    "previewAlt": "Generated image preview",
+    "copy": "Copy message"
   },
   "loading": {
     "default": "Loading…",

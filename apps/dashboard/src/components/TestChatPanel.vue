@@ -86,11 +86,24 @@
                 {{ turn.latency_ms }}ms · {{ (turn.prompt_tokens ?? 0) + (turn.completion_tokens ?? 0) }} tok
               </span>
             </div>
-            <div
-              class="rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-              :class="turn.role === 'assistant' ? 'rounded-br-md bg-primary/12 text-on-surface' : 'rounded-bl-md border border-outline-variant/60 bg-surface-variant/30 text-on-surface'"
-            >
-              {{ turn.content }}
+            <div class="group relative">
+              <div
+                class="rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
+                :class="turn.role === 'assistant' ? 'rounded-br-md bg-primary/12 text-on-surface' : 'rounded-bl-md border border-outline-variant/60 bg-surface-variant/30 text-on-surface'"
+              >
+                {{ turn.content }}
+              </div>
+              <button
+                type="button"
+                class="absolute -top-2 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                :class="turn.role === 'assistant' ? '-left-7' : '-right-7'"
+                :title="t('testChat.copy')"
+                @click="copyTurn(turn)"
+              >
+                <span class="material-symbols-outlined text-[16px] text-on-surface-variant transition-colors hover:text-primary">
+                  {{ copiedTurnId === turn.id ? 'check' : 'content_copy' }}
+                </span>
+              </button>
             </div>
 
             <div v-if="turn.role === 'assistant' && turn.image_prompt" class="mt-1 w-full max-w-[min(100%,280px)] rounded-xl border border-outline-variant/70 bg-surface-variant/20 p-3">
@@ -207,6 +220,16 @@ const loadError = ref<string | null>(null);
 const sendError = ref<string | null>(null);
 const scrollEl = ref<HTMLElement | null>(null);
 const draftEl = ref<HTMLTextAreaElement | null>(null);
+const copiedTurnId = ref<string | null>(null);
+
+function copyTurn(turn: TestChatTurn) {
+  navigator.clipboard.writeText(turn.content).then(() => {
+    copiedTurnId.value = turn.id;
+    setTimeout(() => {
+      if (copiedTurnId.value === turn.id) copiedTurnId.value = null;
+    }, 1500);
+  });
+}
 
 const STORAGE_KEY_PREFIX = 'wavi:test-chat:';
 const MAX_STORED_TURNS = 100;

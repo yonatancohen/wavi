@@ -652,7 +652,8 @@
     "previewAgain": "יצירה מחדש",
     "previewLoading": "יוצר…",
     "previewFailed": "תצוגה מקדימה נכשלה",
-    "previewAlt": "תצוגה מקדימה של תמונה שנוצרה"
+    "previewAlt": "תצוגה מקדימה של תמונה שנוצרה",
+    "copy": "העתק הודעה"
   },
   "loading": {
     "default": "טוען…",
