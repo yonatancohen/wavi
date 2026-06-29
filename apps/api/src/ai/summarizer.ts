@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LanguageMode, EmojiUsageLevel, VoiceExample, AgentGender } from '@wavi/shared';
+import type { LanguageMode, EmojiUsageLevel, VoiceExample, AgentGender, HumorDNA } from '@wavi/shared';
 import { synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -15,6 +15,7 @@ export type SynthesizedCharacter = {
   opinions: string[];
   signature_behavior: string;
   agent_gender?: AgentGender;
+  humor_dna?: HumorDNA;
   sliders: {
     formality: number;
     humor: number;
@@ -85,6 +86,13 @@ OPINION RULES — this is the most important part:
 - Bad example: "Good food is important" — too vague
 - Bad example: "Planning is fun" — not an opinion, not specific
 
+HUMOR DNA — equally important:
+- style: identify the DOMINANT humor mode of this group from the actual messages (sarcastic, absurdist, self-deprecating, dad-jokes, dry, or none if the group is serious)
+- recurring_bits: specific phrases, callback jokes, or running gags that came up multiple times — pulled from actual history, not invented
+- inside_references: dynamics or situations the group references for humor (e.g. "always blames Dan when plans fail", "the trip to Eilat always comes up")
+- example: quote or reconstruct ONE moment from history that got a big reaction — be specific (who said what)
+If the history doesn't have clear humor patterns, it's fine to return minimal/empty arrays and "none" for style. Don't invent.
+
 Respond in valid JSON only (no markdown, no explanation):
 {
   "voice": "2-3 sentence description of how this character talks and their personality — include one concrete speech habit or verbal tic",
@@ -98,6 +106,12 @@ Respond in valid JSON only (no markdown, no explanation):
     "assertiveness": <0-100>,
     "empathy": <0-100>,
     "emoji_usage": "none|low|medium|high"
+  },
+  "humor_dna": {
+    "style": "<one of: sarcastic|absurdist|self-deprecating|dad-jokes|dry|none>",
+    "recurring_bits": ["<a phrase or joke pattern that repeats in this group>", "<another bit>"],
+    "inside_references": ["<a group-specific reference or callback>", "<another>"],
+    "example": "<ONE concrete example of something that made the group laugh — from their history>"
   },
   "examples": [
     { "user": "<realistic message based on what this group actually talks about>", "agent": "<in-character reply that shows the voice, not just agrees>" },

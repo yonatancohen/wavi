@@ -27,6 +27,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const webSearchBlock = buildWebSearchBlock(ctx);
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled);
   const examplesBlock = buildVoiceExamplesBlock(ctx);
+  const humorDnaBlock = buildHumorDnaBlock(ctx);
 
   return `
 <identity>
@@ -49,6 +50,8 @@ ${c.opinions.map((o, i) => `${i + 1}. ${o}`).join('\n')}
 </character>
 
 ${examplesBlock ? `<voice_examples>\n${examplesBlock}\n</voice_examples>` : ''}
+
+${humorDnaBlock ? `<humor_dna>\n${humorDnaBlock}\n</humor_dna>` : ''}
 
 <personality>
 BLOCK 4 — PERSONALITY
@@ -260,6 +263,25 @@ function buildVoiceExamplesBlock(ctx: PromptContext): string {
     .join('\n\n');
   return `BLOCK — HOW YOU SOUND (match this style exactly)
 ${lines}`;
+}
+
+function buildHumorDnaBlock(ctx: PromptContext): string {
+  const dna = ctx.character_config?.humor_dna;
+  if (!dna) return '';
+
+  const bits = dna.recurring_bits?.length ? dna.recurring_bits.join(', ') : null;
+  const refs = dna.inside_references?.length ? dna.inside_references.join(', ') : null;
+
+  if (!bits && !refs && !dna.example) return '';
+
+  const lines: string[] = [`BLOCK — HUMOR FINGERPRINT (use this to actually be funny, not just generically humorous)`];
+  if (dna.style && dna.style !== 'none') lines.push(`This group's humor runs on: ${dna.style}`);
+  if (bits) lines.push(`Bits and patterns that land: ${bits}`);
+  if (refs) lines.push(`Group-specific callbacks to reference: ${refs}`);
+  if (dna.example) lines.push(`Example of what made them laugh: "${dna.example}"`);
+  lines.push(`When being funny: draw on these patterns. Don't invent generic jokes — use what you know works here.`);
+
+  return lines.join('\n');
 }
 
 function buildWebSearchBlock(ctx: PromptContext): string {
