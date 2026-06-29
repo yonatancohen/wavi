@@ -31,9 +31,15 @@ const app = createApp(App);
 app.use(i18n).use(pinia).use(router);
 
 app.config.errorHandler = (err, instance, info) => {
-  console.error('[Vue] Unhandled error:', err);
-  console.error('[Vue] Component:', instance?.$options?.name ?? instance?.$.type?.name ?? 'unknown');
-  console.error('[Vue] Info:', info);
+  const msg = err instanceof Error ? err.message : String(err);
+  const comp = (instance?.$.type as { __name?: string; name?: string })?.__name ?? (instance?.$.type as { name?: string })?.name ?? 'unknown';
+  console.error('[Vue] Unhandled error:', err, '| component:', comp, '| info:', info);
+  // Store for in-app display
+  try {
+    localStorage.setItem('wavi-vue-error', JSON.stringify({ msg, comp, info, stack: err instanceof Error ? err.stack : undefined, time: Date.now() }));
+  } catch {
+    // ignore storage errors
+  }
 };
 
 async function bootstrap() {

@@ -173,6 +173,18 @@
 
   <GroupSearchPalette :open="paletteOpen" @close="paletteOpen = false" />
   <ConfirmDialog />
+
+  <!-- Debug error banner — visible on mobile, auto-clears after read -->
+  <Teleport to="body">
+    <div v-if="vueError" class="fixed inset-x-0 bottom-20 z-[9999] mx-3 rounded-xl border border-error/30 bg-error/10 p-3 text-[11px] text-error shadow-lg lg:bottom-4" style="word-break: break-all">
+      <div class="mb-1 flex items-center justify-between gap-2">
+        <strong>Vue error ({{ vueError.comp }})</strong>
+        <button class="underline" @click="clearVueError">dismiss</button>
+      </div>
+      <div>{{ vueError.msg }}</div>
+      <div class="mt-1 text-on-surface-variant/70">{{ vueError.info }}</div>
+    </div>
+  </Teleport>
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
@@ -213,6 +225,30 @@ const { locale, toggleLocale } = useLocale();
 const settingsOpen = ref(false);
 const navMenuOpen = ref(false);
 const paletteOpen = ref(false);
+
+interface VueErrorInfo {
+  msg: string;
+  comp: string;
+  info: string;
+  time: number;
+}
+const vueError = ref<VueErrorInfo | null>(null);
+
+function loadVueError() {
+  try {
+    const raw = localStorage.getItem('wavi-vue-error');
+    if (raw) vueError.value = JSON.parse(raw) as VueErrorInfo;
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearVueError() {
+  vueError.value = null;
+  localStorage.removeItem('wavi-vue-error');
+}
+
+onMounted(loadVueError);
 
 const isLoginRoute = computed(() => route.path === '/login');
 const showLoginPage = computed(() => isLoginRoute.value && !isAuthenticated.value);
