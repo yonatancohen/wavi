@@ -112,6 +112,18 @@ export interface VoiceExample {
   agent: string; // how Wavi replies — in character, correct length, right language
 }
 
+/** The group's specific humor fingerprint — extracted during character synthesis. */
+export interface HumorDNA {
+  /** Primary style: how the group is funny */
+  style: HumorType;
+  /** 2-3 recurring phrases, bits, or patterns that land well in this group */
+  recurring_bits: string[];
+  /** Group-specific references, callbacks, or inside dynamics used for humor */
+  inside_references: string[];
+  /** One concrete example from history showing what humor lands in this group */
+  example: string;
+}
+
 export interface CharacterConfig {
   voice: string; // 2-3 sentence voice description
   opinions: string[]; // 3-5 opinions on group-relevant topics
@@ -123,6 +135,8 @@ export interface CharacterConfig {
   examples?: VoiceExample[]; // 2-3 few-shot exchanges synthesized from group history
   /** Grammatical gender inferred from group context — drives Hebrew verb/adjective agreement. */
   agent_gender?: AgentGender;
+  /** The group's humor fingerprint — derived from history, drives in-character jokes. */
+  humor_dna?: HumorDNA;
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
