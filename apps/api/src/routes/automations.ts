@@ -35,14 +35,28 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
       return data;
     }
 
-    // Singleton types: upsert by group_id+type
+    // Singleton types (silence_nudge, daily_digest): find existing row then update or insert.
+    // We avoid onConflict because the partial unique index (idx_automations_singleton) may not
+    // be recognised by PostgREST's upsert by column names after the constraint rename.
+    const { data: existing } = await db.from('group_automations').select('id').eq('group_id', group_id).eq('type', type).maybeSingle().throwOnError();
+
+    if (existing?.id) {
+      const { data } = await db
+        .from('group_automations')
+        .update({ label: label ?? null, enabled, config, next_fire_at })
+        .eq('id', existing.id)
+        .select()
+        .single()
+        .throwOnError();
+      return data;
+    }
+
     const { data } = await db
       .from('group_automations')
-      .upsert({ group_id, type, label: label ?? null, enabled, config, next_fire_at }, { onConflict: 'group_id,type' })
+      .insert({ group_id, type, label: label ?? null, enabled, config, next_fire_at })
       .select()
       .single()
       .throwOnError();
-
     return data;
   });
 

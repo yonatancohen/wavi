@@ -423,8 +423,15 @@ async function load() {
   loadError.value = null;
   scheduledPosts.value = [];
   try {
-    const data = (await apiFetch<GroupAutomation[]>(`/automations?group_id=${props.group.id}`)) ?? [];
-    data.forEach(applyAutomation);
+    const raw = await apiFetch<GroupAutomation[] | null>(`/automations?group_id=${props.group.id}`);
+    const data = Array.isArray(raw) ? raw : [];
+    for (const item of data) {
+      try {
+        applyAutomation(item);
+      } catch {
+        // skip malformed rows
+      }
+    }
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : t('automations.failedLoad');
   } finally {
