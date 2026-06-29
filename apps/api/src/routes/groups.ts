@@ -430,6 +430,24 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       } satisfies TestReplyResponse;
     }
 
+    const { resolveGroupCommand } = await import('../lib/command-resolver.js');
+    const { data: groupForLang } = await db.from('groups').select('language_mode').eq('id', group.id).maybeSingle();
+    const cmdResult = await resolveGroupCommand({
+      groupId: group.id,
+      senderWaId,
+      senderName,
+      body: message,
+      languageMode: (groupForLang?.language_mode as LanguageMode) ?? 'he',
+    });
+    if (cmdResult.handled) {
+      return {
+        reply: cmdResult.reply,
+        latency_ms: Date.now() - startTime,
+        prompt_tokens: 0,
+        completion_tokens: 0,
+      } satisfies TestReplyResponse;
+    }
+
     const { replyText, imagePrompt, imageCaption, inputTokens, outputTokens } = await generateReplyText({
       groupId: req.params.id,
       senderWaId,
