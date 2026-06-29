@@ -339,7 +339,6 @@ async function isAgentOnlyLoop(groupId: string): Promise<boolean> {
   return recent.every((m) => m.is_agent_reply);
 }
 
-
 /** @wavi alias "My Love" is Alon  |  @wavi כינוי "אמא" זה Sarah */
 function detectAliasCommand(body: string): { alias: string; person: string } | null {
   const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();

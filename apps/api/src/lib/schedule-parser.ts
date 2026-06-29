@@ -59,74 +59,78 @@ function parseDayOfWeek(raw: string): number | null {
 const DAY_NAMES_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const DAY_NAMES_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// Find time anywhere in the string.
+// Accepts: "ב-18:00", "בשעה 21:00", "ב18:00", "at 6pm", "at 18:00", bare "21:00"
+function findTime(text: string): string | null {
+  // "בשעה 21:00" or "בשעה 21" (Hebrew "at hour")
+  const heShaa = text.match(/בשעה\s+(\d{1,2}[:.]\d{2}|\d{1,2}\s*(?:am|pm)|\d{1,2})/i);
+  if (heShaa) return parseTime(heShaa[1].trim());
+
+  // "ב-18:00" or "ב18:00" or "ב-18"
+  const heBet = text.match(/ב-?(\d{1,2}[:.]\d{2}|\d{1,2}\s*(?:am|pm))/i);
+  if (heBet) return parseTime(heBet[1].trim());
+
+  // "at 6pm" or "at 18:00"
+  const enAt = text.match(/\bat\s+(\d{1,2}[:.]\d{2}|\d{1,2}\s*(?:am|pm))/i);
+  if (enAt) return parseTime(enAt[1].trim());
+
+  // Bare time like "21:00" anywhere
+  const bare = text.match(/\b(\d{1,2}:\d{2})\b/);
+  if (bare) return parseTime(bare[1]);
+
+  return null;
+}
+
+// Extract the human-readable label/template: strip trigger words, day tokens, and time tokens.
+function extractLabel(text: string): string {
+  return text
+    .replace(/^(?:תקבע|תזכיר|תשלח|שלח|schedule|remind|post)\s+/i, '')
+    .replace(/כל\s+יום\s+(?:ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת)/gi, '')
+    .replace(/כל\s+(?:ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת)/gi, '')
+    .replace(/every\s+(?:day|sunday|monday|tuesday|wednesday|thursday|friday|saturday)/gi, '')
+    .replace(/כל\s+יום/gi, '')
+    .replace(/בשעה\s+\d{1,2}[:.]\d{2}/gi, '')
+    .replace(/בשעה\s+\d{1,2}/gi, '')
+    .replace(/ב-?\d{1,2}[:.]\d{2}/gi, '')
+    .replace(/\bat\s+\d{1,2}[:.]\d{2}/gi, '')
+    .replace(/\bat\s+\d{1,2}\s*(?:am|pm)/gi, '')
+    .replace(/\b\d{1,2}:\d{2}\b/g, '')
+    .replace(/[.,،]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function parseScheduleCommand(body: string, agentName: string): ParsedSchedule | null {
   const stripped = body.replace(new RegExp(`@${agentName}`, 'gi'), '').trim();
 
-  const heWeekly = stripped.match(/^(?:תקבע|תזכיר|תשלח|שלח)\s+כל\s+(\S+)\s+ב-?([\d:.]+(?:am|pm)?)\s*(.*)$/i);
-  const enWeekly = stripped.match(/^(?:schedule|remind|post)\s+every\s+(\w+)\s+at\s+([\d:.]+(?:am|pm)?)\s*(.*)$/i);
+  const isHe = /^(?:תקבע|תזכיר|תשלח|שלח)(?:\s|$)/.test(stripped);
+  const isEn = /^(?:schedule|remind|post)\b/i.test(stripped);
+  if (!isHe && !isEn) return null;
 
-  const heDaily = stripped.match(/^(?:תקבע|תזכיר|תשלח|שלח)\s+כל\s+יום\s+ב-?([\d:.]+(?:am|pm)?)\s*(.*)$/i);
-  const enDaily = stripped.match(/^(?:schedule|remind|post)\s+every\s+day\s+at\s+([\d:.]+(?:am|pm)?)\s*(.*)$/i);
+  const time = findTime(stripped);
+  if (!time) return null;
 
-  if (heWeekly) {
-    const dayNum = parseDayOfWeek(heWeekly[1]);
-    const time = parseTime(heWeekly[2]);
-    if (dayNum === null || !time) return null;
-    const template = heWeekly[3].trim() || undefined;
-    const config: ScheduledPostConfig = {
-      frequency: 'weekly',
-      weekday: dayNum,
-      time,
-      timezone: TIMEZONE,
-      ...(template ? { template } : {}),
-    };
-    const dayName = DAY_NAMES_HE[dayNum] ?? heWeekly[1];
-    return { config, label: `כל יום ${dayName} ב-${time}${template ? ` — "${template}"` : ''}` };
-  }
+  // Daily: "כל יום" or "every day"
+  const isDaily = /כל\s+יום/.test(stripped) || /every\s+day/i.test(stripped);
 
-  if (enWeekly) {
-    const dayNum = parseDayOfWeek(enWeekly[1]);
-    const time = parseTime(enWeekly[2]);
-    if (dayNum === null || !time) return null;
-    const template = enWeekly[3].trim() || undefined;
-    const config: ScheduledPostConfig = {
-      frequency: 'weekly',
-      weekday: dayNum,
-      time,
-      timezone: TIMEZONE,
-      ...(template ? { template } : {}),
-    };
-    const dayName = DAY_NAMES_EN[dayNum] ?? enWeekly[1];
-    return { config, label: `Every ${dayName} at ${time}${template ? ` — "${template}"` : ''}` };
-  }
-
-  if (heDaily) {
-    const time = parseTime(heDaily[1]);
-    if (!time) return null;
-    const template = heDaily[2].trim() || undefined;
-    const config: ScheduledPostConfig = {
-      frequency: 'daily',
-      time,
-      timezone: TIMEZONE,
-      ...(template ? { template } : {}),
-    };
+  if (isDaily) {
+    const template = extractLabel(stripped) || undefined;
+    const config: ScheduledPostConfig = { frequency: 'daily', time, timezone: TIMEZONE, ...(template ? { template } : {}) };
     return { config, label: `כל יום ב-${time}${template ? ` — "${template}"` : ''}` };
   }
 
-  if (enDaily) {
-    const time = parseTime(enDaily[1]);
-    if (!time) return null;
-    const template = enDaily[2].trim() || undefined;
-    const config: ScheduledPostConfig = {
-      frequency: 'daily',
-      time,
-      timezone: TIMEZONE,
-      ...(template ? { template } : {}),
-    };
-    return { config, label: `Every day at ${time}${template ? ` — "${template}"` : ''}` };
-  }
+  // Weekly: find the day name
+  const heDayMatch = stripped.match(/כל\s+(\S+)/);
+  const enDayMatch = stripped.match(/every\s+(\w+)/i);
+  const rawDay = heDayMatch?.[1] ?? enDayMatch?.[1] ?? '';
+  const dayNum = parseDayOfWeek(rawDay);
+  if (dayNum === null) return null;
 
-  return null;
+  const template = extractLabel(stripped) || undefined;
+  const config: ScheduledPostConfig = { frequency: 'weekly', weekday: dayNum, time, timezone: TIMEZONE, ...(template ? { template } : {}) };
+  const dayName = isHe ? (DAY_NAMES_HE[dayNum] ?? rawDay) : (DAY_NAMES_EN[dayNum] ?? rawDay);
+  const prefix = isHe ? 'כל יום' : 'Every';
+  return { config, label: `${prefix} ${dayName} ב-${time}${template ? ` — "${template}"` : ''}` };
 }
 
 export function detectScheduleCommand(body: string, agentName: string): boolean {
