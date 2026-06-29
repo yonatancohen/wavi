@@ -30,6 +30,12 @@ const app = createApp(App);
 
 app.use(i18n).use(pinia).use(router);
 
+app.config.errorHandler = (err, instance, info) => {
+  console.error('[Vue] Unhandled error:', err);
+  console.error('[Vue] Component:', instance?.$options?.name ?? instance?.$.type?.name ?? 'unknown');
+  console.error('[Vue] Info:', info);
+};
+
 async function bootstrap() {
   await useAuthStore(pinia).init();
   app.mount('#app');
