@@ -59,7 +59,7 @@
             <button
               type="button"
               class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
-              :disabled="silenceNudge.triggering || !group.status?.startsWith('active')"
+              :disabled="silenceNudge.triggering || !group?.status?.startsWith('active')"
               @click="triggerSingletonAutomation('silence_nudge')"
             >
               <span v-if="silenceNudge.triggering" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
@@ -140,7 +140,7 @@
             <button
               type="button"
               class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
-              :disabled="dailyDigest.triggering || !group.status?.startsWith('active')"
+              :disabled="dailyDigest.triggering || !group?.status?.startsWith('active')"
               @click="triggerSingletonAutomation('daily_digest')"
             >
               <span v-if="dailyDigest.triggering" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
@@ -182,7 +182,7 @@
                 <button
                   type="button"
                   class="btn btn-secondary flex items-center gap-1 text-[11px]"
-                  :disabled="post.triggering || !group.status?.startsWith('active')"
+                  :disabled="post.triggering || !group?.status?.startsWith('active')"
                   @click="triggerScheduledPost(post)"
                 >
                   <span v-if="post.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
@@ -433,6 +433,7 @@ async function load() {
       }
     }
   } catch (e) {
+    console.error('[AutomationsSection] load failed:', e);
     loadError.value = e instanceof Error ? e.message : t('automations.failedLoad');
   } finally {
     loading.value = false;
