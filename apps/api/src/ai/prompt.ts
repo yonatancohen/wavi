@@ -75,7 +75,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 // ── Layer 1 + 3: Structured Postgres fetch ────────────────────
 
 async function fetchStructuredContext(groupId: string, senderWaId: string) {
-  const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult] = await Promise.all([
+  const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult, eventsResult] = await Promise.all([
     db.from('groups').select('name, character_config, language_mode, web_search_enabled, image_generation_enabled').eq('id', groupId).single(),
 
     db.from('user_profiles').select('*').eq('group_id', groupId).eq('wa_user_id', senderWaId).single(),
@@ -91,7 +91,17 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
       .select('id, group_id, sender_wa_id, sender_name, body, is_agent_reply, flagged_miss, timestamp, created_at')
       .eq('group_id', groupId)
       .order('timestamp', { ascending: false })
-      .limit(20),
+      .limit(50),
+
+    db
+      .from('group_automations')
+      .select('type, config, next_fire_at')
+      .eq('group_id', groupId)
+      .eq('enabled', true)
+      .eq('type', 'scheduled_post')
+      .not('next_fire_at', 'is', null)
+      .order('next_fire_at', { ascending: true })
+      .limit(3),
   ]);
 
   return {
@@ -105,6 +115,11 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     group_memories: memoriesResult.data ?? [],
     group_context_summary: contextResult.data?.summary_text ?? '',
     recent_messages: (messagesResult.data ?? []).reverse(),
+    upcoming_events: ((eventsResult.data ?? []) as Array<{ type: string; config: { template?: string; frequency?: string }; next_fire_at: string }>).map((a) => ({
+      label: a.config?.template ?? 'scheduled post',
+      next_fire_at: a.next_fire_at,
+      frequency: a.config?.frequency ?? 'weekly',
+    })),
   };
 }
 

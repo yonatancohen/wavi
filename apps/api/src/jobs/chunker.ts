@@ -74,6 +74,18 @@ export async function flushChunkBuffer(groupId: string) {
 
     await maybeGenerateEpisodeSummary(groupId, messages.length);
     queueLiveReProfiling(groupId, messages);
+
+    // Incremental relationship update — detached, non-blocking
+    setImmediate(() => {
+      import('../ai/relationships.js')
+        .then(({ updateRelationshipsIncremental }) =>
+          updateRelationshipsIncremental(
+            groupId,
+            messages.map((m) => ({ ...m })),
+          ),
+        )
+        .catch((err) => console.error('[Chunker] Incremental relationship update failed:', err));
+    });
   } finally {
     await redis.del(lockKey);
   }
@@ -128,6 +140,20 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
       .then(({ maybeDriftCharacter, maybeCaptureExamples }) => Promise.all([maybeDriftCharacter(groupId), maybeCaptureExamples(groupId)]))
       .catch((err) => console.error('[Chunker] Character drift/examples failed:', err));
   });
+
+  // Every 500 messages: trigger full character re-synthesis if not locked
+  if (Math.floor(count / 500) > Math.floor(prevCount / 500)) {
+    setImmediate(() => {
+      import('../ai/character-synthesis.js')
+        .then(async ({ synthesizeCharacterForGroup }) => {
+          const { data: g } = await db.from('groups').select('character_locked').eq('id', groupId).single();
+          if (g?.character_locked) return;
+          await synthesizeCharacterForGroup(groupId);
+          console.log(`[Chunker] Full character re-synthesis at ${count} messages for group ${groupId}`);
+        })
+        .catch((err) => console.error('[Chunker] Character re-synthesis failed:', err));
+    });
+  }
 }
 
 async function maybeGenerateGroupContext(groupId: string) {

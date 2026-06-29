@@ -27,6 +27,8 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const webSearchBlock = buildWebSearchBlock(ctx);
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled);
   const examplesBlock = buildVoiceExamplesBlock(ctx);
+  const humorDnaBlock = buildHumorDnaBlock(ctx);
+  const upcomingEventsBlock = buildUpcomingEventsBlock(ctx);
 
   return `
 <identity>
@@ -50,6 +52,8 @@ ${c.opinions.map((o, i) => `${i + 1}. ${o}`).join('\n')}
 
 ${examplesBlock ? `<voice_examples>\n${examplesBlock}\n</voice_examples>` : ''}
 
+${humorDnaBlock ? `<humor_dna>\n${humorDnaBlock}\n</humor_dna>` : ''}
+
 <personality>
 BLOCK 4 — PERSONALITY
 Formality: ${sliders.formality}/100 (${sliders.formality < 30 ? 'very casual' : sliders.formality > 70 ? 'formal' : 'balanced'})
@@ -64,6 +68,8 @@ Emoji usage: ${emojiUsage} (${emojiUsagePromptHint(emojiUsage)})
 BLOCK 5 — GROUP CONTEXT
 ${ctx.group_context_summary || 'No group context available yet.'}
 </group_context>
+
+${upcomingEventsBlock ? `<upcoming_events>\n${upcomingEventsBlock}\n</upcoming_events>` : ''}
 
 <sender_profile>
 BLOCK 6 — SENDER PROFILE
@@ -260,6 +266,43 @@ function buildVoiceExamplesBlock(ctx: PromptContext): string {
     .join('\n\n');
   return `BLOCK — HOW YOU SOUND (match this style exactly)
 ${lines}`;
+}
+
+function buildHumorDnaBlock(ctx: PromptContext): string {
+  const dna = ctx.character_config?.humor_dna;
+  if (!dna) return '';
+
+  const bits = dna.recurring_bits?.length ? dna.recurring_bits.join(', ') : null;
+  const refs = dna.inside_references?.length ? dna.inside_references.join(', ') : null;
+
+  if (!bits && !refs && !dna.example) return '';
+
+  const lines: string[] = [`BLOCK — HUMOR FINGERPRINT (use this to actually be funny, not just generically humorous)`];
+  if (dna.style && dna.style !== 'none') lines.push(`This group's humor runs on: ${dna.style}`);
+  if (bits) lines.push(`Bits and patterns that land: ${bits}`);
+  if (refs) lines.push(`Group-specific callbacks to reference: ${refs}`);
+  if (dna.example) lines.push(`Example of what made them laugh: "${dna.example}"`);
+  lines.push(`When being funny: draw on these patterns. Don't invent generic jokes — use what you know works here.`);
+
+  return lines.join('\n');
+}
+
+function buildUpcomingEventsBlock(ctx: PromptContext): string {
+  if (!ctx.upcoming_events?.length) return '';
+
+  const lines = ctx.upcoming_events.map((e) => {
+    const when = new Date(e.next_fire_at).toLocaleString('he-IL', {
+      timeZone: GROUP_TIMEZONE,
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `• ${e.label} — ${when}`;
+  });
+
+  return `BLOCK — UPCOMING SCHEDULED EVENTS
+The following recurring events are scheduled for this group. Reference them naturally in conversation when relevant — don't announce them unprompted unless directly asked:
+${lines.join('\n')}`;
 }
 
 function buildWebSearchBlock(ctx: PromptContext): string {

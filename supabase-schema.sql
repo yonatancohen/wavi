@@ -292,3 +292,20 @@ CREATE INDEX idx_automations_due ON group_automations (next_fire_at)
 ALTER PUBLICATION supabase_realtime ADD TABLE replies;
 ALTER PUBLICATION supabase_realtime ADD TABLE groups;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+
+-- ── Export history persistence ────────────────────────────────────────────────
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_from_export boolean DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_messages_export ON messages (group_id, is_from_export) WHERE is_from_export = true;
+
+-- ── Rotation tracker (who brought what) ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rotation_log (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id       uuid REFERENCES groups(id) ON DELETE CASCADE,
+  item           text NOT NULL,
+  person_wa_id   text NOT NULL,
+  person_name    text NOT NULL,
+  added_by_wa_id text,
+  brought_at     timestamptz DEFAULT now(),
+  created_at     timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_rotation_group_item ON rotation_log (group_id, item, brought_at DESC);

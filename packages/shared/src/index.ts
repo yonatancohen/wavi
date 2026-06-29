@@ -112,6 +112,18 @@ export interface VoiceExample {
   agent: string; // how Wavi replies — in character, correct length, right language
 }
 
+/** The group's specific humor fingerprint — extracted during character synthesis. */
+export interface HumorDNA {
+  /** Primary style: how the group is funny */
+  style: HumorType;
+  /** 2-3 recurring phrases, bits, or patterns that land well in this group */
+  recurring_bits: string[];
+  /** Group-specific references, callbacks, or inside dynamics used for humor */
+  inside_references: string[];
+  /** One concrete example from history showing what humor lands in this group */
+  example: string;
+}
+
 export interface CharacterConfig {
   voice: string; // 2-3 sentence voice description
   opinions: string[]; // 3-5 opinions on group-relevant topics
@@ -123,6 +135,8 @@ export interface CharacterConfig {
   examples?: VoiceExample[]; // 2-3 few-shot exchanges synthesized from group history
   /** Grammatical gender inferred from group context — drives Hebrew verb/adjective agreement. */
   agent_gender?: AgentGender;
+  /** The group's humor fingerprint — derived from history, drives in-character jokes. */
+  humor_dna?: HumorDNA;
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
@@ -571,6 +585,8 @@ export interface PromptContext {
   web_search_enabled: boolean;
   web_search?: WebSearchContext | null;
   image_generation_enabled: boolean;
+  /** Upcoming scheduled events/posts for this group — used for natural event awareness. */
+  upcoming_events?: UpcomingEvent[];
 }
 
 // ── Reminders ────────────────────────────────────────────────
@@ -677,4 +693,11 @@ export interface GroupAutomation {
   last_fired_at: string | null;
   next_fire_at: string | null;
   created_at: string;
+}
+
+/** A scheduled automation that Wavi should be aware of in conversation. */
+export interface UpcomingEvent {
+  label: string;
+  next_fire_at: string;
+  frequency: string;
 }
