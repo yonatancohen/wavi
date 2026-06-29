@@ -44,6 +44,7 @@ async function purgeDerivedIntelligence(groupId: string, includeChunks: boolean)
     db.from('user_profiles').delete().eq('group_id', groupId),
     db.from('relationship_map').delete().eq('group_id', groupId),
     db.from('group_contexts').delete().eq('group_id', groupId),
+    db.from('messages').delete().eq('group_id', groupId).eq('is_from_export', true),
   ];
   if (includeChunks) {
     deletes.unshift(db.from('message_chunks').delete().eq('group_id', groupId));
@@ -57,6 +58,7 @@ async function purgeMergeDerivedData(groupId: string) {
     db.from('message_chunks').delete().eq('group_id', groupId),
     db.from('episode_summaries').delete().eq('group_id', groupId),
     db.from('group_contexts').delete().eq('group_id', groupId),
+    db.from('messages').delete().eq('group_id', groupId).eq('is_from_export', true),
   ]);
 }
 
@@ -201,6 +203,32 @@ function resolveIngestionMode(options?: IngestionOptions): IngestionMode {
   return options?.mode === 'full_reset' ? 'full_reset' : 'merge';
 }
 
+async function persistExportMessages(groupId: string, messages: ResolvedExportMessage[]) {
+  const toInsert = messages.filter((m) => !m.is_system_message && !m.is_media_omitted && m.body?.trim()).slice(-500);
+
+  if (toInsert.length === 0) return;
+
+  // Idempotent: remove previous export rows before re-inserting
+  await db.from('messages').delete().eq('group_id', groupId).eq('is_from_export', true);
+
+  const BATCH = 100;
+  for (let i = 0; i < toInsert.length; i += BATCH) {
+    const batch = toInsert.slice(i, i + BATCH);
+    const rows = batch.map((m) => ({
+      group_id: groupId,
+      sender_wa_id: m.sender_wa_id ?? m.sender_name,
+      sender_name: m.sender_name,
+      body: m.body,
+      is_agent_reply: false,
+      is_from_export: true,
+      timestamp: m.timestamp.toISOString(),
+    }));
+    // is_from_export is not yet reflected in generated Supabase types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await db.from('messages').insert(rows as any);
+  }
+}
+
 export async function runIngestionFromExport(groupId: string, raw: string, supplementalRaw?: string, options?: IngestionOptions) {
   const mode = resolveIngestionMode(options);
   try {
@@ -219,6 +247,7 @@ export async function runIngestionFromExport(groupId: string, raw: string, suppl
     const chunksEmbedded = await embedMessageChunks(groupId, realMessages, languageMode, setProgress);
 
     await runIntelligenceStages(groupId, realMessages, languageMode, chunksEmbedded, mode);
+    await persistExportMessages(groupId, realMessages);
   } catch (err: unknown) {
     console.error('[Ingest] Error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';

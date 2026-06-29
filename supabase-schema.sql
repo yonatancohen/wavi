@@ -292,3 +292,7 @@ CREATE INDEX idx_automations_due ON group_automations (next_fire_at)
 ALTER PUBLICATION supabase_realtime ADD TABLE replies;
 ALTER PUBLICATION supabase_realtime ADD TABLE groups;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+
+-- ── Export history persistence (added for history context feature) ────────────
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_from_export boolean DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_messages_export ON messages (group_id, is_from_export) WHERE is_from_export = true;

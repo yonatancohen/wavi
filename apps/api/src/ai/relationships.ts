@@ -247,6 +247,114 @@ export async function buildRelationshipMap(
   }
 }
 
+/**
+ * Incrementally update relationship signals from a small live chunk (50 msgs).
+ * Does NOT do a full rebuild — merges new signals into existing DB rows.
+ * Called after every chunk flush in the live message pipeline.
+ */
+export async function updateRelationshipsIncremental(groupId: string, messages: Array<{ sender_wa_id: string; sender_name: string; body: string; timestamp: string }>): Promise<void> {
+  if (messages.length < 2) return;
+
+  const memberMap = new Map<string, { waId: string; displayName: string }>();
+  for (const m of messages) {
+    if (!memberMap.has(m.sender_wa_id)) {
+      memberMap.set(m.sender_wa_id, { waId: m.sender_wa_id, displayName: m.sender_name });
+    }
+  }
+
+  if (memberMap.size < 2) return;
+
+  interface IncrementalPair {
+    userA: string;
+    userB: string;
+    nameA: string;
+    nameB: string;
+    reply_count_a_to_b: number;
+    reply_count_b_to_a: number;
+    agreement_count: number;
+    disagreement_count: number;
+    defense_count: number;
+  }
+
+  const pairSignals = new Map<string, IncrementalPair>();
+
+  for (let i = 0; i < messages.length; i++) {
+    const curr = messages[i];
+    const currTime = new Date(curr.timestamp).getTime();
+
+    for (let j = Math.max(0, i - 5); j < i; j++) {
+      const prev = messages[j];
+      const prevTime = new Date(prev.timestamp).getTime();
+      if (curr.sender_wa_id === prev.sender_wa_id) continue;
+      if (currTime - prevTime > PROXIMITY_MS) continue;
+
+      const [uA, uB] = curr.sender_wa_id < prev.sender_wa_id ? [curr.sender_wa_id, prev.sender_wa_id] : [prev.sender_wa_id, curr.sender_wa_id];
+      const [nA, nB] = curr.sender_wa_id < prev.sender_wa_id ? [curr.sender_name, prev.sender_name] : [prev.sender_name, curr.sender_name];
+
+      const key = `${uA}|${uB}`;
+      if (!pairSignals.has(key)) {
+        pairSignals.set(key, {
+          userA: uA,
+          userB: uB,
+          nameA: nA,
+          nameB: nB,
+          reply_count_a_to_b: 0,
+          reply_count_b_to_a: 0,
+          agreement_count: 0,
+          disagreement_count: 0,
+          defense_count: 0,
+        });
+      }
+      const ps = pairSignals.get(key)!;
+
+      if (curr.sender_wa_id === uA) ps.reply_count_a_to_b++;
+      else ps.reply_count_b_to_a++;
+
+      const lower = curr.body.toLowerCase();
+      if (AGREEMENT_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()))) ps.agreement_count++;
+      if (DISAGREEMENT_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()))) ps.disagreement_count++;
+    }
+  }
+
+  if (pairSignals.size === 0) return;
+
+  for (const [_key, ps] of pairSignals) {
+    const { data: existing } = await db.from('relationship_map').select('*').eq('group_id', groupId).eq('user_a_wa_id', ps.userA).eq('user_b_wa_id', ps.userB).maybeSingle();
+
+    const prev = (existing?.signals as RelationshipSignals | null) ?? null;
+    const mergedSignals: RelationshipSignals = {
+      reply_count_a_to_b: (prev?.reply_count_a_to_b ?? 0) + ps.reply_count_a_to_b,
+      reply_count_b_to_a: (prev?.reply_count_b_to_a ?? 0) + ps.reply_count_b_to_a,
+      agreement_count: (prev?.agreement_count ?? 0) + ps.agreement_count,
+      disagreement_count: (prev?.disagreement_count ?? 0) + ps.disagreement_count,
+      defense_count: (prev?.defense_count ?? 0) + ps.defense_count,
+      ...(prev?.curation ? { curation: prev.curation } : {}),
+    };
+
+    const totalInteractions = mergedSignals.reply_count_a_to_b + mergedSignals.reply_count_b_to_a;
+    const interaction_score = Math.min(1, totalInteractions / 50);
+    const conflict_score = Math.min(1, mergedSignals.disagreement_count / 10);
+    const solidarity_score = Math.min(1, (mergedSignals.agreement_count + mergedSignals.defense_count) / 10);
+
+    await db.from('relationship_map').upsert(
+      {
+        group_id: groupId,
+        user_a_wa_id: ps.userA,
+        user_b_wa_id: ps.userB,
+        user_a_name: ps.nameA,
+        user_b_name: ps.nameB,
+        interaction_score,
+        conflict_score,
+        solidarity_score,
+        signals: mergedSignals,
+        narrative: existing?.narrative ?? '',
+        last_updated: new Date().toISOString(),
+      },
+      { onConflict: 'group_id,user_a_wa_id,user_b_wa_id' },
+    );
+  }
+}
+
 async function generateNarrativesBatch(
   pairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }>,
   languageMode: LanguageMode = 'auto',
