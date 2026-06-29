@@ -24,7 +24,14 @@ function buildTriggerBody(type: AutomationType, config: SilenceNudgeConfig | Dig
       return "[system: generate a short in-character daily summary of what's been happening in the group]";
     case 'scheduled_post': {
       const tpl = (config as ScheduledPostConfig).template;
-      return tpl ? `[system: post something in-character for the group — hint: ${tpl}]` : '[system: post something in-character for the group right now]';
+      const isMeetingTemplate = tpl && /(?:מפגש|פגישה|יציאה|ביחד|meeting|meetup|hangout|gathering|dinner|lunch)/i.test(tpl);
+
+      const base = tpl ? `[system: post something in-character for the group — hint: ${tpl}]` : '[system: post something in-character for the group right now]';
+
+      if (isMeetingTemplate) {
+        return `${base}\n[Also: naturally invite RSVPs at the end — something like "מי בא?" or "מי מגיע?" — keep it casual, in-character, one short question]`;
+      }
+      return base;
     }
   }
 }
