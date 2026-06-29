@@ -91,7 +91,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
       .select('id, group_id, sender_wa_id, sender_name, body, is_agent_reply, flagged_miss, timestamp, created_at')
       .eq('group_id', groupId)
       .order('timestamp', { ascending: false })
-      .limit(20),
+      .limit(50),
   ]);
 
   return {
