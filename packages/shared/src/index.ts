@@ -688,6 +688,7 @@ export interface GroupAutomation {
   id: string;
   group_id: string;
   type: AutomationType;
+  label?: string | null;
   enabled: boolean;
   config: AutomationConfig;
   last_fired_at: string | null;

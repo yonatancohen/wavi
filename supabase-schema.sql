@@ -309,3 +309,12 @@ CREATE TABLE IF NOT EXISTS rotation_log (
   created_at     timestamptz DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_rotation_group_item ON rotation_log (group_id, item, brought_at DESC);
+
+-- ── Multiple scheduled posts per group ───────────────────────────────────────
+-- Drop the UNIQUE(group_id, type) constraint and replace with a partial one
+-- that only enforces singleton semantics for silence_nudge and daily_digest.
+ALTER TABLE group_automations ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE group_automations DROP CONSTRAINT IF EXISTS group_automations_group_id_type_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_automations_singleton
+  ON group_automations (group_id, type)
+  WHERE type IN ('silence_nudge', 'daily_digest');

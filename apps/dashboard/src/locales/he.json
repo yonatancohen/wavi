@@ -752,6 +752,13 @@
     "triggerSuccess": "נשלח: \"{preview}\"",
     "triggerFailed": "הפעלת האוטומציה נכשלה",
     "lastSent": "נשלח לאחרונה: {time}",
+    "addSchedule": "הוסף תזמון",
+    "newSchedule": "תזמון חדש",
+    "saveSchedule": "שמור",
+    "editSchedule": "ערוך",
+    "labelPlaceholder": "שם (לדוגמה: מפגש שישי)",
+    "noSchedules": "אין תזמונים עדיין — הוסף אחד למעלה או כתוב \"@wavi תקבע כל שישי ב-18:00 מפגש שישי\" בקבוצה.",
+    "deleteSchedule": "מחק",
     "weekdays": {
       "sun": "ראשון",
       "mon": "שני",
@@ -761,6 +768,9 @@
       "fri": "שישי",
       "sat": "שבת"
     }
+  },
+  "common": {
+    "cancel": "ביטול"
   },
   "welcomeMsg": {
     "sectionTitle": "הודעת פתיחה",
