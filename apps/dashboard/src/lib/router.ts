@@ -14,7 +14,11 @@ const router = createRouter({
     { path: '/dashboard', redirect: { name: 'dashboard' } },
     { path: '/', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
     { path: '/groups', name: 'groups', component: () => import('../views/GroupsView.vue') },
-    { path: '/groups/:id', name: 'group', component: () => import('../views/GroupDetailView.vue') },
+    {
+      path: '/groups/:id/:tab?',
+      name: 'group',
+      component: () => import('../views/GroupDetailView.vue'),
+    },
     { path: '/activity', name: 'activity', component: () => import('../views/ActivityView.vue') },
     { path: '/live-log', name: 'live-log', component: () => import('../views/LiveLogView.vue') },
     { path: '/reminders', name: 'reminders', component: () => import('../views/RemindersView.vue') },

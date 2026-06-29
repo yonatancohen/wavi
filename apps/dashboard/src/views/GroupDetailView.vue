@@ -183,15 +183,8 @@ import WelcomeMessageModal from '../components/WelcomeMessageModal.vue';
 import GroupDetailStatusBar from '../components/GroupDetailStatusBar.vue';
 import GroupDetailStatsGrid from '../components/GroupDetailStatsGrid.vue';
 import type { GroupWithStats } from '@wavi/shared';
-
-type GroupTab = 'setup' | 'character' | 'people' | 'dynamics' | 'messages' | 'testChat' | 'automations' | 'sync';
-
-const GROUP_TABS: GroupTab[] = ['setup', 'character', 'people', 'dynamics', 'messages', 'testChat', 'automations', 'sync'];
-
-function tabFromHash(hash: string): GroupTab {
-  const id = hash.replace(/^#/, '') as GroupTab;
-  return GROUP_TABS.includes(id) ? id : 'setup';
-}
+import { tabFromParam } from '../lib/group-tabs.js';
+import type { GroupTab } from '../lib/group-tabs.js';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -206,11 +199,11 @@ const hasIngestedData = ref(false);
 const statsExpanded = ref(false);
 const showWelcomeModal = ref(false);
 
-/** Derived from URL hash — survives refresh and is shareable. */
-const activeTab = computed(() => tabFromHash(route.hash));
+/** Derived from URL path segment — survives refresh and is shareable. */
+const activeTab = computed(() => tabFromParam(route.params.tab));
 
 function tabRoute(tab: GroupTab) {
-  return { name: 'group' as const, params: { id: route.params.id as string }, hash: `#${tab}` };
+  return { name: 'group' as const, params: { id: route.params.id as string, tab } };
 }
 
 const membersRef = ref<InstanceType<typeof MembersSection> | null>(null);
