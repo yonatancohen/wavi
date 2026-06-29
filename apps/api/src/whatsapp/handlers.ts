@@ -80,6 +80,15 @@ function isWaJid(id: string): boolean {
   return id.includes('@');
 }
 
+function detectRoastCommand(body: string): { target: string } | null {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+  const en = stripped.match(/^roast\s+(.+)$/i);
+  if (en) return { target: en[1].trim() };
+  const he = stripped.match(/^(?:תעשה\s+רוסט\s+על|רוסט\s+על)\s+(.+)$/);
+  if (he) return { target: he[1].trim() };
+  return null;
+}
+
 async function reconcileRelationshipIds(groupId: string, oldId: string, newId: string, displayName: string) {
   const { data: rows } = await db.from('relationship_map').select('*').eq('group_id', groupId).or(`user_a_wa_id.eq.${oldId},user_b_wa_id.eq.${oldId}`);
 
@@ -243,6 +252,30 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   });
   if (reminderHandled) return;
 
+  const summarizeHandled = await tryHandleSummarizeCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+  });
+  if (summarizeHandled) return;
+
+  const rotationHandled = await tryHandleRotationCommand({
+    groupId: group.id,
+    waGroupId,
+    senderWaId,
+    senderName: resolvedNameEarly,
+    body,
+    languageMode: (group.language_mode ?? 'he') as LanguageMode,
+    waMsgId: msg.waMsgId,
+    messageId: stored?.id,
+  });
+  if (rotationHandled) return;
+
   // Bot-loop protection: skip if recent turns are all agent
   if (await isAgentOnlyLoop(group.id)) {
     console.log('[WA] Skipping reply — recent turns are all agent messages');
@@ -297,6 +330,9 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     return;
   }
 
+  const roastTarget = detectRoastCommand(body);
+  const effectiveBody = roastTarget ? `[ROAST: Be funny and specific about "${roastTarget.target}" — 1-2 sentences max, use what you know about them] ${body}` : body;
+
   const { queueReplyJob } = await import('../lib/reply-queue.js');
   await queueReplyJob({
     group_id: group.id,
@@ -305,7 +341,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     message_id: stored?.id,
     sender_wa_id: senderWaId,
     sender_name: resolvedNameEarly,
-    body,
+    body: effectiveBody,
     wa_msg_id: msg.waMsgId,
     quoted_message: msg.quotedMessage
       ? {
@@ -463,12 +499,43 @@ async function tryHandleMemoryCommand(params: {
     reply = he ? `סבבה, אזכור 👍` : `Got it, I'll remember that 👍`;
   } else if (parsed.cmd === 'forget') {
     const { data: memories } = await db.from('group_memories').select('id, memory_text').eq('group_id', params.groupId);
-    const match = (memories ?? []).find((m) => m.memory_text.toLowerCase().includes(parsed.payload.toLowerCase()));
-    if (match) {
-      await db.from('group_memories').delete().eq('id', match.id);
-      reply = he ? `שכחתי ✅` : `Forgot it ✅`;
+    const memList = memories ?? [];
+
+    if (memList.length === 0) {
+      reply = he ? 'אין לי מה לשכוח' : 'Nothing to forget';
     } else {
-      reply = he ? `לא מצאתי משהו כזה לשכוח` : `Couldn't find that to forget`;
+      let match = memList.find((m) => m.memory_text.toLowerCase().includes(parsed.payload.toLowerCase()));
+
+      if (!match) {
+        try {
+          const Anthropic = (await import('@anthropic-ai/sdk')).default;
+          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const haystack = memList.map((m, i) => `${i}: ${m.memory_text}`).join('\n');
+          const resp = await anthropic.messages.create({
+            model: 'claude-haiku-4-5',
+            max_tokens: 10,
+            messages: [
+              {
+                role: 'user',
+                content: `Which memory best matches what the user wants to forget: "${parsed.payload}"\n${haystack}\nRespond with ONLY the number (0-based index). If none match well, respond with -1.`,
+              },
+            ],
+          });
+          const { recordAnthropicCall } = await import('../lib/usage-record.js');
+          await recordAnthropicCall({ type: 'synthesis', groupId: params.groupId, usage: resp.usage });
+          const idx = parseInt(resp.content[0].type === 'text' ? resp.content[0].text.trim() : '-1');
+          if (idx >= 0 && idx < memList.length) match = memList[idx];
+        } catch {
+          // fall through to "not found" if LLM fails
+        }
+      }
+
+      if (match) {
+        await db.from('group_memories').delete().eq('id', match.id);
+        reply = he ? `שכחתי ✅` : `Forgot it ✅`;
+      } else {
+        reply = he ? `לא מצאתי משהו כזה לשכוח` : `Couldn't find that to forget`;
+      }
     }
   } else {
     const { data: memories } = await db.from('group_memories').select('memory_text').eq('group_id', params.groupId).order('created_at', { ascending: false }).limit(10);
@@ -529,6 +596,166 @@ async function tryHandleReminderCommand(params: {
   return true;
 }
 
+// ── Summarize command ─────────────────────────────────────────
+
+function detectSummarizeCommand(body: string): boolean {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+  return /^(?:summarize|summary|תסכם|סיכום|תן סיכום)$/i.test(stripped);
+}
+
+async function tryHandleSummarizeCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+}): Promise<boolean> {
+  if (!detectSummarizeCommand(params.body)) return false;
+
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+
+  const { data: recentMsgs } = await db
+    .from('messages')
+    .select('sender_name, body, timestamp')
+    .eq('group_id', params.groupId)
+    .eq('is_agent_reply', false)
+    .order('timestamp', { ascending: false })
+    .limit(50);
+
+  if (!recentMsgs?.length) {
+    const reply = params.languageMode === 'he' ? 'אין מספיק הודעות לסיכום עדיין' : 'Not enough messages to summarize yet';
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  const { data: groupRow } = await db.from('groups').select('character_config, name').eq('id', params.groupId).single();
+  const charConfig = groupRow?.character_config as import('@wavi/shared').CharacterConfig | null;
+  const voice = charConfig?.voice ?? '';
+
+  const content = recentMsgs
+    .slice()
+    .reverse()
+    .map((m) => `${m.sender_name}: ${m.body}`)
+    .join('\n');
+  const langInstruction = params.languageMode === 'he' ? 'Reply in natural Israeli Hebrew (spoken register).' : 'Reply in English.';
+
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 200,
+    messages: [
+      {
+        role: 'user',
+        content: `${langInstruction}
+You are a WhatsApp group member with this character: ${voice || 'casual, friendly'}
+Summarize the last 50 messages in 2-4 sentences in your own voice — casual, opinionated, like a person texting. Mention key topics, decisions, or funny moments. No bullet points, no markdown.
+
+Chat history:
+${content.slice(0, 3000)}`,
+      },
+    ],
+  });
+
+  const summary = response.content[0].type === 'text' ? response.content[0].text.trim() : 'לא הצלחתי לסכם';
+
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
+  await recordAnthropicCall({ type: 'synthesis', groupId: params.groupId, usage: response.usage });
+
+  await sendAgentReply(params.groupId, params.waGroupId, summary, params.waMsgId, ctx);
+  return true;
+}
+
+// ── Rotation commands ─────────────────────────────────────────
+
+type RotationCmd = { cmd: 'record'; item: string; personName: string } | { cmd: 'query_last'; item: string } | { cmd: 'query_next'; item: string };
+
+function detectRotationCommand(body: string): RotationCmd | null {
+  const stripped = body.replace(new RegExp(`@${AGENT_NAME}`, 'gi'), '').trim();
+
+  const heRecord = stripped.match(/^(?:רשום\s+ש)?(\S+)\s+(?:הביא|הביאה|הביאו)\s+(.+)$/);
+  if (heRecord) return { cmd: 'record', personName: heRecord[1].trim(), item: heRecord[2].trim() };
+
+  const enRecord = stripped.match(/^(\S+)\s+brought\s+(.+)$/i);
+  if (enRecord) return { cmd: 'record', personName: enRecord[1].trim(), item: enRecord[2].trim() };
+
+  const heLast = stripped.match(/^מי\s+הביא\s+(.+?)(?:\s+פעם\s+אחרונה)?[?？]?$/);
+  if (heLast) return { cmd: 'query_last', item: heLast[1].trim() };
+
+  const enLast = stripped.match(/^who(?:\s+last)?\s+brought\s+(.+?)[?？]?$/i);
+  if (enLast) return { cmd: 'query_last', item: enLast[1].trim() };
+
+  const heNext = stripped.match(/^מי\s+הב(?:א|אה)\s+בתור\s+(.+?)[?？]?$/);
+  if (heNext) return { cmd: 'query_next', item: heNext[1].trim() };
+
+  const enNext = stripped.match(/^whose\s+turn\s+(?:for|to bring)\s+(.+?)[?？]?$/i);
+  if (enNext) return { cmd: 'query_next', item: enNext[1].trim() };
+
+  return null;
+}
+
+async function tryHandleRotationCommand(params: {
+  groupId: string;
+  waGroupId: string;
+  senderWaId: string;
+  senderName: string;
+  body: string;
+  languageMode: LanguageMode;
+  waMsgId: string;
+  messageId?: string | null;
+}): Promise<boolean> {
+  const cmd = detectRotationCommand(params.body);
+  if (!cmd) return false;
+
+  const he = params.languageMode === 'he' || /[\u0590-\u05FF]/.test(params.body);
+  const { recordRotation, getLastBrought, getRotationHistory } = await import('../lib/rotation-tracker.js');
+  const ctx = { messageId: params.messageId, triggerName: params.senderName, triggerBody: params.body };
+
+  if (cmd.cmd === 'record') {
+    await recordRotation({
+      groupId: params.groupId,
+      item: cmd.item,
+      personWaId: params.senderWaId,
+      personName: cmd.personName,
+      addedByWaId: params.senderWaId,
+    });
+    const reply = he ? `סבבה, רשמתי ש${cmd.personName} הביא ${cmd.item} 👍` : `Got it — recorded that ${cmd.personName} brought ${cmd.item} 👍`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  if (cmd.cmd === 'query_last') {
+    const last = await getLastBrought(params.groupId, cmd.item);
+    if (!last) {
+      const reply = he ? `אין לי רשומות על מי הביא ${cmd.item}` : `No records of who brought ${cmd.item}`;
+      await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+      return true;
+    }
+    const when = new Date(last.brought_at).toLocaleDateString('he-IL');
+    const reply = he ? `${last.person_name} הביא ${cmd.item} ב-${when}` : `${last.person_name} brought ${cmd.item} on ${when}`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  if (cmd.cmd === 'query_next') {
+    const history = await getRotationHistory(params.groupId, cmd.item, 10);
+    if (history.length === 0) {
+      const reply = he ? `אין לי היסטוריה של ${cmd.item} — תרשמו מי מביא ואגיד מי הבא בתור` : `No history for ${cmd.item} yet — start recording and I'll track whose turn it is`;
+      await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+      return true;
+    }
+    const lastPerson = history[0];
+    const reply = he ? `${lastPerson.person_name} הביא ${cmd.item} פעם אחרונה — בתור למישהו אחר!` : `${lastPerson.person_name} brought ${cmd.item} last — someone else's turn!`;
+    await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);
+    return true;
+  }
+
+  return false;
+}
+
 function getRateLimitResponse(characterConfig: { sliders?: { humor?: number } } | null): string {
   const humor = characterConfig?.sliders?.humor ?? 50;
   if (humor > 70) {
@@ -573,6 +800,10 @@ export async function handleReaction(reaction: InboundReaction) {
   const { autoInsertMissMemory } = await import('../ai/worker.js');
 
   if (isNegative) {
+    const { data: groupWithConfig } = await db.from('groups').select('character_config').eq('id', group.id).maybeSingle();
+    const { generateApology } = await import('../ai/recovery.js');
+    const apology = await generateApology((groupWithConfig?.character_config as import('@wavi/shared').CharacterConfig | null) ?? null, group.id).catch(() => 'אוקיי, זה לא נחת טוב. מבין.');
+
     for (const key of keys) {
       const parts = key.split(':');
       const replyId = parts[parts.length - 1];
@@ -587,7 +818,22 @@ export async function handleReaction(reaction: InboundReaction) {
       }
       await redis.del(key);
     }
-    console.log(`[Reaction] ${reaction.emoji} — flagged ${keys.length} reply(ies) for group ${group.id}`);
+
+    const { sendReply } = await import('./client.js');
+    await sendReply(reaction.waGroupId, apology).catch((err) => {
+      console.error('[Reaction] Failed to send apology:', err);
+    });
+
+    await db.from('messages').insert({
+      group_id: group.id,
+      sender_wa_id: 'agent',
+      sender_name: process.env.WA_AGENT_NAME ?? 'wavi',
+      body: apology,
+      is_agent_reply: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    console.log(`[Reaction] ${reaction.emoji} — flagged ${keys.length} reply(ies), sent apology for group ${group.id}`);
   } else {
     // Positive reaction — clear the pending window (reply landed well)
     for (const key of keys) {
