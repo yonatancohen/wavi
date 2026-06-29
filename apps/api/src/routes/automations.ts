@@ -15,9 +15,9 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
     return data ?? [];
   });
 
-  // POST /api/automations — upsert by group_id + type
-  fastify.post<{ Body: { group_id: string; type: AutomationType; enabled?: boolean; config?: AutomationConfig } }>('/', async (req, reply) => {
-    const { group_id, type, enabled = false, config = {} as AutomationConfig } = req.body ?? {};
+  // POST /api/automations — insert new (scheduled_post) or upsert singleton (silence_nudge, daily_digest)
+  fastify.post<{ Body: { group_id: string; type: AutomationType; label?: string; enabled?: boolean; config?: AutomationConfig } }>('/', async (req, reply) => {
+    const { group_id, type, label, enabled = false, config = {} as AutomationConfig } = req.body ?? {};
     if (!group_id || !type) return reply.code(400).send({ error: 'group_id and type required' });
 
     let next_fire_at: string | null = null;
@@ -25,9 +25,20 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
       next_fire_at = computeNextFireAt(type, config).toISOString();
     }
 
+    if (type === 'scheduled_post') {
+      const { data } = await db
+        .from('group_automations')
+        .insert({ group_id, type, label: label ?? null, enabled, config, next_fire_at })
+        .select()
+        .single()
+        .throwOnError();
+      return data;
+    }
+
+    // Singleton types: upsert by group_id+type
     const { data } = await db
       .from('group_automations')
-      .upsert({ group_id, type, enabled, config, next_fire_at }, { onConflict: 'group_id,type', ignoreDuplicates: false })
+      .upsert({ group_id, type, label: label ?? null, enabled, config, next_fire_at }, { onConflict: 'group_id,type' })
       .select()
       .single()
       .throwOnError();
@@ -36,9 +47,9 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   // PATCH /api/automations/:id
-  fastify.patch<{ Params: { id: string }; Body: { enabled?: boolean; config?: AutomationConfig } }>('/:id', async (req, reply) => {
+  fastify.patch<{ Params: { id: string }; Body: { enabled?: boolean; config?: AutomationConfig; label?: string } }>('/:id', async (req, reply) => {
     const { id } = req.params;
-    const { enabled, config } = req.body ?? {};
+    const { enabled, config, label } = req.body ?? {};
 
     const { data: existing } = await db.from('group_automations').select('*').eq('id', id).maybeSingle().throwOnError();
     if (!existing) return reply.code(404).send({ error: 'Automation not found' });
@@ -51,7 +62,10 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
       next_fire_at = computeNextFireAt(existing.type as AutomationType, mergedConfig).toISOString();
     }
 
-    const { data } = await db.from('group_automations').update({ enabled: mergedEnabled, config: mergedConfig, next_fire_at }).eq('id', id).select().single().throwOnError();
+    const updatePayload: Record<string, unknown> = { enabled: mergedEnabled, config: mergedConfig, next_fire_at };
+    if (label !== undefined) updatePayload.label = label;
+
+    const { data } = await db.from('group_automations').update(updatePayload).eq('id', id).select().single().throwOnError();
 
     return data;
   });

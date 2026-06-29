@@ -820,16 +820,14 @@ async function tryHandleScheduleCommand(params: {
   const { computeNextFireAt } = await import('../lib/automation-schedule.js');
   const next_fire_at = computeNextFireAt('scheduled_post', parsed.config).toISOString();
 
-  await db.from('group_automations').upsert(
-    {
-      group_id: params.groupId,
-      type: 'scheduled_post',
-      enabled: true,
-      config: parsed.config,
-      next_fire_at,
-    },
-    { onConflict: 'group_id,type' },
-  );
+  await db.from('group_automations').insert({
+    group_id: params.groupId,
+    type: 'scheduled_post',
+    label: parsed.config.template ?? null,
+    enabled: true,
+    config: parsed.config,
+    next_fire_at,
+  });
 
   const reply = he ? `סבבה, קבעתי 📅 ${parsed.label}` : `Done, scheduled 📅 ${parsed.label}`;
   await sendAgentReply(params.groupId, params.waGroupId, reply, params.waMsgId, ctx);

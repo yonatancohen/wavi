@@ -752,6 +752,13 @@
     "triggerSuccess": "Sent: \"{preview}\"",
     "triggerFailed": "Failed to trigger automation",
     "lastSent": "Last sent: {time}",
+    "addSchedule": "Add schedule",
+    "newSchedule": "New scheduled post",
+    "saveSchedule": "Save",
+    "editSchedule": "Edit",
+    "labelPlaceholder": "Label (e.g. Friday meetup)",
+    "noSchedules": "No scheduled posts yet — add one above or type \"@wavi schedule every friday at 6pm meetup\" in the group chat.",
+    "deleteSchedule": "Delete",
     "weekdays": {
       "sun": "Sunday",
       "mon": "Monday",
@@ -761,6 +768,9 @@
       "fri": "Friday",
       "sat": "Saturday"
     }
+  },
+  "common": {
+    "cancel": "Cancel"
   },
   "welcomeMsg": {
     "sectionTitle": "Welcome message",
