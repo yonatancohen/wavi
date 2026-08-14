@@ -38,6 +38,7 @@
     "regenerate:group-context": "bash scripts/regenerate-group-context.sh",
     "reprofile:from-chunks": "bash scripts/reprofile-from-chunks.sh",
     "merge:colon-profiles": "bash scripts/merge-colon-profiles.sh",
+    "merge:duplicate-profiles": "bash scripts/merge-duplicate-profiles.sh",
     "test:parser": "bun scripts/test-parser.mjs",
     "test": "bun run --filter '@wavi/api' test",
     "replay": "bun run --filter '@wavi/api' replay",

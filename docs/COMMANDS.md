@@ -45,11 +45,13 @@ cd apps/api && bun test src/ai/__tests__/recovery.test.ts   # one test file
 
 ## AI / debugging
 
-| Command                          | What it does                                                                                                                                              |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun run ingest:status`          | Explain current **upload / rebuild** progress (Redis + DB), with a short poll to detect if the worker is still alive. Uses `apps/api/.env`.               |
-| `bun run resynthesize:character` | Rebuild **character config** (voice, opinions, signature, examples, sliders) from stored episode summaries + member profiles. Uses `apps/api/.env`.       |
-| `bun run replay`                 | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic). |
+| Command                            | What it does                                                                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run ingest:status`            | Explain current **upload / rebuild** progress (Redis + DB), with a short poll to detect if the worker is still alive. Uses `apps/api/.env`.               |
+| `bun run merge:duplicate-profiles` | Merge same-display-name member duplicates (export label vs live phone id). Prefer `--dry-run` first. Uses `apps/api/.env`.                                |
+| `bun run merge:colon-profiles`     | Merge old parser colon-phantom profiles (`Name: quote…`) into the real member. Uses `apps/api/.env`.                                                      |
+| `bun run resynthesize:character`   | Rebuild **character config** (voice, opinions, signature, examples, sliders) from stored episode summaries + member profiles. Uses `apps/api/.env`.       |
+| `bun run replay`                   | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic). |
 
 ### Ingest / rebuild status
 
@@ -65,6 +67,18 @@ bun run ingest:status -- --poll 0                  # skip 6s alive check (instan
 Prints a **verdict** (`ALIVE`, `COMPLETE`, `FAILED`, `POSSIBLY STUCK`, `IDLE`), Redis stage with explanation, DB counts (chunks, episodes, profiles, relationships), and profile list.
 
 Implementation: `apps/api/scripts/ingest-status.ts` (wrapper: `scripts/ingest-status.sh`).
+
+### Merge duplicate member profiles
+
+Use when **Members** shows the same person twice (same display name, different `wa_user_id` — usually export name vs live phone digits). Keeps the phone-like id when present.
+
+```bash
+bun run merge:duplicate-profiles -- --name "אדירים" --dry-run
+bun run merge:duplicate-profiles -- --name "אדירים"
+bun run merge:duplicate-profiles -- --group-id <uuid> --force   # if 2+ phone ids share a name
+```
+
+Implementation: `apps/api/scripts/merge-duplicate-profiles.ts` (wrapper: `scripts/merge-duplicate-profiles.sh`).
 
 ### Re-synthesize character
 
