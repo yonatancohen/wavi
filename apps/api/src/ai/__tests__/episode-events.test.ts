@@ -70,9 +70,7 @@ describe('parseEpisodeSummaryResponse', () => {
   });
 
   it('defaults missing who to [] and empty summary to Group activity.', () => {
-    expect(
-      parseEpisodeSummaryResponse(JSON.stringify({ summary: '   ', events: [{ what: 'Booked a table' }] })),
-    ).toEqual({
+    expect(parseEpisodeSummaryResponse(JSON.stringify({ summary: '   ', events: [{ what: 'Booked a table' }] }))).toEqual({
       summary: 'Group activity.',
       events: [{ who: [], what: 'Booked a table' }],
     });

@@ -24,6 +24,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const mentionedBlock = buildMentionedPeopleBlock(ctx);
   const quotedBlock = buildQuotedReplyBlock(ctx);
   const memoriesBlock = buildMemoriesBlock(ctx);
+  const eventsBlock = buildGroupEventsBlock(ctx);
   const webSearchBlock = buildWebSearchBlock(ctx);
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled);
   const examplesBlock = buildVoiceExamplesBlock(ctx);
@@ -46,7 +47,9 @@ BLOCK 3 — CHARACTER
 ${c.voice}
 Signature behavior: ${c.signature_behavior}
 
-Your opinions (use these to color replies — voice them when relevant, push back on the group when they contradict you, never recite them as a list):
+Your opinions (TAKES — present-tense stances, not facts about what happened.
+Voice them when relevant, push back when the group contradicts you, never recite them as a list.
+History, events, and memories below are what you KNOW happened — do not promote those into new opinions):
 ${c.opinions.map((o, i) => `${i + 1}. ${o}`).join('\n')}
 </character>
 
@@ -66,7 +69,7 @@ Emoji usage: ${emojiUsage} (${emojiUsagePromptHint(emojiUsage)})
 
 <group_context>
 BLOCK 5 — GROUP CONTEXT
-${ctx.group_context_summary || 'No group context available yet.'}
+${buildMemberRosterLine(ctx)}${ctx.group_context_summary || 'No group context available yet.'}
 </group_context>
 
 ${upcomingEventsBlock ? `<upcoming_events>\n${upcomingEventsBlock}\n</upcoming_events>` : ''}
@@ -86,6 +89,8 @@ ${ctx.relevant_relationships.length > 0 ? ctx.relevant_relationships.map((r) => 
 </relationships>
 
 ${mentionedBlock ? `<mentioned_people>\n${mentionedBlock}\n</mentioned_people>` : ''}
+
+${eventsBlock ? `<group_events>\n${eventsBlock}\n</group_events>` : ''}
 
 ${memoriesBlock ? `<memories>\n${memoriesBlock}\n</memories>` : ''}
 
@@ -117,6 +122,8 @@ Verbosity slider = personality density, not message length.
 BLOCK 10 — LANGUAGE & RULES (critical)
 ${languageRules}
 Stay in character at all times. You are a group member, not a bot.
+Use facts (events, memories, RAG, recent messages) for what/when/who happened.
+Use opinions for what you think. Never promote a retrieved event into a new stance.
 If someone reacts negatively to something you said, apologize in your own voice — not formally.
 Never say "As an AI..." or break the fourth wall unless directly asked if you are an AI.
 </language_rules>
@@ -248,6 +255,25 @@ You said: "${ctx.quoted_message.body}"`;
   }
   return `BLOCK — REPLYING TO
 ${ctx.quoted_message.sender_name} said: "${ctx.quoted_message.body}"`;
+}
+
+function buildMemberRosterLine(ctx: PromptContext): string {
+  if (!ctx.member_roster?.length) return '';
+  return `People in this group: ${ctx.member_roster.join(', ')}.\n`;
+}
+
+function buildGroupEventsBlock(ctx: PromptContext): string {
+  if (!ctx.group_events?.length) return '';
+  const lines = ctx.group_events.slice(0, 8).map((event) => {
+    const when = event.occurred_on ? new Date(event.occurred_on).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const who = event.who?.length ? event.who.join(', ') : '';
+    const why = event.why_it_matters ? ` — ${event.why_it_matters}` : '';
+    const prefix = [when, who].filter(Boolean).join(' · ');
+    return `- ${prefix ? `${prefix}: ` : ''}${event.what}${why}`;
+  });
+  return `BLOCK — THINGS THAT HAPPENED (facts you remember)
+Use these for what/when/who questions. Do not turn them into opinions or recite them unprompted.
+${lines.join('\n')}`;
 }
 
 function buildMemoriesBlock(ctx: PromptContext): string {

@@ -123,16 +123,18 @@ flowchart TD
 
 ### What each fetch returns
 
-**`fetchStructuredContext`** — 6 parallel DB queries:
+**`fetchStructuredContext`** — parallel DB queries:
 
-| Data                 | Table / source     | Purpose                               |
-| -------------------- | ------------------ | ------------------------------------- |
-| Character + language | `groups`           | Voice, opinions, sliders, reply model |
-| Sender profile       | `user_profiles`    | Who is asking — tone, traits, aliases |
-| Top 3 relationships  | `relationship_map` | Narratives involving the sender       |
-| Group memories       | `group_memories`   | `@wavi remember …` facts              |
-| Rolling summary      | `group_contexts`   | "What's been going on lately"         |
-| Last 20 messages     | `messages`         | Immediate chat window                 |
+| Data                 | Table / source     | Purpose                                 |
+| -------------------- | ------------------ | --------------------------------------- |
+| Character + language | `groups`           | Voice, opinions, sliders, reply model   |
+| Sender profile       | `user_profiles`    | Who is asking — tone, traits, aliases   |
+| Top 3 relationships  | `relationship_map` | Narratives involving the sender         |
+| Group memories       | `group_memories`   | `@wavi remember …` facts                |
+| Group events         | `group_events`     | Auto-extracted facts (trips, decisions) |
+| Member roster        | `user_profiles`    | Display names only                      |
+| Rolling summary      | `group_contexts`   | "What's been going on lately"           |
+| Last 20 messages     | `messages`         | Immediate chat window                   |
 
 **`fetchRAGContext`** — semantic search:
 
@@ -164,10 +166,10 @@ flowchart TD
   Parse --> Chunk["50-msg chunks, 25 overlap"]
   Chunk --> Embed["OpenAI embedBatch → message_chunks"]
   Embed --> Prof["buildUserProfilesFromHistory()"]
-  Prof --> Ep["Episode summaries every 100 msgs → episode_summaries"]
-  Ep --> Rel["buildRelationshipMap() — reply patterns, agree/disagree"]
+  Prof --> Ep["Episode summaries every 100 msgs → episode_summaries + group_events"]
+  Ep --> Rel["buildRelationshipMap() — snippets + narratives"]
   Rel --> Ctx["generateGroupContext() → group_contexts"]
-  Ctx --> Char["synthesizeCharacter() → groups.character_config"]
+  Ctx --> Char["synthesizeCharacter() from facts + people + real lines"]
 ```
 
 | Stage                   | What it produces                                             |
@@ -231,22 +233,24 @@ In all miss cases, `autoInsertMissMemory` writes a `group_memories` row so futur
 
 The assembled context object includes:
 
-| Field                    | Description                                |
-| ------------------------ | ------------------------------------------ |
-| `character_config`       | Voice, opinions, sliders, reply model      |
-| `group_name`             | Group display name                         |
-| `language_mode`          | `he` / `en` / `auto`                       |
-| `group_context_summary`  | Rolling group vibe summary                 |
-| `sender_profile`         | Who tagged Wavi                            |
-| `relevant_relationships` | Top 3 relationship narratives for sender   |
-| `group_memories`         | Explicit `@wavi remember` facts            |
-| `mentioned_people`       | Profiles for names detected in the message |
-| `rag_chunks`             | Top 5 message chunk summaries              |
-| `rag_episode_summaries`  | Top 3 episode summaries                    |
-| `recent_messages`        | Last 20 messages verbatim                  |
-| `resolved_display_names` | wa_user_id → display name map              |
-| `quoted_message`         | Optional WhatsApp quote-reply context      |
-| `current_message`        | The tagged message body                    |
+| Field                    | Description                                                        |
+| ------------------------ | ------------------------------------------------------------------ |
+| `character_config`       | Voice, opinions, sliders, reply model                              |
+| `group_name`             | Group display name                                                 |
+| `language_mode`          | `he` / `en` / `auto`                                               |
+| `group_context_summary`  | Rolling group vibe summary                                         |
+| `sender_profile`         | Who tagged Wavi                                                    |
+| `relevant_relationships` | Top 3 relationship narratives for sender, plus named pairs (cap 5) |
+| `group_memories`         | Explicit `@wavi remember` facts                                    |
+| `group_events`           | Auto-extracted durable events (facts)                              |
+| `member_roster`          | Display names in the group                                         |
+| `mentioned_people`       | Profiles for names detected in the message                         |
+| `rag_chunks`             | Top 5 message chunk summaries                                      |
+| `rag_episode_summaries`  | Top 3 episode summaries                                            |
+| `recent_messages`        | Last 20 messages verbatim                                          |
+| `resolved_display_names` | wa_user_id → display name map                                      |
+| `quoted_message`         | Optional WhatsApp quote-reply context                              |
+| `current_message`        | The tagged message body                                            |
 
 ### B1. RAG query normalization
 
@@ -264,12 +268,13 @@ The **embedding query** is not the raw `@wavi` tag — it's the semantic intent 
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 — Identity        | Agent name + group name                                                                                                                 |
 | 2 — Role boundary   | "Group member, not dev assistant" + jailbreak refusal                                                                                   |
-| 3 — Character       | `voice`, `opinions`, `signature_behavior`                                                                                               |
+| 3 — Character       | `voice`, `opinions` (takes, not recaps), `signature_behavior`                                                                           |
 | 4 — Personality     | 6 sliders with interpreted labels (formality, humor, verbosity, assertiveness, empathy, emoji usage)                                    |
 | 5 — Group context   | `group_context_summary`                                                                                                                 |
 | 6 — Sender profile  | Display name, aliases, `behavioral_summary`, adaptive tone hints (message length, humor, formality, emoji style from `UserProfileData`) |
 | 7 — Relationships   | Top 3 narratives for sender                                                                                                             |
 | — Mentioned people  | Extra block if names detected in message                                                                                                |
+| — Events            | Up to 8 `group_events` — facts to recall, never promote into opinions                                                                   |
 | — Memories          | Up to 10 `group_memories`                                                                                                               |
 | 8 — RAG history     | Chunk summaries + episode summaries                                                                                                     |
 | — Quoted reply      | If user replied to a specific message                                                                                                   |
@@ -310,12 +315,13 @@ For each member pair:
 
 - **Signals:** reply counts A→B and B→A, agreement/disagreement keywords, defense patterns
 - **Scores:** interaction, conflict, solidarity
-- Claude writes a **narrative** prose description per pair
+- Claude writes a **narrative** from real proximity/mention lines (not score recitation)
+- Live chunks merge scores only; narratives refresh on the episode clock (~100 messages)
 
 ### C3. Character synthesis (`summarizer.ts`)
 
-Inputs: last 10 episode summaries + all behavioral summaries  
-Output: `character_config` JSON — voice, opinions, signature behavior, sliders — stored on `groups`.
+Inputs: last 10 episode summaries (labeled as facts) + member profiles + relationship narratives + real chat lines  
+Output: `character_config` JSON — voice, opinions (present-tense takes, recaps rejected), signature behavior, sliders — stored on `groups`.
 
 ### C4. Live chunker (`chunker.ts`)
 
@@ -323,7 +329,7 @@ After every message:
 
 - Buffer in Redis until 50 messages
 - Flush: embed full content → `message_chunks`; optional per-chunk LLM summary (set `SUMMARIZE_CHUNKS=true`; runs at ingest/rebuild only)
-- Every 100 messages: new episode summary → then triggers character drift + examples capture (see §H)
+- Every 100 messages: new episode summary + extracted `group_events` → relationship narrative refresh → character drift + examples capture (see §H)
 - Queue **live re-profiling** for active speakers
 
 ---

@@ -3,6 +3,7 @@ import { redis } from '../lib/redis.js';
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js';
 import { embedBatch, embed } from '../lib/embeddings.js';
 import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
+import { persistEpisodeEvents } from '../ai/group-events.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
 import { buildRelationshipMap } from '../ai/relationships.js';
@@ -41,6 +42,7 @@ export async function clearIngestionProgress(groupId: string) {
 async function purgeDerivedIntelligence(groupId: string, includeChunks: boolean) {
   const deletes = [
     db.from('episode_summaries').delete().eq('group_id', groupId),
+    db.from('group_events').delete().eq('group_id', groupId),
     db.from('user_profiles').delete().eq('group_id', groupId),
     db.from('relationship_map').delete().eq('group_id', groupId),
     db.from('group_contexts').delete().eq('group_id', groupId),
@@ -57,6 +59,7 @@ async function purgeMergeDerivedData(groupId: string) {
   await Promise.all([
     db.from('message_chunks').delete().eq('group_id', groupId),
     db.from('episode_summaries').delete().eq('group_id', groupId),
+    db.from('group_events').delete().eq('group_id', groupId),
     db.from('group_contexts').delete().eq('group_id', groupId),
     db.from('messages').delete().eq('group_id', groupId).eq('is_from_export', true),
   ]);
@@ -153,17 +156,22 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   for (let i = 0; i < realMessages.length; i += 100) {
     const slice = realMessages.slice(i, i + 100);
     const content = slice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
-    const summary = await generateEpisodeSummary(content, resolveEffectiveLang(languageMode), { groupId });
-    episodeSummaries.push(summary);
+    const episode = await generateEpisodeSummary(content, resolveEffectiveLang(languageMode), { groupId });
+    episodeSummaries.push(episode.summary);
 
-    const embedding = await embed(summary, { groupId });
-    await db.from('episode_summaries').insert({
-      group_id: groupId,
-      summary,
-      embedding: JSON.stringify(embedding),
-      msg_from: slice[0]?.timestamp.toISOString(),
-      msg_to: slice[slice.length - 1]?.timestamp.toISOString(),
-    });
+    const embedding = await embed(episode.summary, { groupId });
+    const { data: inserted } = await db
+      .from('episode_summaries')
+      .insert({
+        group_id: groupId,
+        summary: episode.summary,
+        embedding: JSON.stringify(embedding),
+        msg_from: slice[0]?.timestamp.toISOString(),
+        msg_to: slice[slice.length - 1]?.timestamp.toISOString(),
+      })
+      .select('id')
+      .single();
+    await persistEpisodeEvents(groupId, inserted?.id ?? null, episode.events, slice[0]?.timestamp.toISOString());
   }
 
   await setProgress({ stage: 'relationships' });

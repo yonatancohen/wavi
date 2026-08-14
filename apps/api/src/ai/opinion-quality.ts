@@ -9,8 +9,7 @@ export function flattenOpinion(op: StructuredOpinion | string): string {
   return stance;
 }
 
-const EN_RECAP =
-  /\bwe (went|did|decided|visited|traveled|flew|ate|stayed)\b|\bthe group (went|did|decided|visited)\b|\b(went|flew|traveled) to\b/i;
+const EN_RECAP = /\bwe (went|did|decided|visited|traveled|flew|ate|stayed)\b|\bthe group (went|did|decided|visited)\b|\b(went|flew|traveled) to\b/i;
 const EN_DATE_RECAP = /\blast (summer|year|week) we\b/i;
 const HE_RECAP = /הלכנו|יצאנו|טסנו|אכלנו|החלטנו|נסענו|ביקרנו|היינו ב|הקבוצה (הלכה|יצאה|החליטה|נסעה)/;
 const HE_DATE_RECAP = /בשנה שעברה|בחודש שעבר|בקיץ שעבר/;
@@ -26,8 +25,7 @@ export function isRecapOpinion(text: string): boolean {
   return EN_RECAP.test(t) || EN_DATE_RECAP.test(t) || HE_RECAP.test(t) || HE_DATE_RECAP.test(t);
 }
 
-const GENERIC_EN =
-  /\b(good\s+)?food\s+is\s+(important|good)\b|\bplanning\s+is\s+fun\b|\bhumor\s+is\s+important\b/i;
+const GENERIC_EN = /\b(good\s+)?food\s+is\s+(important|good)\b|\bplanning\s+is\s+fun\b|\bhumor\s+is\s+important\b/i;
 const GENERIC_HE = /אוכל זה חשוב|תכנון זה כיף|הומור חשוב/;
 
 export function isGenericOpinion(text: string): boolean {

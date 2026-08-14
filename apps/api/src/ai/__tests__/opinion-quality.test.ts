@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  evaluateOpinion,
-  filterValidOpinions,
-  flattenOpinion,
-  isGenericOpinion,
-  isRecapOpinion,
-  parseSynthesisOpinions,
-} from '../opinion-quality.js';
+import { evaluateOpinion, filterValidOpinions, flattenOpinion, isGenericOpinion, isRecapOpinion, parseSynthesisOpinions } from '../opinion-quality.js';
 
 describe('flattenOpinion', () => {
   it('trims a string opinion', () => {
@@ -14,9 +7,7 @@ describe('flattenOpinion', () => {
   });
 
   it('returns stance only when because is missing', () => {
-    expect(flattenOpinion({ topic: 'food', stance: 'Good plans end with food' })).toBe(
-      'Good plans end with food',
-    );
+    expect(flattenOpinion({ topic: 'food', stance: 'Good plans end with food' })).toBe('Good plans end with food');
   });
 
   it('appends because when stance is under 40 chars', () => {
@@ -48,14 +39,8 @@ describe('isRecapOpinion', () => {
   });
 
   it('accepts present-tense stances that mention a past event as reason', () => {
-    expect(
-      isRecapOpinion(
-        'Every time we try to plan something outdoors it rains — we should just stop pretending',
-      ),
-    ).toBe(false);
-    expect(isRecapOpinion('אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר')).toBe(
-      false,
-    );
+    expect(isRecapOpinion('Every time we try to plan something outdoors it rains — we should just stop pretending')).toBe(false);
+    expect(isRecapOpinion('אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר')).toBe(false);
     expect(isRecapOpinion('תכנון יוצאים צריך להסתיים עם אוכל טוב')).toBe(false);
   });
 });
@@ -74,11 +59,7 @@ describe('isGenericOpinion', () => {
 
   it('accepts specific stances', () => {
     expect(isGenericOpinion('תכנון יוצאים צריך להסתיים עם אוכל טוב')).toBe(false);
-    expect(
-      isGenericOpinion(
-        'Every time we try to plan something outdoors it rains — we should just stop pretending',
-      ),
-    ).toBe(false);
+    expect(isGenericOpinion('Every time we try to plan something outdoors it rains — we should just stop pretending')).toBe(false);
   });
 });
 
@@ -108,10 +89,7 @@ describe('filterValidOpinions', () => {
         'Planning is fun',
         '',
       ]),
-    ).toEqual([
-      'תכנון יוצאים צריך להסתיים עם אוכל טוב',
-      'Every time we try to plan something outdoors it rains — we should just stop pretending',
-    ]);
+    ).toEqual(['תכנון יוצאים צריך להסתיים עם אוכל טוב', 'Every time we try to plan something outdoors it rains — we should just stop pretending']);
   });
 });
 
@@ -129,11 +107,7 @@ describe('parseSynthesisOpinions', () => {
         'Good food is important',
         { topic: 'food', stance: 'תכנון יוצאים צריך להסתיים עם אוכל טוב' },
       ]),
-    ).toEqual([
-      'Stop planning hikes — it always rains on us',
-      'אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר',
-      'תכנון יוצאים צריך להסתיים עם אוכל טוב',
-    ]);
+    ).toEqual(['Stop planning hikes — it always rains on us', 'אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר', 'תכנון יוצאים צריך להסתיים עם אוכל טוב']);
   });
 
   it('returns empty for non-arrays', () => {

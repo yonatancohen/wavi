@@ -45,13 +45,14 @@ cd apps/api && bun test src/ai/__tests__/recovery.test.ts   # one test file
 
 ## AI / debugging
 
-| Command                            | What it does                                                                                                                                              |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun run ingest:status`            | Explain current **upload / rebuild** progress (Redis + DB), with a short poll to detect if the worker is still alive. Uses `apps/api/.env`.               |
-| `bun run merge:duplicate-profiles` | Merge same-display-name member duplicates (export label vs live phone id). Prefer `--dry-run` first. Uses `apps/api/.env`.                                |
-| `bun run merge:colon-profiles`     | Merge old parser colon-phantom profiles (`Name: quote…`) into the real member. Uses `apps/api/.env`.                                                      |
-| `bun run resynthesize:character`   | Rebuild **character config** (voice, opinions, signature, examples, sliders) from stored episode summaries + member profiles. Uses `apps/api/.env`.       |
-| `bun run replay`                   | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic). |
+| Command                            | What it does                                                                                                                                                    |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run ingest:status`            | Explain current **upload / rebuild** progress (Redis + DB), with a short poll to detect if the worker is still alive. Uses `apps/api/.env`.                     |
+| `bun run merge:duplicate-profiles` | Merge same-display-name member duplicates (export label vs live phone id). Prefer `--dry-run` first. Uses `apps/api/.env`.                                      |
+| `bun run merge:colon-profiles`     | Merge old parser colon-phantom profiles (`Name: quote…`) into the real member. Uses `apps/api/.env`.                                                            |
+| `bun run resynthesize:character`   | Rebuild **character config** (voice, opinions, signature, examples, sliders) from summaries + profiles + relationships + real chat lines. Uses `apps/api/.env`. |
+| `bun run backfill:events`          | Extract durable **group_events** from existing episode summaries (no full re-ingest). Requires `group_events` table. Uses `apps/api/.env`.                      |
+| `bun run replay`                   | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic).       |
 
 ### Ingest / rebuild status
 
@@ -86,7 +87,7 @@ Implementation: `apps/api/scripts/merge-duplicate-profiles.ts` / `apps/api/src/l
 
 ### Re-synthesize character
 
-Use when **Character** tab content looks wrong (e.g. generic English opinions on a Hebrew group). Does **not** re-run full ingest — only updates `groups.character_config` from existing summaries.
+Use when **Character** tab content looks wrong (e.g. generic English opinions on a Hebrew group, or opinions that recap events). Does **not** re-run full ingest — only updates `groups.character_config` from existing summaries, profiles, relationships, and sample lines.
 
 ```bash
 bun run resynthesize:character                     # only group if exactly one exists
@@ -97,6 +98,19 @@ bun run resynthesize:character -- --name "אדיר"    # partial group name matc
 Respects `language_mode` on the group (Hebrew groups get Hebrew voice/opinions). Preserves the existing `reply_model` setting.
 
 Implementation: `apps/api/scripts/resynthesize-character.ts` (wrapper: `scripts/resynthesize-character.sh`).
+
+### Backfill group events
+
+Use after applying the `group_events` table (see `supabase-schema.sql`) so existing groups get recallable facts without a full rebuild. Does **not** change `character_config`.
+
+```bash
+bun run backfill:events                     # only group if exactly one exists
+bun run backfill:events -- --group-id <uuid>
+bun run backfill:events -- --name "אדיר"
+bun run backfill:events -- --all
+```
+
+Implementation: `apps/api/scripts/backfill-group-events.ts` (wrapper: `scripts/backfill-events.sh`).
 
 ### Replay harness
 
@@ -178,6 +192,7 @@ CLI scripts (also exposed at repo root):
 | ----------------------- | -------------------------------- | -------------------------------------------- |
 | Ingest status           | `bun run ingest:status`          | `apps/api/scripts/ingest-status.ts`          |
 | Re-synthesize character | `bun run resynthesize:character` | `apps/api/scripts/resynthesize-character.ts` |
+| Backfill group events   | `bun run backfill:events`        | `apps/api/scripts/backfill-group-events.ts`  |
 
 ### `@wavi/dashboard` (`apps/dashboard`)
 

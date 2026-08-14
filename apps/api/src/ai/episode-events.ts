@@ -13,7 +13,10 @@ export type EpisodeSummaryResult = {
 const FALLBACK_SUMMARY = 'Group activity.';
 
 function stripJsonFences(text: string): string {
-  return text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  return text
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
 }
 
 function optionalString(value: unknown): string | undefined {
@@ -28,9 +31,7 @@ function normalizeEvent(raw: unknown): ExtractedEvent | null {
   const what = typeof rec.what === 'string' ? rec.what.trim() : '';
   if (!what) return null;
 
-  const who = Array.isArray(rec.who)
-    ? rec.who.filter((name): name is string => typeof name === 'string')
-    : [];
+  const who = Array.isArray(rec.who) ? rec.who.filter((name): name is string => typeof name === 'string') : [];
 
   const event: ExtractedEvent = { who, what };
   const when = optionalString(rec.when);
@@ -62,8 +63,7 @@ export function parseEpisodeSummaryResponse(text: string): EpisodeSummaryResult 
     }
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       const rec = parsed as Record<string, unknown>;
-      const summary =
-        typeof rec.summary === 'string' && rec.summary.trim() ? rec.summary.trim() : FALLBACK_SUMMARY;
+      const summary = typeof rec.summary === 'string' && rec.summary.trim() ? rec.summary.trim() : FALLBACK_SUMMARY;
       return { summary, events: normalizeEvents(rec.events) };
     }
     return { summary: FALLBACK_SUMMARY, events: [] };

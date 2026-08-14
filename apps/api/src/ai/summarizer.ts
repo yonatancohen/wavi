@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { LanguageMode, EmojiUsageLevel, VoiceExample, AgentGender, HumorDNA } from '@wavi/shared';
+import { parseEpisodeSummaryResponse, type EpisodeSummaryResult, type ExtractedEvent } from './episode-events.js';
 import { synthesisLanguageInstruction } from './language.js';
+import { evaluateOpinion, parseSynthesisOpinions } from './opinion-quality.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -49,11 +51,20 @@ function defaultCharacterFallback(groupName: string, languageMode: LanguageMode)
   };
 }
 
-function buildCharacterSynthesisPrompt(params: { groupName: string; episodeSummaries: string[]; userProfiles: string[]; languageMode: LanguageMode }): string {
+export type CharacterSynthesisInput = {
+  groupName: string;
+  episodeSummaries: string[];
+  userProfiles: string[];
+  relationshipNarratives?: string[];
+  voiceSamples?: string[];
+  languageMode: LanguageMode;
+};
+
+export function buildCharacterSynthesisPrompt(params: CharacterSynthesisInput): string {
   const lang = synthesisLanguageInstruction(params.languageMode);
   const languageFieldsRule =
     params.languageMode === 'he'
-      ? 'CRITICAL: voice, every opinion, signature_behavior, and ALL user/agent text in examples MUST be in natural Israeli Hebrew — no English in those fields.'
+      ? 'CRITICAL: voice, every opinion stance/because, signature_behavior, and ALL user/agent text in examples MUST be in natural Israeli Hebrew — no English in those fields.'
       : params.languageMode === 'en'
         ? 'CRITICAL: voice, opinions, signature_behavior, and examples MUST be in English.'
         : 'CRITICAL: voice, opinions, signature_behavior, and examples MUST follow the language rule above.';
@@ -63,28 +74,39 @@ function buildCharacterSynthesisPrompt(params: { groupName: string; episodeSumma
       ? 'agent_gender: infer the character\'s grammatical gender from the group context and member profiles. Use "זכר" (masculine) or "נקבה" (feminine). All-male group → "זכר". All-female → "נקבה". Mixed → choose whichever fits the persona best. Default "זכר" if ambiguous.'
       : '';
 
+  const facts = params.episodeSummaries.slice(0, 10).join('\n\n') || '(none)';
+  const people = params.userProfiles.join('\n') || '(none)';
+  const dynamics = (params.relationshipNarratives ?? []).filter(Boolean).slice(0, 8).join('\n') || '(none)';
+  const lines = (params.voiceSamples ?? []).slice(0, 20).join('\n') || '(none)';
+
   return `${lang}
 ${languageFieldsRule}
 ${genderRule ? genderRule + '\n' : ''}
 You are designing an AI persona for a WhatsApp group called "${params.groupName}".
 
-Based on the group's history below, create a character that FITS this group's energy — grounded in their actual topics, inside jokes, and tone.
+Create a character that FITS this group's energy. History below is FACTS — do not copy it into opinions.
 
-GROUP HISTORY SUMMARIES:
-${params.episodeSummaries.slice(0, 10).join('\n\n')}
+GROUP HISTORY (facts only — what happened; NOT personality, NOT opinions):
+${facts}
 
-MEMBER PROFILES:
-${params.userProfiles.join('\n')}
+PEOPLE AND DYNAMICS:
+${people}
+${dynamics}
+
+REAL LINES FROM THIS CHAT (match this register; steal topics, not recaps):
+${lines}
 
 OPINION RULES — this is the most important part:
-- Opinions must be specific to THIS group's real topics (trips they took, food spots they argue about, inside dynamics, recurring plans that fell through, etc.)
-- Each opinion is a short, punchy sentence the character would actually say out loud in chat — opinionated, slightly provocative, conversation-starting
-- NOT generic internet takes ("pizza is better than pasta") — those are filler and useless
-- NOT neutral observations — opinions should have a clear stance someone in the group could agree or push back on
+- Each opinion is a present-tense TAKE someone in the group could agree or push back on
+- stance: a short punchy sentence the character would actually say out loud
+- because: a group-specific reason (recurring pattern, dynamic, habit) — not a recap of one outing
+- NOT a past-tense event ("we went to Eilat", "הקבוצה יצאה לאילת") — those are facts, already in history
+- NOT generic internet takes ("pizza is better than pasta")
+- NOT neutral observations ("planning is fun", "good food is important")
 - Good example: "אם לא יצאנו ב-22:00 בדיוק, הלילה נגמר בפיצה אצל אחד מאיתנו ולא בבר"
 - Good example: "Every time we try to plan something outdoors it rains — we should just stop pretending"
-- Bad example: "Good food is important" — too vague
-- Bad example: "Planning is fun" — not an opinion, not specific
+- Bad example: "יצאנו לאילת בקיץ" — recap, not an opinion
+- Bad example: "The group decided to stay in" — recap, not an opinion
 
 HUMOR DNA — equally important:
 - style: identify the DOMINANT humor mode of this group from the actual messages (sarcastic, absurdist, self-deprecating, dad-jokes, dry, or none if the group is serious)
@@ -96,7 +118,11 @@ If the history doesn't have clear humor patterns, it's fine to return minimal/em
 Respond in valid JSON only (no markdown, no explanation):
 {
   "voice": "2-3 sentence description of how this character talks and their personality — include one concrete speech habit or verbal tic",
-  "opinions": ["<specific group-rooted opinion>", "<specific group-rooted opinion>", "<specific group-rooted opinion>"],
+  "opinions": [
+    { "topic": "<what they actually argue about>", "stance": "<present-tense take>", "because": "<group-specific reason, not a recap>" },
+    { "topic": "<topic>", "stance": "<take>", "because": "<reason>" },
+    { "topic": "<topic>", "stance": "<take>", "because": "<reason>" }
+  ],
   "signature_behavior": "one specific recurring behavior grounded in this group's patterns — not generic",
   "agent_gender": "זכר",
   "sliders": {
@@ -134,27 +160,85 @@ async function callCharacterSynthesis(prompt: string, usageContext?: SynthesisUs
 
 function parseCharacterJson(text: string): SynthesizedCharacter {
   const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean) as SynthesizedCharacter;
+  const parsed = JSON.parse(clean) as SynthesizedCharacter & { opinions?: unknown };
+  return { ...parsed, opinions: parseSynthesisOpinions(parsed.opinions) };
+}
+
+function rejectedOpinionLines(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const lines: string[] = [];
+  for (const item of raw) {
+    const text =
+      typeof item === 'string' ? item.trim() : item && typeof item === 'object' && typeof (item as { stance?: unknown }).stance === 'string' ? String((item as { stance: string }).stance).trim() : '';
+    if (!text) continue;
+    const result = evaluateOpinion(text);
+    if (!result.ok) lines.push(`${text} (${result.reason})`);
+  }
+  return lines;
 }
 
 // ── Episode summary (every 100 messages) ─────────────────────
 
-export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<string> {
+export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<EpisodeSummaryResult> {
   const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 150,
+    max_tokens: 400,
     messages: [
       {
         role: 'user',
-        content: `${lang}\n\nSummarize this WhatsApp group conversation in 2-3 sentences. Focus on: what happened, who was involved, and any decisions or notable moments.\n\n${content.slice(0, 4000)}`,
+        content: `${lang}
+
+Summarize this WhatsApp group conversation. Return JSON only (no markdown):
+{
+  "summary": "2-3 factual sentences: what happened, who was involved, decisions or notable moments",
+  "events": [
+    { "who": ["<names>"], "what": "<concrete event>", "when": "<date or relative time if known>", "why_it_matters": "<why this might come up again>" }
+  ]
+}
+
+Events rules:
+- 0–3 events. Only include concrete things (trip, decision, place, fight that resolved, plan that locked).
+- Skip vibe, jokes-with-no-outcome, and generic chat.
+- who/what required; when/why_it_matters optional.
+
+Conversation:
+${content.slice(0, 4000)}`,
       },
     ],
   });
   const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
-  return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group activity.';
+  const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+  return parseEpisodeSummaryResponse(text || 'Group activity.');
+}
+
+/** Cheap backfill: extract events from an existing episode summary, not raw messages. */
+export async function extractEventsFromSummary(summary: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<ExtractedEvent[]> {
+  const lang = synthesisLanguageInstruction(languageMode);
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 250,
+    messages: [
+      {
+        role: 'user',
+        content: `${lang}
+
+Extract 0–3 durable events from this group episode summary. JSON only:
+{ "events": [{ "who": ["<names>"], "what": "<concrete event>", "when": "<if known>", "why_it_matters": "<why it might come up again>" }] }
+Skip vibe-only summaries. Empty events is fine.
+
+Summary:
+${summary.slice(0, 1500)}`,
+      },
+    ],
+  });
+  const { recordAnthropicCall } = await import('../lib/usage-record.js');
+  await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '{}';
+  return parseEpisodeSummaryResponse(text).events;
 }
 
 // ── Rolling group context (every 100 messages) ────────────────
@@ -200,20 +284,30 @@ Be specific (names, places, events). Skip generic observations. Write as if brie
 
 // ── Character synthesis (Sonnet — used at setup only) ─────────
 
-export async function synthesizeCharacter(params: {
-  groupName: string;
-  episodeSummaries: string[];
-  userProfiles: string[];
-  languageMode: LanguageMode;
-  usageContext?: SynthesisUsageContext;
-}): Promise<SynthesizedCharacter> {
-  const prompt = buildCharacterSynthesisPrompt(params);
+export async function synthesizeCharacter(params: CharacterSynthesisInput & { usageContext?: SynthesisUsageContext }): Promise<SynthesizedCharacter> {
+  const basePrompt = buildCharacterSynthesisPrompt(params);
   let lastError: unknown;
+  let rejectedNote = '';
 
   for (let attempt = 1; attempt <= CHARACTER_SYNTHESIS_RETRIES; attempt++) {
     try {
+      const prompt = rejectedNote ? `${basePrompt}\n\n${rejectedNote}` : basePrompt;
       const text = await callCharacterSynthesis(prompt, params.usageContext);
-      return parseCharacterJson(text);
+      const parsed = parseCharacterJson(text);
+      if (parsed.opinions.length >= 2) return parsed;
+
+      if (attempt === CHARACTER_SYNTHESIS_RETRIES && parsed.opinions.length > 0) {
+        const fallback = defaultCharacterFallback(params.groupName, params.languageMode);
+        return { ...parsed, opinions: [...parsed.opinions, ...fallback.opinions].slice(0, 3) };
+      }
+
+      const raw = JSON.parse(text.replace(/```json|```/g, '').trim()) as { opinions?: unknown };
+      const rejected = rejectedOpinionLines(raw.opinions);
+      rejectedNote = rejected.length
+        ? `PREVIOUS OPINIONS WERE REJECTED (recaps or generic). Do not repeat these:\n${rejected.map((line) => `- ${line}`).join('\n')}`
+        : 'PREVIOUS OPINIONS WERE TOO FEW OR INVALID. Write 3 present-tense takes, not event recaps.';
+      lastError = new Error(`Only ${parsed.opinions.length} valid opinions`);
+      console.warn(`[Character] Synthesis attempt ${attempt}/${CHARACTER_SYNTHESIS_RETRIES} had weak opinions for "${params.groupName}"`);
     } catch (err) {
       lastError = err;
       console.warn(`[Character] Synthesis attempt ${attempt}/${CHARACTER_SYNTHESIS_RETRIES} failed for "${params.groupName}":`, err);
