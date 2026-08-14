@@ -134,7 +134,8 @@ CREATE TABLE group_memories (
 );
 
 -- Durable events extracted from episode summaries (facts, not persona).
-CREATE TABLE group_events (
+-- Existing DBs: paste scripts/sql/group-events.sql instead of re-running this whole file.
+CREATE TABLE IF NOT EXISTS group_events (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id           uuid REFERENCES groups(id) ON DELETE CASCADE,
   who                text[] DEFAULT '{}',
@@ -144,7 +145,7 @@ CREATE TABLE group_events (
   source_episode_id  uuid REFERENCES episode_summaries(id) ON DELETE SET NULL,
   created_at         timestamptz DEFAULT now()
 );
-CREATE INDEX idx_group_events_group ON group_events (group_id, occurred_on DESC NULLS LAST, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_group_events_group ON group_events (group_id, occurred_on DESC NULLS LAST, created_at DESC);
 
 CREATE TABLE replies (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),

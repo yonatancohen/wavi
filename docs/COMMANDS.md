@@ -52,6 +52,7 @@ cd apps/api && bun test src/ai/__tests__/recovery.test.ts   # one test file
 | `bun run merge:colon-profiles`     | Merge old parser colon-phantom profiles (`Name: quote…`) into the real member. Uses `apps/api/.env`.                                                            |
 | `bun run resynthesize:character`   | Rebuild **character config** (voice, opinions, signature, examples, sliders) from summaries + profiles + relationships + real chat lines. Uses `apps/api/.env`. |
 | `bun run backfill:events`          | Extract durable **group_events** from existing episode summaries (no full re-ingest). Requires `group_events` table. Uses `apps/api/.env`.                      |
+| `bun run sharpen:character`        | **After the SQL:** backfill events, then re-synthesize character. Same `--group-id` / `--name` / `--all` flags. Uses `apps/api/.env`.                           |
 | `bun run replay`                   | Offline reply harness — builds the full prompt and optionally calls Claude **without** sending WhatsApp. Requires `apps/api/.env` (Supabase + Anthropic).       |
 
 ### Ingest / rebuild status
@@ -111,6 +112,20 @@ bun run backfill:events -- --all
 ```
 
 Implementation: `apps/api/scripts/backfill-group-events.ts` (wrapper: `scripts/backfill-events.sh`).
+
+### Sharpen character (events + opinions)
+
+One command after the `group_events` table exists: backfill facts, then rebuild opinions from facts + people + real lines.
+
+```bash
+# 1. Paste scripts/sql/group-events.sql in the Supabase SQL editor (once)
+# 2. Then:
+bun run sharpen:character -- --all
+bun run sharpen:character -- --name "אדיר"
+bun run sharpen:character -- --group-id <uuid>
+```
+
+Implementation: `scripts/sharpen-character.sh` (runs `backfill:events` then `resynthesize:character`).
 
 ### Replay harness
 
@@ -193,6 +208,7 @@ CLI scripts (also exposed at repo root):
 | Ingest status           | `bun run ingest:status`          | `apps/api/scripts/ingest-status.ts`          |
 | Re-synthesize character | `bun run resynthesize:character` | `apps/api/scripts/resynthesize-character.ts` |
 | Backfill group events   | `bun run backfill:events`        | `apps/api/scripts/backfill-group-events.ts`  |
+| Sharpen character       | `bun run sharpen:character`      | `scripts/sharpen-character.sh`               |
 
 ### `@wavi/dashboard` (`apps/dashboard`)
 
