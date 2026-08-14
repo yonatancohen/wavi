@@ -243,21 +243,18 @@ ${summary.slice(0, 1500)}`,
 
 // ── Rolling group context (every 100 messages) ────────────────
 
-export async function generateGroupContext(params: {
+export type GroupContextInput = {
   groupName: string;
   recentContent: string;
   previousContext: string;
+  recentEvents?: string;
   languageMode?: LanguageMode;
-  usageContext?: SynthesisUsageContext;
-}): Promise<string> {
+};
+
+export function buildGroupContextPrompt(params: GroupContextInput): string {
   const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 300,
-    messages: [
-      {
-        role: 'user',
-        content: `${lang}
+  const events = params.recentEvents?.trim() || '(none)';
+  return `${lang}
 
 You are capturing the living memory of a WhatsApp group called "${params.groupName}" for an AI group member that needs to participate naturally.
 
@@ -266,13 +263,26 @@ Previous context (what was known before): ${params.previousContext || 'None'}
 Recent conversation:
 ${params.recentContent.slice(0, 3000)}
 
+THINGS THAT HAPPENED (remembered events, facts only):
+${events}
+
 Write a SHORT context block (max 150 words) IN THE SAME LANGUAGE as the group (${lang}) covering:
 1. Active threads: what are people planning, discussing, or waiting for right now?
 2. Group mood: what's the energy — excited, annoyed, joking around?
 3. Open loops: any unresolved questions, unanswered messages, or pending decisions?
 4. Recent callbacks: inside jokes, references, or events that came up and might be referenced again
 
-Be specific (names, places, events). Skip generic observations. Write as if briefing someone who was away for a week and needs to jump back into the chat naturally.`,
+Be specific (names, places, events). Use remembered events for callbacks when they still matter. Skip generic observations. Write as if briefing someone who was away for a week and needs to jump back into the chat naturally.`;
+}
+
+export async function generateGroupContext(params: GroupContextInput & { usageContext?: SynthesisUsageContext }): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 300,
+    messages: [
+      {
+        role: 'user',
+        content: buildGroupContextPrompt(params),
       },
     ],
   });

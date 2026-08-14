@@ -516,6 +516,14 @@
     "sharpening": "Sharpening…",
     "sharpenDone": "Done — check voice and opinions below.",
     "sharpenFailed": "Sharpen failed",
+    "summaryTitle": "Group summary",
+    "summaryHint": "What's going on lately — threads, mood, open loops. Rebuild from recent history and remembered events.",
+    "summaryBuild": "Build summary",
+    "summaryBuilding": "Building…",
+    "summaryDone": "Done — summary updated.",
+    "summaryFailed": "Summary build failed",
+    "summaryEmpty": "No summary yet. Build one after the group has episode history.",
+    "summaryUpdated": "Updated {ago}",
     "replyModel": "Reply model",
     "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",
     "modelHaiku": "Haiku (fast)",
@@ -830,7 +838,7 @@
       },
       "context": {
         "title": "Regenerate context",
-        "desc": "Refresh the group context summary from the most recent episode summaries."
+        "desc": "Refresh the group context summary from recent episode summaries and remembered events. Same as Build summary on the Character tab."
       },
       "sharpen": {
         "title": "Sharpen character",

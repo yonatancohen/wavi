@@ -31,7 +31,7 @@ import { generateWelcomeMessage } from '../ai/welcome-message.js';
 import { buildUserProfilesFromHistory, recomputeAliasesForMember } from '../ai/profiler.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { backfillGroupEvents, isMissingGroupEventsTable } from '../ai/group-events.js';
-import { generateGroupContext } from '../ai/summarizer.js';
+import { NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
 import { resolveExportMessages, collectObservedAliasesByPerson } from '../lib/resolve-export-messages.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { getAgentUsageStats, getGroupUsageStats } from '../lib/usage.js';
@@ -739,7 +739,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
     const { data } = await db.from('group_contexts').select('*').eq('group_id', req.params.id).order('generated_at', { ascending: false }).limit(1).maybeSingle().throwOnError();
-    return data;
+    return { context: data };
   });
 
   // Memories
@@ -815,24 +815,19 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data: group } = await db.from('groups').select('id, name, language_mode').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
-    const { data: episodes } = await db.from('episode_summaries').select('summary').eq('group_id', id).order('created_at', { ascending: false }).limit(5);
-    if (!episodes || episodes.length === 0) return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
-
-    const recentContent = (episodes as Array<{ summary: string }>)
-      .reverse()
-      .map((e) => e.summary)
-      .join('\n\n');
-    const { data: prevCtx } = await db.from('group_contexts').select('summary_text').eq('group_id', id).order('generated_at', { ascending: false }).limit(1).maybeSingle();
-    const languageMode = resolveEffectiveLang(group.language_mode);
-    const contextSummary = await generateGroupContext({
-      groupName: (group as { name: string }).name ?? 'the group',
-      recentContent,
-      previousContext: (prevCtx as { summary_text: string } | null)?.summary_text ?? '',
-      languageMode,
-      usageContext: { groupId: id },
-    });
-    await db.from('group_contexts').insert({ group_id: id, summary_text: contextSummary, character_version: 1 });
-    return { ok: true, message: 'Context regenerated' };
+    try {
+      const context = await rebuildGroupContext({
+        groupId: id,
+        groupName: (group as { name: string }).name ?? 'the group',
+        languageMode: resolveEffectiveLang(group.language_mode),
+      });
+      return { ok: true, message: 'Context regenerated', context };
+    } catch (error) {
+      if (error instanceof NoEpisodeSummariesError) {
+        return reply.code(400).send({ error: error.message });
+      }
+      throw error;
+    }
   });
 
   // Send an arbitrary message to the group's WhatsApp chat (manual broadcast).

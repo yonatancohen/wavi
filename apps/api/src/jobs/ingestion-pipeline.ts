@@ -2,7 +2,8 @@ import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js';
 import { embedBatch, embed } from '../lib/embeddings.js';
-import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
+import { generateEpisodeSummary, generateChunkSummary } from '../ai/summarizer.js';
+import { rebuildGroupContext } from '../ai/group-context.js';
 import { persistEpisodeEvents } from '../ai/group-events.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
@@ -152,12 +153,10 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   });
   await buildUserProfilesFromHistory(groupId, realMessages, languageMode, observedAliases, { merge });
 
-  const episodeSummaries: string[] = [];
   for (let i = 0; i < realMessages.length; i += 100) {
     const slice = realMessages.slice(i, i + 100);
     const content = slice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
     const episode = await generateEpisodeSummary(content, resolveEffectiveLang(languageMode), { groupId });
-    episodeSummaries.push(episode.summary);
 
     const embedding = await embed(episode.summary, { groupId });
     const { data: inserted } = await db
@@ -179,21 +178,10 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
 
   await setProgress({ stage: 'context' });
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
-  const recentContent = episodeSummaries.slice(-5).join('\n\n');
-  const { data: prevCtx } = await db.from('group_contexts').select('summary_text').eq('group_id', groupId).order('generated_at', { ascending: false }).limit(1).maybeSingle();
-
-  const contextSummary = await generateGroupContext({
+  await rebuildGroupContext({
+    groupId,
     groupName: group?.name ?? 'the group',
-    recentContent,
-    previousContext: prevCtx?.summary_text ?? '',
     languageMode: resolveEffectiveLang(languageMode),
-    usageContext: { groupId },
-  });
-
-  await db.from('group_contexts').insert({
-    group_id: groupId,
-    summary_text: contextSummary,
-    character_version: 1,
   });
 
   await setProgress({ stage: 'synthesizing' });

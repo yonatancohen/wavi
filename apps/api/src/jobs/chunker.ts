@@ -1,7 +1,8 @@
 import { redis } from '../lib/redis.js';
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
-import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
+import { generateEpisodeSummary, generateChunkSummary } from '../ai/summarizer.js';
+import { rebuildGroupContext } from '../ai/group-context.js';
 import { persistEpisodeEvents } from '../ai/group-events.js';
 import { profileUser } from '../ai/profiler.js';
 
@@ -171,27 +172,10 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
 async function maybeGenerateGroupContext(groupId: string) {
   const { data: group } = await db.from('groups').select('name, language_mode').eq('id', groupId).single();
   const languageMode = (group?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
-
-  const { data: episodes } = await db.from('episode_summaries').select('summary').eq('group_id', groupId).order('created_at', { ascending: false }).limit(5);
-
-  const { data: prevCtx } = await db.from('group_contexts').select('summary_text').eq('group_id', groupId).order('generated_at', { ascending: false }).limit(1).maybeSingle();
-
-  const recentContent = (episodes ?? [])
-    .map((e) => e.summary)
-    .reverse()
-    .join('\n\n');
-  const contextSummary = await generateGroupContext({
+  await rebuildGroupContext({
+    groupId,
     groupName: group?.name ?? 'the group',
-    recentContent,
-    previousContext: prevCtx?.summary_text ?? '',
     languageMode,
-    usageContext: { groupId },
-  });
-
-  await db.from('group_contexts').insert({
-    group_id: groupId,
-    summary_text: contextSummary,
-    character_version: 1,
   });
 }
 
