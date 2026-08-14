@@ -24,7 +24,7 @@
                   {{ options.title }}
                 </h2>
               </div>
-              <p :id="dialogBodyId" class="mt-2 ps-8 text-[13px] leading-relaxed text-on-surface-variant">
+              <p :id="dialogBodyId" class="mt-2 whitespace-pre-line ps-8 text-[13px] leading-relaxed text-on-surface-variant">
                 {{ options.message }}
               </p>
             </div>

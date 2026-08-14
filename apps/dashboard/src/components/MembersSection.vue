@@ -5,10 +5,26 @@
         <span class="material-symbols-outlined text-[18px] text-secondary">groups</span>
         <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('members.title') }}</h2>
       </div>
-      <span v-if="!loading && !error && members.length > 0" class="font-mono text-[11px] text-on-surface-variant">
-        {{ t('members.profileCount', { count: members.length }) }}
-      </span>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          v-if="!loading && !error && members.length > 1"
+          type="button"
+          class="btn btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
+          :disabled="mergingDuplicates"
+          @click="mergeDuplicateNames"
+        >
+          <span class="material-symbols-outlined text-[16px]">merge</span>
+          {{ mergingDuplicates ? t('members.mergingDuplicates') : t('members.mergeDuplicates') }}
+        </button>
+        <span v-if="!loading && !error && members.length > 0" class="font-mono text-[11px] text-on-surface-variant">
+          {{ t('members.profileCount', { count: members.length }) }}
+        </span>
+      </div>
     </div>
+
+    <p v-if="mergeResult" class="mb-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12px] text-on-surface">
+      {{ mergeResult }}
+    </p>
 
     <LoadingState v-if="loading" variant="compact" :message="t('loading.members')" />
 
@@ -216,7 +232,7 @@ import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
 import HelpTooltip from './HelpTooltip.vue';
 import { useConfirm } from '../composables/useConfirm';
-import type { UserProfile } from '@wavi/shared';
+import type { MergeDuplicateMembersResponse, UserProfile } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -228,6 +244,8 @@ const error = ref<string | null>(null);
 const savingId = ref<string | null>(null);
 const deletingId = ref<string | null>(null);
 const resettingId = ref<string | null>(null);
+const mergingDuplicates = ref(false);
+const mergeResult = ref<string | null>(null);
 const editingNameId = ref<string | null>(null);
 const editingSummaryId = ref<string | null>(null);
 const aliasDraft = reactive<Record<string, string>>({});
@@ -487,6 +505,52 @@ function removeAlias(member: UserProfile, alias: string) {
     restoreAliases(memberId, previous);
     aliasErrors[memberId] = e instanceof Error ? e.message : t('members.failedSave');
   });
+}
+
+async function mergeDuplicateNames() {
+  mergingDuplicates.value = true;
+  error.value = null;
+  mergeResult.value = null;
+  try {
+    const preview = await apiFetch<MergeDuplicateMembersResponse>(`/groups/${props.groupId}/members/merge-duplicates`, {
+      method: 'POST',
+      body: JSON.stringify({ dry_run: true }),
+    });
+
+    if (!preview.merges.length) {
+      mergeResult.value = preview.ambiguous.length > 0 ? t('members.mergeDuplicatesAmbiguousOnly', { count: preview.ambiguous.length }) : t('members.mergeDuplicatesNone');
+      return;
+    }
+
+    const names = [...new Set(preview.merges.map((m) => m.display_name))].slice(0, 8).join(', ');
+    const ok = await confirm({
+      title: t('members.confirmMergeDuplicatesTitle'),
+      message: t('members.confirmMergeDuplicates', {
+        count: preview.merges.length,
+        names,
+        ambiguous: preview.ambiguous.length,
+      }),
+      confirmLabel: t('members.mergeDuplicates'),
+      variant: 'destructive',
+    });
+    if (!ok) return;
+
+    const result = await apiFetch<MergeDuplicateMembersResponse>(`/groups/${props.groupId}/members/merge-duplicates`, {
+      method: 'POST',
+      body: JSON.stringify({ dry_run: false }),
+    });
+
+    mergeResult.value = t('members.mergeDuplicatesDone', {
+      merged: result.merged,
+      remaining: result.remaining_profiles ?? members.value.length - result.merged,
+      ambiguous: result.ambiguous.length,
+    });
+    await load();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('members.failedMergeDuplicates');
+  } finally {
+    mergingDuplicates.value = false;
+  }
 }
 
 async function mergeMember(member: UserProfile) {

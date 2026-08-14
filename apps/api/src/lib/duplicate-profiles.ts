@@ -7,6 +7,26 @@ export type DuplicateProfileCandidate = {
   msg_count: number | null;
 };
 
+export type DuplicateMergePlanItem = {
+  display_name: string;
+  keep_profile_id: string;
+  keep_wa_user_id: string;
+  merge_profile_id: string;
+  merge_wa_user_id: string;
+  keep_msg_count: number;
+  merge_msg_count: number;
+};
+
+export type DuplicateMergeAmbiguous = {
+  display_name: string;
+  wa_user_ids: string[];
+};
+
+export type DuplicateMergePlan = {
+  merges: DuplicateMergePlanItem[];
+  ambiguous: DuplicateMergeAmbiguous[];
+};
+
 /** Live WhatsApp user ids are digits-only phone (or LID) numbers after stripping @domain. */
 export function isPhoneLikeWaUserId(waUserId: string): boolean {
   return /^\d{8,}$/.test(waUserId.trim());
@@ -46,4 +66,36 @@ export function pickKeepProfile<T extends DuplicateProfileCandidate>(cluster: T[
   const keep = ranked[0]!;
   const merge = ranked.slice(1);
   return { keep, merge };
+}
+
+export function planDuplicateNameMerges<T extends DuplicateProfileCandidate>(profiles: T[], options: { force?: boolean } = {}): DuplicateMergePlan {
+  const byName = groupProfilesByNormalizedName(profiles);
+  const merges: DuplicateMergePlanItem[] = [];
+  const ambiguous: DuplicateMergeAmbiguous[] = [];
+
+  for (const [, cluster] of byName) {
+    if (cluster.length < 2) continue;
+    const picked = pickKeepProfile(cluster, { force: options.force });
+    if (!picked) continue;
+    if ('ambiguous' in picked) {
+      ambiguous.push({
+        display_name: picked.phones[0]?.display_name ?? cluster[0]!.display_name,
+        wa_user_ids: picked.phones.map((p) => p.wa_user_id),
+      });
+      continue;
+    }
+    for (const merge of picked.merge) {
+      merges.push({
+        display_name: picked.keep.display_name,
+        keep_profile_id: picked.keep.id,
+        keep_wa_user_id: picked.keep.wa_user_id,
+        merge_profile_id: merge.id,
+        merge_wa_user_id: merge.wa_user_id,
+        keep_msg_count: picked.keep.msg_count ?? 0,
+        merge_msg_count: merge.msg_count ?? 0,
+      });
+    }
+  }
+
+  return { merges, ambiguous };
 }

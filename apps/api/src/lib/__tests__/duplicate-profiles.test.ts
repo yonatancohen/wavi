@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { groupProfilesByNormalizedName, isPhoneLikeWaUserId, pickKeepProfile } from '../duplicate-profiles.js';
+import { groupProfilesByNormalizedName, isPhoneLikeWaUserId, pickKeepProfile, planDuplicateNameMerges } from '../duplicate-profiles.js';
 
 describe('duplicate-profiles', () => {
   it('detects phone-like wa_user_id', () => {
@@ -35,5 +35,17 @@ describe('duplicate-profiles', () => {
     expect(pickKeepProfile(cluster)).toEqual({ ambiguous: true, phones: cluster });
     const forced = pickKeepProfile(cluster, { force: true });
     expect(forced && 'keep' in forced && forced.keep.id).toBe('b');
+  });
+
+  it('plans export-label into phone keep', () => {
+    const plan = planDuplicateNameMerges([
+      { id: '1', wa_user_id: 'יונתן', display_name: 'יונתן', msg_count: 100 },
+      { id: '2', wa_user_id: '972501234567', display_name: 'יונתן', msg_count: 5 },
+      { id: '3', wa_user_id: 'unique', display_name: 'Unique', msg_count: 1 },
+    ]);
+    expect(plan.merges).toHaveLength(1);
+    expect(plan.merges[0]?.keep_wa_user_id).toBe('972501234567');
+    expect(plan.merges[0]?.merge_wa_user_id).toBe('יונתן');
+    expect(plan.ambiguous).toHaveLength(0);
   });
 });

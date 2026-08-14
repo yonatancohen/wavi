@@ -498,6 +498,31 @@ export interface MergeMembersRequest {
   merge_profile_id: string;
 }
 
+export interface MergeDuplicateMembersRequest {
+  /** When true, merge clusters that have 2+ phone-like ids (keep highest msg_count). */
+  force?: boolean;
+  /** When true, return the plan without applying merges. */
+  dry_run?: boolean;
+}
+
+export interface MergeDuplicateMembersResponse {
+  merged: number;
+  remaining_profiles: number | null;
+  merges: Array<{
+    display_name: string;
+    keep_profile_id: string;
+    keep_wa_user_id: string;
+    merge_profile_id: string;
+    merge_wa_user_id: string;
+    keep_msg_count: number;
+    merge_msg_count: number;
+  }>;
+  ambiguous: Array<{
+    display_name: string;
+    wa_user_ids: string[];
+  }>;
+}
+
 export interface IngestionProgress {
   group_id: string;
   total_messages: number;

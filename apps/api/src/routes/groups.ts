@@ -15,6 +15,8 @@ import type {
   UpdateMemberRequest,
   UpdateRelationshipRequest,
   MergeMembersRequest,
+  MergeDuplicateMembersRequest,
+  MergeDuplicateMembersResponse,
   UserProfileData,
   LinkGroupRequest,
   LanguageMode,
@@ -36,6 +38,7 @@ import { generateReplyText } from '../ai/generate.js';
 import { generateImage } from '../ai/generate-image.js';
 import { getProfileAliases, getSourceAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
+import { mergeDuplicateNameProfiles, mergeProfileInto } from '../lib/merge-profiles.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
 import { friendlyDbError } from '../lib/db-errors.js';
 
@@ -646,64 +649,37 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     if (!keep || !merge) return reply.code(404).send({ error: 'One or both profiles not found' });
 
-    const keepData = keep.profile_data as UserProfileData;
-    const mergeData = merge.profile_data as UserProfileData;
-    const mergedAliases = mergeAliases(getProfileAliases(keepData), merge.display_name, merge.wa_user_id, ...getProfileAliases(mergeData));
-
-    await db
-      .from('user_profiles')
-      .update({
-        msg_count: (keep.msg_count ?? 0) + (merge.msg_count ?? 0),
-        profile_data: { ...keepData, aliases: mergedAliases },
-        last_updated: new Date().toISOString(),
-      })
-      .eq('id', keep.id);
-
-    // Rewire relationship rows from merged id → kept id
-    const oldId = merge.wa_user_id;
-    const newId = keep.wa_user_id;
-    const [{ data: relRowsA }, { data: relRowsB }] = await Promise.all([
-      db.from('relationship_map').select('*').eq('group_id', req.params.id).eq('user_a_wa_id', oldId),
-      db.from('relationship_map').select('*').eq('group_id', req.params.id).eq('user_b_wa_id', oldId),
-    ]);
-    const relRows = [...(relRowsA ?? []), ...(relRowsB ?? [])].filter((row, idx, arr) => arr.findIndex((r) => r.id === row.id) === idx);
-
-    for (const row of relRows ?? []) {
-      let userA = row.user_a_wa_id === oldId ? newId : row.user_a_wa_id;
-      let userB = row.user_b_wa_id === oldId ? newId : row.user_b_wa_id;
-      if (userA === userB) {
-        await db.from('relationship_map').delete().eq('id', row.id);
-        continue;
-      }
-      let nameA = row.user_a_wa_id === oldId ? keep.display_name : row.user_a_name;
-      let nameB = row.user_b_wa_id === oldId ? keep.display_name : row.user_b_name;
-      if (userA > userB) {
-        [userA, userB] = [userB, userA];
-        [nameA, nameB] = [nameB, nameA];
-      }
-      await db.from('relationship_map').delete().eq('id', row.id);
-      await db.from('relationship_map').upsert(
-        {
-          group_id: req.params.id,
-          user_a_wa_id: userA,
-          user_b_wa_id: userB,
-          user_a_name: nameA,
-          user_b_name: nameB,
-          interaction_score: row.interaction_score,
-          conflict_score: row.conflict_score,
-          solidarity_score: row.solidarity_score,
-          signals: row.signals,
-          narrative: row.narrative,
-          last_updated: new Date().toISOString(),
-        },
-        { onConflict: 'group_id,user_a_wa_id,user_b_wa_id' },
-      );
+    try {
+      await mergeProfileInto(req.params.id, keep, merge);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Merge failed';
+      return reply.code(500).send({ error: message });
     }
-
-    await db.from('user_profiles').delete().eq('id', merge.id);
 
     const { data: updated } = await db.from('user_profiles').select('*').eq('id', keep.id).single();
     return updated;
+  });
+
+  fastify.post<{ Params: { id: string }; Body: MergeDuplicateMembersRequest }>('/:id/members/merge-duplicates', async (req, reply) => {
+    const { data: group } = await db.from('groups').select('id').eq('id', req.params.id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const body = req.body ?? {};
+    try {
+      const result = await mergeDuplicateNameProfiles(req.params.id, {
+        force: Boolean(body.force),
+        dryRun: Boolean(body.dry_run),
+      });
+      return {
+        merged: result.merged,
+        remaining_profiles: result.remaining_profiles,
+        merges: result.merges,
+        ambiguous: result.ambiguous,
+      } satisfies MergeDuplicateMembersResponse;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Merge duplicates failed';
+      return reply.code(500).send({ error: message });
+    }
   });
 
   // Relationships

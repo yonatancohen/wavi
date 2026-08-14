@@ -72,13 +72,17 @@ Implementation: `apps/api/scripts/ingest-status.ts` (wrapper: `scripts/ingest-st
 
 Use when **Members** shows the same person twice (same display name, different `wa_user_id` — usually export name vs live phone digits). Keeps the phone-like id when present.
 
+**Dashboard (mobile-friendly):** Group → Members → **Merge duplicate names**.
+
 ```bash
 bun run merge:duplicate-profiles -- --name "אדירים" --dry-run
 bun run merge:duplicate-profiles -- --name "אדירים"
 bun run merge:duplicate-profiles -- --group-id <uuid> --force   # if 2+ phone ids share a name
 ```
 
-Implementation: `apps/api/scripts/merge-duplicate-profiles.ts` (wrapper: `scripts/merge-duplicate-profiles.sh`).
+API: `POST /api/groups/:id/members/merge-duplicates` with `{ dry_run?: boolean, force?: boolean }`.
+
+Implementation: `apps/api/scripts/merge-duplicate-profiles.ts` / `apps/api/src/lib/merge-profiles.ts` (wrapper: `scripts/merge-duplicate-profiles.sh`).
 
 ### Re-synthesize character
 
