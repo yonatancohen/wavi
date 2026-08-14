@@ -1,5 +1,13 @@
+import type { LanguageMode } from '@wavi/shared';
 import { db } from '../db/client.js';
 import type { ExtractedEvent } from './episode-events.js';
+import { extractEventsFromSummary } from './summarizer.js';
+
+export function isMissingGroupEventsTable(error: { message?: string; code?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? '';
+  return msg.includes('group_events') && (msg.includes('schema cache') || msg.includes('does not exist') || error.code === 'PGRST205' || error.code === '42P01');
+}
 
 function whatKey(what: string): string {
   return what.slice(0, 40).toLowerCase();
@@ -39,8 +47,39 @@ export async function persistEpisodeEvents(groupId: string, sourceEpisodeId: str
   );
 
   if (error) {
+    if (isMissingGroupEventsTable(error)) throw error;
     console.error('[GroupEvents] persist failed:', error.message);
   }
+}
+
+export async function backfillGroupEvents(groupId: string): Promise<{ extracted: number; skipped: number }> {
+  const { data: group, error: groupError } = await db.from('groups').select('language_mode').eq('id', groupId).single();
+  if (groupError || !group) throw new Error(groupError?.message ?? 'Group not found');
+
+  const { data: episodes, error } = await db.from('episode_summaries').select('id, summary, msg_from').eq('group_id', groupId).order('msg_from', { ascending: true });
+  if (error) throw error;
+
+  const { data: existing, error: existingError } = await db.from('group_events').select('source_episode_id').eq('group_id', groupId);
+  if (existingError) throw existingError;
+
+  const done = new Set((existing ?? []).map((row) => row.source_episode_id).filter(Boolean));
+  const languageMode = ((group as { language_mode?: LanguageMode }).language_mode ?? 'he') as LanguageMode;
+  let extracted = 0;
+  let skipped = 0;
+
+  for (const episode of episodes ?? []) {
+    if (!episode.summary) continue;
+    if (episode.id && done.has(episode.id)) {
+      skipped++;
+      continue;
+    }
+    const events = await extractEventsFromSummary(episode.summary, languageMode, { groupId });
+    if (events.length === 0) continue;
+    await persistEpisodeEvents(groupId, episode.id, events, episode.msg_from);
+    extracted += events.length;
+  }
+
+  return { extracted, skipped };
 }
 
 export async function deleteGroupEvents(groupId: string): Promise<void> {

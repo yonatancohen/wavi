@@ -9,9 +9,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { persistEpisodeEvents } from '../src/ai/group-events.js';
-import { extractEventsFromSummary } from '../src/ai/summarizer.js';
-import type { LanguageMode } from '@wavi/shared';
+import { backfillGroupEvents } from '../src/ai/group-events.js';
 
 function parseArgs(argv: string[]) {
   const out = { groupId: null as string | null, name: null as string | null, all: false };
@@ -67,28 +65,9 @@ async function resolveGroupId(db: Pick<ReturnType<typeof createClient>, 'from'>,
   return rows[0]!.id;
 }
 
-type EpisodeRow = { id: string; summary: string | null; msg_from: string | null };
-
 async function backfillGroup(groupId: string): Promise<number> {
-  const { data: group, error: groupError } = await db.from('groups').select('language_mode').eq('id', groupId).single();
-  if (groupError || !group) throw new Error(groupError?.message ?? 'Group not found');
-
-  const { data: episodes, error } = await db.from('episode_summaries').select('id, summary, msg_from').eq('group_id', groupId).order('msg_from', { ascending: true });
-  if (error) throw error;
-
-  const languageMode = ((group as { language_mode?: LanguageMode }).language_mode ?? 'he') as LanguageMode;
-  let inserted = 0;
-
-  for (const episode of (episodes ?? []) as EpisodeRow[]) {
-    if (!episode.summary) continue;
-    const events = await extractEventsFromSummary(episode.summary, languageMode, { groupId });
-    if (events.length === 0) continue;
-    await persistEpisodeEvents(groupId, episode.id, events, episode.msg_from);
-    inserted += events.length;
-    console.log(`  episode ${episode.id}: ${events.length} event(s)`);
-  }
-
-  return inserted;
+  const result = await backfillGroupEvents(groupId);
+  return result.extracted;
 }
 
 const parsed = parseArgs(process.argv.slice(2));

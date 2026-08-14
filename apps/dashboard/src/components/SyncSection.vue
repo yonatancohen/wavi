@@ -66,6 +66,12 @@ interface Op {
 
 const OPS: Op[] = [
   {
+    key: 'sharpen',
+    icon: 'auto_fix_high',
+    iconColor: 'text-tertiary',
+    endpoint: 'sharpen-character',
+  },
+  {
     key: 'chunkDates',
     icon: 'calendar_month',
     iconColor: 'text-secondary',

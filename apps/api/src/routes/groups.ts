@@ -30,6 +30,7 @@ import { buildRelationshipMap } from '../ai/relationships.js';
 import { generateWelcomeMessage } from '../ai/welcome-message.js';
 import { buildUserProfilesFromHistory, recomputeAliasesForMember } from '../ai/profiler.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
+import { backfillGroupEvents, isMissingGroupEventsTable } from '../ai/group-events.js';
 import { generateGroupContext } from '../ai/summarizer.js';
 import { resolveExportMessages, collectObservedAliasesByPerson } from '../lib/resolve-export-messages.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
@@ -892,6 +893,42 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     await synthesizeCharacterForGroup(id);
     return { ok: true, message: 'Character re-synthesized' };
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/sharpen-character', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+
+    const { data: summaryCount } = await db.from('episode_summaries').select('id', { count: 'exact', head: true }).eq('group_id', id);
+    if (!(summaryCount as unknown as { count: number } | null)?.count) {
+      return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
+    }
+
+    let eventsExtracted = 0;
+    let eventsSkipped = 0;
+    let eventsWarning: string | undefined;
+    try {
+      const events = await backfillGroupEvents(id);
+      eventsExtracted = events.extracted;
+      eventsSkipped = events.skipped;
+    } catch (err) {
+      const dbErr = err as { message?: string; code?: string };
+      if (isMissingGroupEventsTable(dbErr)) {
+        eventsWarning = friendlyDbError(dbErr);
+      } else {
+        return reply.code(500).send({ error: friendlyDbError(dbErr) });
+      }
+    }
+
+    await synthesizeCharacterForGroup(id);
+    return {
+      ok: true,
+      message: 'Character sharpened',
+      events_extracted: eventsExtracted,
+      events_skipped: eventsSkipped,
+      ...(eventsWarning ? { warning: eventsWarning } : {}),
+    };
   });
 
   // Patch existing chunks: prepend [date] header and re-embed.

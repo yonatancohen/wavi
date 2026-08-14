@@ -510,6 +510,12 @@
     "sliders": "Personality sliders",
     "slidersHint": "Fine-tune tone. Low end = subtle/casual; high end = intense/expressive.",
     "failedSave": "Failed to save character",
+    "sharpenTitle": "Sharpen character",
+    "sharpenHint": "Rebuild opinions as real takes and remember group events. Takes a minute — stay on this screen.",
+    "sharpen": "Sharpen",
+    "sharpening": "Sharpening…",
+    "sharpenDone": "Done — check voice and opinions below.",
+    "sharpenFailed": "Sharpen failed",
     "replyModel": "Reply model",
     "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",
     "modelHaiku": "Haiku (fast)",
@@ -825,6 +831,10 @@
       "context": {
         "title": "Regenerate context",
         "desc": "Refresh the group context summary from the most recent episode summaries."
+      },
+      "sharpen": {
+        "title": "Sharpen character",
+        "desc": "Remember group events, then rebuild opinions as takes — not recaps. Same as the button on the Character tab."
       },
       "character": {
         "title": "Re-synthesize character",

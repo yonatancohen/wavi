@@ -19,6 +19,12 @@ export function friendlyDbError(error: { message?: string; code?: string }): str
     }
   }
 
+  if (msg.includes('group_events') && (msg.includes('schema cache') || msg.includes('does not exist') || code === 'PGRST205' || code === '42P01')) {
+    return (
+      'Database is missing the group_events table. In the Supabase SQL editor paste scripts/sql/group-events.sql ' + "(CREATE TABLE IF NOT EXISTS group_events …), then NOTIFY pgrst, 'reload schema';"
+    );
+  }
+
   if (msg.includes('web_search_enabled')) {
     return (
       'Database schema missing groups.web_search_enabled (or API cache is stale). ' +

@@ -125,6 +125,8 @@ bun run sharpen:character -- --name "אדיר"
 bun run sharpen:character -- --group-id <uuid>
 ```
 
+From the dashboard (phone-friendly): open the group → **Character** → **Sharpen**. Same API as this command (`POST /groups/:id/sharpen-character`).
+
 Implementation: `scripts/sharpen-character.sh` (runs `backfill:events` then `resynthesize:character`).
 
 ### Replay harness
