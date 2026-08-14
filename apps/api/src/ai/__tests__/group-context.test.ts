@@ -45,7 +45,9 @@ describe('buildGroupContextPrompt', () => {
     expect(prompt).toContain('דן, שרה: נסעו לאילת');
     expect(prompt).toContain('דן: מי בא בשישי?');
     expect(prompt).toContain('מדברים על סוף שבוע');
-    expect(prompt).toContain('Output ONLY the briefing');
+    expect(prompt).toContain('רק התדריך');
+    expect(prompt).toContain('בלי markdown');
     expect(prompt).not.toContain('Write a SHORT context block');
+    expect(prompt).not.toContain('Output ONLY the briefing');
   });
 });

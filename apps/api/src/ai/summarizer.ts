@@ -1,8 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { LanguageMode, EmojiUsageLevel, VoiceExample, AgentGender, HumorDNA } from '@wavi/shared';
 import { parseEpisodeSummaryResponse, type EpisodeSummaryResult, type ExtractedEvent } from './episode-events.js';
-import { synthesisLanguageInstruction } from './language.js';
-import { isMetaGroupContext } from './context-quality.js';
+import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
+import { isBrokenBriefing, isMetaGroupContext } from './context-quality.js';
 import { evaluateOpinion, parseSynthesisOpinions } from './opinion-quality.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -181,17 +181,24 @@ function rejectedOpinionLines(raw: unknown): string[] {
 
 // ── Episode summary (every 100 messages) ─────────────────────
 
-export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<EpisodeSummaryResult> {
+export function buildEpisodeSummaryPrompt(content: string, languageMode: LanguageMode = 'auto'): string {
   const lang = synthesisLanguageInstruction(languageMode);
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 400,
-    messages: [
-      {
-        role: 'user',
-        content: `${lang}
+  const task =
+    languageMode === 'he'
+      ? `סכם את השיחה. החזר JSON בלבד (בלי markdown):
+{
+  "summary": "2–3 משפטים תקינים: מה קרה, מי היה מעורב, החלטות או רגעים בולטים",
+  "events": [
+    { "who": ["<שמות>"], "what": "<אירוע ממשי>", "when": "<תאריך או זמן יחסי אם ידוע>", "why_it_matters": "<למה זה עלול לחזור>" }
+  ]
+}
 
-Summarize this WhatsApp group conversation. Return JSON only (no markdown):
+כללי אירועים:
+- 0–3 אירועים. רק דברים ממשיים (טיול, החלטה, מקום, ריב שנפתר, תוכנית שנסגרה).
+- בלי אווירה בלבד ובלי בדיחות בלי תוצאה.
+- who/what חובה; when/why_it_matters רשות.
+העברית ב-summary וב-what חייבת להיות תקינה — משפטים שלמים, התאם מין לשמות.`
+      : `Summarize this WhatsApp group conversation. Return JSON only (no markdown):
 {
   "summary": "2-3 factual sentences: what happened, who was involved, decisions or notable moments",
   "events": [
@@ -202,10 +209,24 @@ Summarize this WhatsApp group conversation. Return JSON only (no markdown):
 Events rules:
 - 0–3 events. Only include concrete things (trip, decision, place, fight that resolved, plan that locked).
 - Skip vibe, jokes-with-no-outcome, and generic chat.
-- who/what required; when/why_it_matters optional.
+- who/what required; when/why_it_matters optional.`;
+
+  return `${lang}
+
+${task}
 
 Conversation:
-${content.slice(0, 4000)}`,
+${content.slice(0, 4000)}`;
+}
+
+export async function generateEpisodeSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<EpisodeSummaryResult> {
+  const response = await anthropic.messages.create({
+    model: hebrewAwareModel(languageMode),
+    max_tokens: 400,
+    messages: [
+      {
+        role: 'user',
+        content: buildEpisodeSummaryPrompt(content, languageMode),
       },
     ],
   });
@@ -262,14 +283,11 @@ export class MetaGroupContextError extends Error {
 }
 
 export function buildGroupContextPrompt(params: GroupContextInput): string {
-  const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
+  const mode = params.languageMode ?? 'auto';
+  const lang = synthesisLanguageInstruction(mode);
   const events = params.recentEvents?.trim() || '(none)';
   const lines = params.recentLines?.trim() || '(none)';
-  return `${lang}
-
-Write a short briefing of what is going on in the WhatsApp group "${params.groupName}" so a member who was away for a week can jump back in.
-
-Previous briefing (ignore if it talks about missing data or prompts): ${params.previousContext || 'None'}
+  const sources = `Previous briefing (ignore if it talks about missing data, prompts, or has markdown titles): ${params.previousContext || 'None'}
 
 GROUP HISTORY (episode notes):
 ${params.recentContent.slice(0, 3000) || '(none)'}
@@ -278,25 +296,51 @@ THINGS THAT HAPPENED (remembered events, facts only):
 ${events}
 
 REAL LINES FROM THIS CHAT:
-${lines.slice(0, 4000)}
+${lines.slice(0, 4000)}`;
 
-Cover, in at most 150 words:
+  if (mode === 'he') {
+    return `${lang}
+
+כתוב תדריך קצר (עד 120 מילים) על מה קורה בקבוצת הוואטסאפ "${params.groupName}" — לחבר שחזר אחרי שבוע.
+
+${sources}
+
+כסה בפסקאות רציפות (לא כרשימה):
+- מה מתכננים / על מה מתווכחים / למה מחכים
+- האווירה
+- דברים פתוחים
+- קולות חוזרים (בדיחות, שמות, אירועים)
+
+כללים:
+- פלט = רק התדריך. בלי כותרת, בלי המילה בריפינג, בלי markdown, בלי כוכביות, בלי אימוג'י בכותרת, בלי רשימות ממוספרות.
+- משפטים שלמים ותקינים. התאם מין לשמות.
+- אל תפנה למפעיל ואל תתלונן על חוסר מידע. אם החומר דל — כתוב שהקבוצה הייתה שקטה.
+- שמות ומקומות ספציפיים. בלי הכללות.`;
+  }
+
+  return `${lang}
+
+Write a short briefing of what is going on in the WhatsApp group "${params.groupName}" so a member who was away for a week can jump back in.
+
+${sources}
+
+Cover, in at most 150 words, as continuous prose (not a titled report):
 1. Active threads — plans, debates, waiting-for
 2. Group mood
 3. Open loops
 4. Callbacks (jokes, names, events that might come up again)
 
 Rules:
-- Output ONLY the briefing. No preamble, no lists of what you need, no addressing the operator.
+- Output ONLY the briefing. No preamble, no markdown, no title, no lists of what you need, no addressing the operator.
 - Never mention prompts, blocks, context windows, loading, or missing data.
 - If the notes are thin, say the group has been quiet — that is a valid briefing, not a reason to refuse.
 - Be specific (names, places, events). Skip generic observations.`;
 }
 
-async function callGroupContext(prompt: string, usageContext?: SynthesisUsageContext): Promise<string> {
+async function callGroupContext(prompt: string, usageContext?: SynthesisUsageContext, languageMode?: LanguageMode): Promise<string> {
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 300,
+    model: hebrewAwareModel(languageMode),
+    max_tokens: 500,
     messages: [{ role: 'user', content: prompt }],
   });
   const { recordAnthropicCall } = await import('../lib/usage-record.js');
@@ -310,11 +354,13 @@ export async function generateGroupContext(params: GroupContextInput & { usageCo
 
   for (let attempt = 1; attempt <= GROUP_CONTEXT_RETRIES; attempt++) {
     const prompt = rejectedNote ? `${basePrompt}\n\n${rejectedNote}` : basePrompt;
-    const text = await callGroupContext(prompt, params.usageContext);
-    if (text && !isMetaGroupContext(text)) return text;
+    const text = await callGroupContext(prompt, params.usageContext, params.languageMode);
+    if (text && !isMetaGroupContext(text) && !isBrokenBriefing(text)) return text;
 
     rejectedNote =
-      'PREVIOUS OUTPUT WAS REJECTED. You wrote about missing data or addressed the operator. Write ONLY a briefing of the group from the source material. If notes are thin, say the group has been quiet.';
+      params.languageMode === 'he'
+        ? 'הפלט הקודם נפסל. כתבת תלונה, כותרת, markdown או עברית שבורה. כתוב רק תדריך רציף ותקין מהחומר. בלי בריפינג, בלי כוכביות.'
+        : 'PREVIOUS OUTPUT WAS REJECTED. You wrote about missing data, used markdown/titles, or addressed the operator. Write ONLY a prose briefing from the source material.';
     console.warn(`[GroupContext] Attempt ${attempt}/${GROUP_CONTEXT_RETRIES} was meta or empty for "${params.groupName}"`);
   }
 

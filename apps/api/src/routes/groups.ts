@@ -32,7 +32,7 @@ import { buildUserProfilesFromHistory, recomputeAliasesForMember } from '../ai/p
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { backfillGroupEvents, isMissingGroupEventsTable } from '../ai/group-events.js';
 import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
-import { isMetaGroupContext } from '../ai/context-quality.js';
+import { usableGroupContext } from '../ai/context-quality.js';
 import { resolveExportMessages, collectObservedAliasesByPerson } from '../lib/resolve-export-messages.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
 import { getAgentUsageStats, getGroupUsageStats } from '../lib/usage.js';
@@ -740,7 +740,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
     const { data } = await db.from('group_contexts').select('*').eq('group_id', req.params.id).order('generated_at', { ascending: false }).limit(1).maybeSingle().throwOnError();
-    if (data && isMetaGroupContext((data as { summary_text?: string }).summary_text ?? '')) {
+    if (data && !usableGroupContext((data as { summary_text?: string }).summary_text ?? '')) {
       return { context: null };
     }
     return { context: data };

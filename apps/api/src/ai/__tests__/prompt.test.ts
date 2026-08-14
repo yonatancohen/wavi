@@ -172,6 +172,8 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('Hebrew');
     expect(prompt).toContain('Never transliterate');
+    expect(prompt).toContain('Complete grammatical sentences');
+    expect(prompt).toContain('No markdown, titles');
   });
 
   it('describes formality correctly at extremes', () => {

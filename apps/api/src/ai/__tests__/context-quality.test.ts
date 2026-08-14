@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { isMetaGroupContext, isThinEpisodeSummary, usableGroupContext } from '../context-quality.js';
+import { isBrokenBriefing, isMetaGroupContext, isThinEpisodeSummary, usableGroupContext } from '../context-quality.js';
 
 describe('isMetaGroupContext', () => {
   it('rejects English operator complaints', () => {
@@ -19,10 +19,19 @@ describe('isMetaGroupContext', () => {
   });
 });
 
+describe('isBrokenBriefing', () => {
+  it('rejects markdown titles and translationese', () => {
+    expect(isBrokenBriefing('**בריפינג האדירים (שוב)** 💪\n:יו, אחזקה על הנעשה')).toBe(true);
+    expect(isBrokenBriefing('**תוכניות:**\n- סנן לבית אלפא')).toBe(true);
+    expect(isBrokenBriefing('דן ושרה עדיין מתלבטים על אילת. האווירה קלילה.')).toBe(false);
+  });
+});
+
 describe('usableGroupContext', () => {
   it('drops meta and empty text', () => {
     expect(usableGroupContext('')).toBe('');
     expect(usableGroupContext('I have nothing. Empty group.')).toBe('');
+    expect(usableGroupContext('**בריפינג** על הקבוצה')).toBe('');
     expect(usableGroupContext('דן סוגר מקום לשישי')).toBe('דן סוגר מקום לשישי');
   });
 });

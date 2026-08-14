@@ -12,9 +12,19 @@ export function isMetaGroupContext(text: string): boolean {
   return EN_META.test(t) || HE_META.test(t);
 }
 
+export function isBrokenBriefing(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  if (/\*\*|__|^#{1,3}\s/m.test(t)) return true;
+  if (/בריפינג|\bbriefing\b/i.test(t)) return true;
+  if (/^\s*[-*]\s/m.test(t)) return true;
+  if (/אחזקה על הנעשה/.test(t)) return true;
+  return false;
+}
+
 export function usableGroupContext(text: string | null | undefined): string {
   const t = text?.trim() ?? '';
-  if (!t || isMetaGroupContext(t)) return '';
+  if (!t || isMetaGroupContext(t) || isBrokenBriefing(t)) return '';
   return t;
 }
 

@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import type { CharacterConfig, LanguageMode } from '@wavi/shared';
-import { synthesisLanguageInstruction } from './language.js';
+import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
 import { recordAnthropicCall } from '../lib/usage-record.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -146,7 +146,7 @@ Output ONLY the WhatsApp message. Use *asterisks* for bold (WhatsApp format).
 No # headers. Separate sections with a blank line. Emojis welcome but not excessive.`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: hebrewAwareModel(languageMode),
     max_tokens: isPreview ? 900 : 1800,
     messages: [{ role: 'user', content: prompt }],
   });

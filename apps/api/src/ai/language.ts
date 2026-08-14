@@ -15,11 +15,23 @@ export function getLanguageName(code: LanguageMode): string {
 
 /** Instruction fragment for synthesis/summary LLM calls. */
 export function synthesisLanguageInstruction(languageMode: LanguageMode): string {
-  if (languageMode === 'he')
-    return 'Write ALL output in natural Israeli spoken Hebrew (עברית מדוברת). Use the register a real Israeli uses in WhatsApp — colloquial, direct, without formal connectors (כפי ש, לפיכך, אשר, על מנת ל) or translated-sounding phrases. Loanwords and English brand names are fine where Israelis actually use them.';
-  if (languageMode === 'en') return 'Write ALL output in natural English.';
-  if (languageMode === 'auto') return 'Write in the same language the group chat uses most (Hebrew or English).';
+  if (languageMode === 'he') {
+    return [
+      'כתוב את כל הפלט בעברית מדוברת ישראלית תקינה — כמו שחבר כותב בוואטסאפ.',
+      'משפטים שלמים עם סדר מילים עברי. התאם מין וגוף לשמות (סנן = זכר → חיפש, לא חיפשה).',
+      'אל תתרגם מאנגלית מילה במילה. אל תמציא ניסוחים מתורגמים (לא "אחזקה על הנעשה", לא "בריפינג").',
+      'שמות באנגלית, מותגים וסלנג שאנשים באמת כותבים — בסדר.',
+      'בלי markdown, בלי כוכביות, בלי כותרות, בלי רשימות ממוספרות.',
+    ].join(' ');
+  }
+  if (languageMode === 'en') return 'Write ALL output in natural English. No markdown titles or bullet headers.';
+  if (languageMode === 'auto') return 'Write in the same language the group chat uses most (Hebrew or English). If Hebrew: natural spoken Israeli Hebrew, complete sentences, no markdown.';
   return `Write ALL output in natural ${getLanguageName(languageMode)}.`;
+}
+
+/** Hebrew generation needs Sonnet; Haiku turns English outlines into broken Hebrew. */
+export function hebrewAwareModel(languageMode?: LanguageMode): string {
+  return languageMode === 'en' ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
 }
 
 /**

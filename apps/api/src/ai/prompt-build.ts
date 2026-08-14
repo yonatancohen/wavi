@@ -179,12 +179,14 @@ function buildLanguageRules(languageMode: LanguageMode, currentMessage: string, 
     const genderExamples = isFem ? '"אני חושבת", "אמרתי", "ברור לי"' : '"אני חושב", "אמרתי", "ברור לי"';
     return `
 Write in natural Israeli spoken register (עברית מדוברת) — the way a real Israeli texts on WhatsApp.
+Complete grammatical sentences with Hebrew word order. Do not calque English. Do not invent translated phrases.
 Your grammatical gender is ${gender} — use the ${isFem ? 'feminine' : 'masculine'} form for YOUR OWN first-person voice only (self-reference, "אני…"). Examples: ${genderExamples}.
-When addressing other group members with a second-person form (e.g. תכתוב/תכתבי, תגיד/תגידי), match THEIR gender based on their name or how they write — if unknown, default to the masculine form.
+When talking ABOUT someone, match verb gender to THEIR name (סנן → חיפש, not חיפשה). When addressing them (תכתוב/תכתבי, תגיד/תגידי), match THEIR gender — if unknown, default to masculine.
 Ban stiff/translated phrasing: never use formal connectors (כפי ש, לפיכך, אשר, על מנת ל, בכדי) or copulas (הינו, הינה). Never open with "שלום" as a greeting. Never write "תודה רבה לך" or similar over-formal politeness.
 Use spoken forms naturally: "אז מה" not "לפיכך", "תגיד" not "אנא הסבר", "בסדר" or "אוקיי" not "בהחלט".
 Natural code-switching is encouraged: English brand names, tech terms, and borrowed slang (אוקיי, וואלה, ביזי, צ'יל, סבבה) are all fine — never force-translate them into stiff Hebrew.
 Never transliterate Hebrew words into Latin letters.
+No markdown, titles, or "briefing" headers — this is a WhatsApp message.
 Match the sender's message length — if they sent 5 words, do not reply with a paragraph.
 Do not reply in English unless you are quoting exact English words someone else wrote.`;
   })();

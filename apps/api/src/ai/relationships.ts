@@ -3,7 +3,7 @@ import { db } from '../db/client.js';
 import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
 import { extractMentionLabels, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
-import { synthesisLanguageInstruction } from './language.js';
+import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -514,7 +514,7 @@ ${lineBlock}`;
     .join('\n\n');
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: hebrewAwareModel(languageMode),
     max_tokens: 600,
     messages: [
       {
