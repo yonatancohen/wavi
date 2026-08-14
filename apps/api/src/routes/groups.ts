@@ -57,6 +57,13 @@ const GROUP_STATS_SELECT = `
   profile_count:user_profiles(count)
 `;
 
+/** `head: true` returns data=null — the count is on `count`, not `data`. */
+async function countEpisodeSummaries(groupId: string): Promise<number> {
+  const { count, error } = await db.from('episode_summaries').select('id', { count: 'exact', head: true }).eq('group_id', groupId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 async function getParticipantCountMap(): Promise<Map<string, number | null>> {
   try {
     const waGroups = await listGroupChats();
@@ -885,8 +892,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
-    const { data: summaryCount } = await db.from('episode_summaries').select('id', { count: 'exact', head: true }).eq('group_id', id);
-    if (!(summaryCount as unknown as { count: number } | null)?.count) {
+    if ((await countEpisodeSummaries(id)) === 0) {
       return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
     }
 
@@ -899,8 +905,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
-    const { data: summaryCount } = await db.from('episode_summaries').select('id', { count: 'exact', head: true }).eq('group_id', id);
-    if (!(summaryCount as unknown as { count: number } | null)?.count) {
+    if ((await countEpisodeSummaries(id)) === 0) {
       return reply.code(400).send({ error: 'No episode summaries — run a full rebuild first.' });
     }
 
