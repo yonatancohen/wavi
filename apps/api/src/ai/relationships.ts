@@ -8,6 +8,9 @@ import { synthesisLanguageInstruction } from './language.js';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const PROXIMITY_MS = 90 * 1000;
+const PROXIMITY_LOOKBACK = 5;
+const SNIPPET_BODY_MAX = 120;
+const SNIPPET_MAX = 6;
 const AGREEMENT_KEYWORDS = ['exactly', 'agreed', 'true', 'right', 'כן', 'נכון'];
 const DISAGREEMENT_KEYWORDS = ['wrong', 'no way', 'disagree', 'לא נכון', 'טעות'];
 const DEFENSE_POSITIVE = ['great', 'good', 'right', 'correct', 'agree', 'support', 'נכון', 'צודק', 'מעולה'];
@@ -31,6 +34,16 @@ interface PairData {
   nameA: string;
   nameB: string;
   signals: RelationshipSignals;
+  snippets: string[];
+}
+
+export function addPairSnippet(snippets: string[], line: string, max = SNIPPET_MAX): string[] {
+  if (!line || snippets.includes(line) || snippets.length >= max) return snippets;
+  return [...snippets, line];
+}
+
+function snippetLine(senderName: string, body: string): string {
+  return `${senderName}: ${body.slice(0, SNIPPET_BODY_MAX)}`;
 }
 
 function canonicalPair(a: string, b: string): [string, string] {
@@ -123,19 +136,23 @@ export async function buildRelationshipMap(
           disagreement_count: 0,
           defense_count: 0,
         },
+        snippets: [],
       };
       pairs.set(key, pair);
     }
     return pair;
   };
 
-  const incrementReply = (fromId: string, toId: string) => {
+  const incrementReply = (fromId: string, toId: string, snippetLines: string[] = []) => {
     const pair = getPair(fromId, toId);
     const [ua, ub] = canonicalPair(fromId, toId);
     if (fromId === ua && toId === ub) {
       pair.signals.reply_count_a_to_b++;
     } else {
       pair.signals.reply_count_b_to_a++;
+    }
+    for (const line of snippetLines) {
+      pair.snippets = addPairSnippet(pair.snippets, line);
     }
   };
 
@@ -146,13 +163,13 @@ export async function buildRelationshipMap(
     if (prev && prev.sender_wa_id !== msg.sender_wa_id) {
       const delta = msg.timestamp.getTime() - prev.timestamp.getTime();
       if (delta >= 0 && delta <= PROXIMITY_MS) {
-        incrementReply(msg.sender_wa_id, prev.sender_wa_id);
+        incrementReply(msg.sender_wa_id, prev.sender_wa_id, [snippetLine(prev.sender_name, prev.body), snippetLine(msg.sender_name, msg.body)]);
       }
     }
 
     for (const targetId of detectMentions(msg.body, members)) {
       if (targetId !== msg.sender_wa_id) {
-        incrementReply(msg.sender_wa_id, targetId);
+        incrementReply(msg.sender_wa_id, targetId, [snippetLine(msg.sender_name, msg.body)]);
       }
     }
   }
@@ -282,7 +299,7 @@ export async function updateRelationshipsIncremental(groupId: string, messages: 
     const curr = messages[i];
     const currTime = new Date(curr.timestamp).getTime();
 
-    for (let j = Math.max(0, i - 5); j < i; j++) {
+    for (let j = Math.max(0, i - PROXIMITY_LOOKBACK); j < i; j++) {
       const prev = messages[j];
       const prevTime = new Date(prev.timestamp).getTime();
       if (curr.sender_wa_id === prev.sender_wa_id) continue;
@@ -355,6 +372,128 @@ export async function updateRelationshipsIncremental(groupId: string, messages: 
   }
 }
 
+function collectRefreshSnippets(history: HistoryMessage[], pairs: Array<{ userA: string; userB: string; nameA: string; nameB: string }>): Map<string, string[]> {
+  const pairByKey = new Map(pairs.map((p) => [pairKey(p.userA, p.userB), p]));
+  const snippetsByPair = new Map<string, string[]>();
+
+  const addLines = (key: string, lines: string[]) => {
+    let snippets = snippetsByPair.get(key) ?? [];
+    for (const line of lines) snippets = addPairSnippet(snippets, line);
+    snippetsByPair.set(key, snippets);
+  };
+
+  for (let i = 0; i < history.length; i++) {
+    const msg = history[i];
+
+    for (let j = Math.max(0, i - PROXIMITY_LOOKBACK); j < i; j++) {
+      const prev = history[j];
+      if (msg.sender_wa_id === prev.sender_wa_id) continue;
+      const delta = msg.timestamp.getTime() - prev.timestamp.getTime();
+      if (delta < 0 || delta > PROXIMITY_MS) continue;
+      const key = pairKey(msg.sender_wa_id, prev.sender_wa_id);
+      if (!pairByKey.has(key)) continue;
+      addLines(key, [snippetLine(prev.sender_name, prev.body), snippetLine(msg.sender_name, msg.body)]);
+    }
+
+    for (const [key, pair] of pairByKey) {
+      const otherName = msg.sender_wa_id === pair.userA ? pair.nameB : msg.sender_wa_id === pair.userB ? pair.nameA : null;
+      if (!otherName || !msg.body.includes(otherName)) continue;
+      addLines(key, [snippetLine(msg.sender_name, msg.body)]);
+    }
+  }
+
+  return snippetsByPair;
+}
+
+/**
+ * Slow-clock refresh: rewrite narratives from recent real lines without touching scores.
+ * Locked pairs keep their existing narrative.
+ */
+export async function refreshRelationshipNarratives(groupId: string, languageMode: LanguageMode): Promise<void> {
+  const { data: rows } = await db.from('relationship_map').select('*').eq('group_id', groupId).gt('interaction_score', 0.1);
+
+  if (!rows?.length) return;
+
+  const unlocked = rows.filter((row) => {
+    const signals = (row.signals as RelationshipSignals | null) ?? null;
+    return !signals?.curation?.narrative_locked;
+  });
+
+  if (unlocked.length === 0) return;
+
+  const { data: messages } = await db
+    .from('messages')
+    .select('sender_wa_id, sender_name, body, timestamp')
+    .eq('group_id', groupId)
+    .eq('is_agent_reply', false)
+    .order('timestamp', { ascending: false })
+    .limit(100);
+
+  // Query is newest-first; proximity deltas need chronological order.
+  const history: HistoryMessage[] = (messages ?? [])
+    .filter((m) => Boolean(m.sender_wa_id))
+    .reverse()
+    .map((m) => ({
+      sender_wa_id: m.sender_wa_id as string,
+      sender_name: m.sender_name,
+      body: m.body ?? '',
+      timestamp: new Date(m.timestamp),
+    }));
+
+  const pairMeta = unlocked.map((row) => ({
+    userA: row.user_a_wa_id,
+    userB: row.user_b_wa_id,
+    nameA: row.user_a_name,
+    nameB: row.user_b_name,
+  }));
+  const snippetsByPair = collectRefreshSnippets(history, pairMeta);
+
+  const narrativePairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }> = unlocked.map((row) => ({
+    userA: row.user_a_wa_id,
+    userB: row.user_b_wa_id,
+    nameA: row.user_a_name,
+    nameB: row.user_b_name,
+    signals: row.signals as RelationshipSignals,
+    snippets: snippetsByPair.get(pairKey(row.user_a_wa_id, row.user_b_wa_id)) ?? [],
+    interaction_score: row.interaction_score,
+    conflict_score: row.conflict_score,
+    solidarity_score: row.solidarity_score,
+  }));
+
+  const narratives = new Map<string, string>();
+  for (let i = 0; i < narrativePairs.length; i += 5) {
+    const batch = narrativePairs.slice(i, i + 5);
+    const batchNarratives = await generateNarrativesBatch(batch, languageMode, groupId);
+    for (const [key, narrative] of batchNarratives) {
+      narratives.set(key, narrative);
+    }
+  }
+
+  const now = new Date().toISOString();
+  for (const row of unlocked) {
+    const key = pairKey(row.user_a_wa_id, row.user_b_wa_id);
+    const narrative = narratives.get(key);
+    // Empty parse failures should not wipe a previously good sentence.
+    if (!narrative) continue;
+    await db.from('relationship_map').upsert(
+      {
+        group_id: groupId,
+        user_a_wa_id: row.user_a_wa_id,
+        user_b_wa_id: row.user_b_wa_id,
+        user_a_name: row.user_a_name,
+        user_b_name: row.user_b_name,
+        interaction_score: row.interaction_score,
+        conflict_score: row.conflict_score,
+        solidarity_score: row.solidarity_score,
+        signals: row.signals,
+        narrative,
+        last_updated: now,
+      },
+      { onConflict: 'group_id,user_a_wa_id,user_b_wa_id' },
+    );
+  }
+}
+
 async function generateNarrativesBatch(
   pairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }>,
   languageMode: LanguageMode = 'auto',
@@ -366,19 +505,24 @@ async function generateNarrativesBatch(
   const pairDescriptions = pairs
     .map((p, idx) => {
       const s = p.signals;
-      return `[${idx + 1}] ${p.nameA} & ${p.nameB}: replies A→B=${s.reply_count_a_to_b}, B→A=${s.reply_count_b_to_a}, agreements=${s.agreement_count}, disagreements=${s.disagreement_count}, defenses=${s.defense_count}, interaction=${p.interaction_score.toFixed(2)}, conflict=${p.conflict_score.toFixed(2)}, solidarity=${p.solidarity_score.toFixed(2)}`;
+      const lines = (p.snippets ?? []).slice(0, SNIPPET_MAX);
+      const lineBlock = lines.length > 0 ? lines.map((line) => `  - ${line}`).join('\n') : '  (none)';
+      return `[${idx + 1}] ${p.nameA} & ${p.nameB}: replies A→B=${s.reply_count_a_to_b}, B→A=${s.reply_count_b_to_a}, agreements=${s.agreement_count}, disagreements=${s.disagreement_count}, defenses=${s.defense_count}, interaction=${p.interaction_score.toFixed(2)}, conflict=${p.conflict_score.toFixed(2)}, solidarity=${p.solidarity_score.toFixed(2)}
+Lines:
+${lineBlock}`;
     })
-    .join('\n');
+    .join('\n\n');
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 400,
+    max_tokens: 600,
     messages: [
       {
         role: 'user',
         content: `${synthesisLanguageInstruction(languageMode)}
 
-For each pair below, write ONE sentence of prose describing their group dynamic (max 30 words each).
+For each pair below, write ONE sentence (max 30 words) of their dynamic from the lines, not by reciting the scores.
+Be specific (names, pattern). Do not invent facts not implied by the lines or scores.
 Every sentence MUST follow the language rule above.
 
 ${pairDescriptions}
