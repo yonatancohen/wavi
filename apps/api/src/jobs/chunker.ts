@@ -2,7 +2,7 @@ import { redis } from '../lib/redis.js';
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
 import { generateEpisodeSummary, generateChunkSummary } from '../ai/summarizer.js';
-import { rebuildGroupContext } from '../ai/group-context.js';
+import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
 import { persistEpisodeEvents } from '../ai/group-events.js';
 import { profileUser } from '../ai/profiler.js';
 
@@ -172,11 +172,19 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
 async function maybeGenerateGroupContext(groupId: string) {
   const { data: group } = await db.from('groups').select('name, language_mode').eq('id', groupId).single();
   const languageMode = (group?.language_mode ?? 'auto') as import('@wavi/shared').LanguageMode;
-  await rebuildGroupContext({
-    groupId,
-    groupName: group?.name ?? 'the group',
-    languageMode,
-  });
+  try {
+    await rebuildGroupContext({
+      groupId,
+      groupName: group?.name ?? 'the group',
+      languageMode,
+    });
+  } catch (error) {
+    if (error instanceof NoEpisodeSummariesError || error instanceof InsufficientHistoryError || error instanceof MetaGroupContextError) {
+      console.warn('[Chunker] Group context skipped:', error.message);
+      return;
+    }
+    throw error;
+  }
 }
 
 // ── Live re-profiling (detached async task) ───────────────────

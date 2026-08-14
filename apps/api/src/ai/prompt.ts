@@ -6,6 +6,7 @@ export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { normalizeRagQuery } from './rag-query.js';
+import { usableGroupContext } from './context-quality.js';
 
 // Lowered from 0.35 — conversational Hebrew chunks about real events (trips,
 // restaurants, etc.) often score 0.28–0.33 against a memory-recall query even
@@ -121,7 +122,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     group_memories: memoriesResult.data ?? [],
     group_events: groupEventsResult.error ? [] : (groupEventsResult.data ?? []),
     member_roster: [...new Set((rosterResult.data ?? []).map((row) => row.display_name).filter(Boolean))],
-    group_context_summary: contextResult.data?.summary_text ?? '',
+    group_context_summary: usableGroupContext(contextResult.data?.summary_text),
     recent_messages: (messagesResult.data ?? []).reverse(),
     upcoming_events: ((eventsResult.data ?? []) as Array<{ type: string; config: { template?: string; frequency?: string }; next_fire_at: string }>).map((a) => ({
       label: a.config?.template ?? 'scheduled post',

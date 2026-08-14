@@ -522,7 +522,7 @@
     "summaryBuilding": "Building…",
     "summaryDone": "Done — summary updated.",
     "summaryFailed": "Summary build failed",
-    "summaryEmpty": "No summary yet. Build one after the group has episode history.",
+    "summaryEmpty": "No summary yet — or the last one was unusable. Build again after the group has real chat history.",
     "summaryUpdated": "Updated {ago}",
     "replyModel": "Reply model",
     "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",

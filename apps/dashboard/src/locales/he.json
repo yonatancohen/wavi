@@ -522,7 +522,7 @@
     "summaryBuilding": "בונה…",
     "summaryDone": "הושלם — הסיכום עודכן.",
     "summaryFailed": "בניית הסיכום נכשלה",
-    "summaryEmpty": "אין סיכום עדיין. בנה אחד אחרי שיש היסטוריית פרקים לקבוצה.",
+    "summaryEmpty": "אין סיכום עדיין — או שהקודם לא היה שמיש. בנה שוב אחרי שיש היסטוריית צ'אט אמיתית.",
     "summaryUpdated": "עודכן {ago}",
     "replyModel": "מודל תשובות",
     "replyModelHint": "Haiku מהיר וזול יותר; Sonnet עשוי לשפר עברית.",

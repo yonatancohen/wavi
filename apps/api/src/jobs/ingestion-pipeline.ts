@@ -3,7 +3,7 @@ import { redis } from '../lib/redis.js';
 import { parseWAExport, chunkMessages, formatChunkForEmbedding } from '../lib/parser.js';
 import { embedBatch, embed } from '../lib/embeddings.js';
 import { generateEpisodeSummary, generateChunkSummary } from '../ai/summarizer.js';
-import { rebuildGroupContext } from '../ai/group-context.js';
+import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
 import { persistEpisodeEvents } from '../ai/group-events.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { buildUserProfilesFromHistory } from '../ai/profiler.js';
@@ -178,11 +178,19 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
 
   await setProgress({ stage: 'context' });
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
-  await rebuildGroupContext({
-    groupId,
-    groupName: group?.name ?? 'the group',
-    languageMode: resolveEffectiveLang(languageMode),
-  });
+  try {
+    await rebuildGroupContext({
+      groupId,
+      groupName: group?.name ?? 'the group',
+      languageMode: resolveEffectiveLang(languageMode),
+    });
+  } catch (error) {
+    if (error instanceof NoEpisodeSummariesError || error instanceof InsufficientHistoryError || error instanceof MetaGroupContextError) {
+      console.warn('[Ingest] Group context skipped:', error.message);
+    } else {
+      throw error;
+    }
+  }
 
   await setProgress({ stage: 'synthesizing' });
 

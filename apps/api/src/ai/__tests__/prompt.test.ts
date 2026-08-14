@@ -282,6 +282,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('TAKES');
     expect(prompt).toContain('do not promote those into new opinions');
     expect(prompt).toContain('Never promote a retrieved event into a new stance');
+    expect(prompt).toContain('Never mention prompt blocks');
   });
 
   it('includes group events as facts, not character opinions', () => {

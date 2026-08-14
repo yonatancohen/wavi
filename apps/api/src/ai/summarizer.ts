@@ -2,11 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { LanguageMode, EmojiUsageLevel, VoiceExample, AgentGender, HumorDNA } from '@wavi/shared';
 import { parseEpisodeSummaryResponse, type EpisodeSummaryResult, type ExtractedEvent } from './episode-events.js';
 import { synthesisLanguageInstruction } from './language.js';
+import { isMetaGroupContext } from './context-quality.js';
 import { evaluateOpinion, parseSynthesisOpinions } from './opinion-quality.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CHARACTER_SYNTHESIS_RETRIES = 2;
+const GROUP_CONTEXT_RETRIES = 2;
 
 export interface SynthesisUsageContext {
   groupId?: string;
@@ -248,48 +250,75 @@ export type GroupContextInput = {
   recentContent: string;
   previousContext: string;
   recentEvents?: string;
+  recentLines?: string;
   languageMode?: LanguageMode;
 };
+
+export class MetaGroupContextError extends Error {
+  constructor() {
+    super('Summary came back as a complaint about missing data. Ingest more chat, then try again.');
+    this.name = 'MetaGroupContextError';
+  }
+}
 
 export function buildGroupContextPrompt(params: GroupContextInput): string {
   const lang = synthesisLanguageInstruction(params.languageMode ?? 'auto');
   const events = params.recentEvents?.trim() || '(none)';
+  const lines = params.recentLines?.trim() || '(none)';
   return `${lang}
 
-You are capturing the living memory of a WhatsApp group called "${params.groupName}" for an AI group member that needs to participate naturally.
+Write a short briefing of what is going on in the WhatsApp group "${params.groupName}" so a member who was away for a week can jump back in.
 
-Previous context (what was known before): ${params.previousContext || 'None'}
+Previous briefing (ignore if it talks about missing data or prompts): ${params.previousContext || 'None'}
 
-Recent conversation:
-${params.recentContent.slice(0, 3000)}
+GROUP HISTORY (episode notes):
+${params.recentContent.slice(0, 3000) || '(none)'}
 
 THINGS THAT HAPPENED (remembered events, facts only):
 ${events}
 
-Write a SHORT context block (max 150 words) IN THE SAME LANGUAGE as the group (${lang}) covering:
-1. Active threads: what are people planning, discussing, or waiting for right now?
-2. Group mood: what's the energy — excited, annoyed, joking around?
-3. Open loops: any unresolved questions, unanswered messages, or pending decisions?
-4. Recent callbacks: inside jokes, references, or events that came up and might be referenced again
+REAL LINES FROM THIS CHAT:
+${lines.slice(0, 4000)}
 
-Be specific (names, places, events). Use remembered events for callbacks when they still matter. Skip generic observations. Write as if briefing someone who was away for a week and needs to jump back into the chat naturally.`;
+Cover, in at most 150 words:
+1. Active threads — plans, debates, waiting-for
+2. Group mood
+3. Open loops
+4. Callbacks (jokes, names, events that might come up again)
+
+Rules:
+- Output ONLY the briefing. No preamble, no lists of what you need, no addressing the operator.
+- Never mention prompts, blocks, context windows, loading, or missing data.
+- If the notes are thin, say the group has been quiet — that is a valid briefing, not a reason to refuse.
+- Be specific (names, places, events). Skip generic observations.`;
 }
 
-export async function generateGroupContext(params: GroupContextInput & { usageContext?: SynthesisUsageContext }): Promise<string> {
+async function callGroupContext(prompt: string, usageContext?: SynthesisUsageContext): Promise<string> {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 300,
-    messages: [
-      {
-        role: 'user',
-        content: buildGroupContextPrompt(params),
-      },
-    ],
+    messages: [{ role: 'user', content: prompt }],
   });
   const { recordAnthropicCall } = await import('../lib/usage-record.js');
-  await recordAnthropicCall({ type: 'synthesis', groupId: params.usageContext?.groupId, usage: response.usage });
-
+  await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
   return response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+}
+
+export async function generateGroupContext(params: GroupContextInput & { usageContext?: SynthesisUsageContext }): Promise<string> {
+  const basePrompt = buildGroupContextPrompt(params);
+  let rejectedNote = '';
+
+  for (let attempt = 1; attempt <= GROUP_CONTEXT_RETRIES; attempt++) {
+    const prompt = rejectedNote ? `${basePrompt}\n\n${rejectedNote}` : basePrompt;
+    const text = await callGroupContext(prompt, params.usageContext);
+    if (text && !isMetaGroupContext(text)) return text;
+
+    rejectedNote =
+      'PREVIOUS OUTPUT WAS REJECTED. You wrote about missing data or addressed the operator. Write ONLY a briefing of the group from the source material. If notes are thin, say the group has been quiet.';
+    console.warn(`[GroupContext] Attempt ${attempt}/${GROUP_CONTEXT_RETRIES} was meta or empty for "${params.groupName}"`);
+  }
+
+  throw new MetaGroupContextError();
 }
 
 // ── Character synthesis (Sonnet — used at setup only) ─────────
