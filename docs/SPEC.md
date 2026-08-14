@@ -116,13 +116,13 @@ Before going live, owner sees the synthesized character card: description, sampl
 
 ### 3.2 Character Components
 
-| Component           | Description                                                           |
-| ------------------- | --------------------------------------------------------------------- |
-| Name                | Set by owner. Default: wavi. Groups often rename their bots.          |
-| Voice               | 2-3 sentence description of how the agent talks. Generated, editable. |
-| Opinions            | 3-5 positions on topics relevant to this group.                       |
-| Signature behavior  | One recurring quirk. E.g. "Ends long replies with a one-liner."       |
-| Personality sliders | Formality / Humor / Verbosity / Assertiveness / Empathy               |
+| Component           | Description                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| Name                | Set by owner. Default: wavi. Groups often rename their bots.                           |
+| Voice               | 2-3 sentence description of how the agent talks. Generated, editable.                  |
+| Opinions            | 3-5 present-tense takes on topics this group actually argues about — not event recaps. |
+| Signature behavior  | One recurring quirk. E.g. "Ends long replies with a one-liner."                        |
+| Personality sliders | Formality / Humor / Verbosity / Assertiveness / Empathy                                |
 
 ### 3.3 Personality Sliders
 

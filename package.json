@@ -34,6 +34,8 @@
     "logs": "bash scripts/logs.sh",
     "ingest:status": "bash scripts/ingest-status.sh",
     "resynthesize:character": "bash scripts/resynthesize-character.sh",
+    "backfill:events": "bash scripts/backfill-events.sh",
+    "sharpen:character": "bash scripts/sharpen-character.sh",
     "rebuild:dynamics": "bash scripts/rebuild-dynamics.sh",
     "regenerate:group-context": "bash scripts/regenerate-group-context.sh",
     "reprofile:from-chunks": "bash scripts/reprofile-from-chunks.sh",

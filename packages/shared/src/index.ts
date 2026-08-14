@@ -330,6 +330,18 @@ export interface GroupMemory {
   created_at: string;
 }
 
+/** Auto-extracted durable event (not owner-curated — that is group_memories). */
+export interface GroupEvent {
+  id: string;
+  group_id: string;
+  who: string[];
+  what: string;
+  occurred_on: string | null;
+  why_it_matters: string | null;
+  source_episode_id: string | null;
+  created_at: string;
+}
+
 // ── Reply flows (in-flight tag → reply pipeline) ─────────────
 
 export type ReplyFlowStatus = 'queued' | 'processing';
@@ -600,6 +612,10 @@ export interface PromptContext {
   sender_profile: UserProfile;
   relevant_relationships: RelationshipPair[];
   group_memories: GroupMemory[];
+  /** Auto-extracted events the character can recall (facts, not opinions). */
+  group_events?: GroupEvent[];
+  /** Display names of people in the group — roster only, not full profiles. */
+  member_roster?: string[];
   mentioned_people: MentionedPerson[];
   rag_chunks: string[]; // top 5 message chunk summaries
   rag_episode_summaries: string[]; // top 3 episode summaries

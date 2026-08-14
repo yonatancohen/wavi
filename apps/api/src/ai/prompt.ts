@@ -1,7 +1,7 @@
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
 import { normalizeWebSearchQuery, searchWeb, shouldUseWebSearch } from '../lib/web-search.js';
-import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData } from '@wavi/shared';
+import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData, RelationshipPair } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
@@ -60,10 +60,12 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   }
 
   const mentionedPeople = await fetchMentionedPeople(groupId, normalizedMessage, senderWaId);
+  const relevant_relationships = await mergeNamedPairRelationships(groupId, senderWaId, normalizedMessage, structured.relevant_relationships);
 
   return {
     ...structured,
     ...rag,
+    relevant_relationships,
     mentioned_people: mentionedPeople,
     resolved_display_names: resolvedNames,
     quoted_message: quotedMessage ?? null,
@@ -75,7 +77,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 // ── Layer 1 + 3: Structured Postgres fetch ────────────────────
 
 async function fetchStructuredContext(groupId: string, senderWaId: string) {
-  const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult, eventsResult] = await Promise.all([
+  const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult, eventsResult, groupEventsResult, rosterResult] = await Promise.all([
     db.from('groups').select('name, character_config, language_mode, web_search_enabled, image_generation_enabled').eq('id', groupId).single(),
 
     db.from('user_profiles').select('*').eq('group_id', groupId).eq('wa_user_id', senderWaId).single(),
@@ -102,6 +104,10 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
       .not('next_fire_at', 'is', null)
       .order('next_fire_at', { ascending: true })
       .limit(3),
+
+    db.from('group_events').select('*').eq('group_id', groupId).order('occurred_on', { ascending: false, nullsFirst: false }).limit(8),
+
+    db.from('user_profiles').select('display_name').eq('group_id', groupId),
   ]);
 
   return {
@@ -113,6 +119,8 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     sender_profile: profileResult.data ?? null,
     relevant_relationships: relationshipsResult.data ?? [],
     group_memories: memoriesResult.data ?? [],
+    group_events: groupEventsResult.error ? [] : (groupEventsResult.data ?? []),
+    member_roster: [...new Set((rosterResult.data ?? []).map((row) => row.display_name).filter(Boolean))],
     group_context_summary: contextResult.data?.summary_text ?? '',
     recent_messages: (messagesResult.data ?? []).reverse(),
     upcoming_events: ((eventsResult.data ?? []) as Array<{ type: string; config: { template?: string; frequency?: string }; next_fire_at: string }>).map((a) => ({
@@ -244,4 +252,54 @@ export async function fetchMentionedPeople(groupId: string, message: string, sen
       } satisfies MentionedPerson;
     }),
   );
+}
+
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+/** If the message names people, include that pair even when neither is the sender. Cap 5. */
+async function mergeNamedPairRelationships(groupId: string, senderWaId: string, message: string, existing: RelationshipPair[]): Promise<RelationshipPair[]> {
+  const { data: profiles } = await db.from('user_profiles').select('wa_user_id, display_name, profile_data').eq('group_id', groupId);
+  if (!profiles?.length) return existing.slice(0, 5);
+
+  const mentionedIds = profiles
+    .filter((p) => {
+      if (p.wa_user_id === senderWaId) return false;
+      const aliases = getProfileAliases(p.profile_data as UserProfileData);
+      return messageReferencesName(message, p.display_name ?? '', aliases);
+    })
+    .map((p) => p.wa_user_id as string)
+    .slice(0, 3);
+
+  if (mentionedIds.length === 0) return existing.slice(0, 5);
+
+  const ids = [...new Set([senderWaId, ...mentionedIds])];
+  const wanted = new Set<string>();
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      wanted.add(pairKey(ids[i], ids[j]));
+    }
+  }
+
+  const have = new Set(existing.map((r) => pairKey(r.user_a_wa_id, r.user_b_wa_id)));
+  const missing = [...wanted].filter((key) => !have.has(key));
+  if (missing.length === 0) return existing.slice(0, 5);
+
+  const orFilter = missing
+    .map((key) => {
+      const [a, b] = key.split('|');
+      return `and(user_a_wa_id.eq.${a},user_b_wa_id.eq.${b})`;
+    })
+    .join(',');
+
+  const { data: extra } = await db.from('relationship_map').select('*').eq('group_id', groupId).or(orFilter);
+  const merged = [...existing];
+  for (const row of extra ?? []) {
+    const key = pairKey(row.user_a_wa_id, row.user_b_wa_id);
+    if (have.has(key) || !row.narrative) continue;
+    have.add(key);
+    merged.push(row as RelationshipPair);
+  }
+  return merged.slice(0, 5);
 }

@@ -266,4 +266,53 @@ describe('buildSystemPrompt', () => {
     const ctx = makeContext({ image_generation_enabled: false });
     expect(buildSystemPrompt(ctx)).not.toContain('IMAGE_PROMPT:');
   });
+
+  it('treats opinions as takes and retrieved history as facts', () => {
+    const ctx = makeContext({
+      character_config: {
+        voice: 'Dry.',
+        opinions: ['Coffee > tea'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 80, verbosity: 50, assertiveness: 60, empathy: 40, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('TAKES');
+    expect(prompt).toContain('do not promote those into new opinions');
+    expect(prompt).toContain('Never promote a retrieved event into a new stance');
+  });
+
+  it('includes group events as facts, not character opinions', () => {
+    const ctx = makeContext({
+      character_config: {
+        voice: 'Dry.',
+        opinions: ['Coffee > tea'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 80, verbosity: 50, assertiveness: 60, empathy: 40, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+      group_events: [
+        {
+          id: 'e1',
+          group_id: 'g1',
+          who: ['Dan', 'Sara'],
+          what: 'Trip to Eilat',
+          occurred_on: '2024-07-01T00:00:00.000Z',
+          why_it_matters: 'They still argue about the hotel',
+          source_episode_id: null,
+          created_at: '2024-07-02T00:00:00.000Z',
+        },
+      ],
+      member_roster: ['Dan', 'Sara', 'Lea'],
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('THINGS THAT HAPPENED');
+    expect(prompt).toContain('Trip to Eilat');
+    expect(prompt).toContain('Do not turn them into opinions');
+    expect(prompt).toContain('People in this group: Dan, Sara, Lea.');
+    expect(prompt.indexOf('Coffee > tea')).toBeLessThan(prompt.indexOf('Trip to Eilat'));
+  });
 });

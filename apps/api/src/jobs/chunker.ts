@@ -2,6 +2,7 @@ import { redis } from '../lib/redis.js';
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
 import { generateEpisodeSummary, generateGroupContext, generateChunkSummary } from '../ai/summarizer.js';
+import { persistEpisodeEvents } from '../ai/group-events.js';
 import { profileUser } from '../ai/profiler.js';
 
 const CHUNK_SIZE = 50;
@@ -118,21 +119,32 @@ async function maybeGenerateEpisodeSummary(groupId: string, messageCount: number
     .map((m) => `${m.sender_name}: ${m.body}`)
     .join('\n');
 
-  const summary = await generateEpisodeSummary(content, languageMode, { groupId });
-  const embedding = await embed(summary, { groupId });
+  const episode = await generateEpisodeSummary(content, languageMode, { groupId });
+  const embedding = await embed(episode.summary, { groupId });
 
   const msgFrom = recentMessages[0].timestamp;
   const msgTo = recentMessages[recentMessages.length - 1].timestamp;
 
-  await db.from('episode_summaries').insert({
-    group_id: groupId,
-    summary,
-    embedding: JSON.stringify(embedding),
-    msg_from: msgFrom,
-    msg_to: msgTo,
-  });
+  const { data: inserted } = await db
+    .from('episode_summaries')
+    .insert({
+      group_id: groupId,
+      summary: episode.summary,
+      embedding: JSON.stringify(embedding),
+      msg_from: msgFrom,
+      msg_to: msgTo,
+    })
+    .select('id')
+    .single();
+  await persistEpisodeEvents(groupId, inserted?.id ?? null, episode.events, msgFrom);
 
   await maybeGenerateGroupContext(groupId);
+
+  setImmediate(() => {
+    import('../ai/relationships.js')
+      .then(({ refreshRelationshipNarratives }) => refreshRelationshipNarratives(groupId, languageMode))
+      .catch((err) => console.error('[Chunker] Relationship narrative refresh failed:', err));
+  });
 
   // Detached: slide character sliders based on recent misses + refresh voice examples
   setImmediate(() => {
