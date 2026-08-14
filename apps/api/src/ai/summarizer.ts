@@ -272,6 +272,7 @@ export type GroupContextInput = {
   previousContext: string;
   recentEvents?: string;
   recentLines?: string;
+  memberRoster?: string;
   languageMode?: LanguageMode;
 };
 
@@ -287,7 +288,11 @@ export function buildGroupContextPrompt(params: GroupContextInput): string {
   const lang = synthesisLanguageInstruction(mode);
   const events = params.recentEvents?.trim() || '(none)';
   const lines = params.recentLines?.trim() || '(none)';
+  const roster = params.memberRoster?.trim() || '(none)';
   const sources = `Previous briefing (ignore if it talks about missing data, prompts, or has markdown titles): ${params.previousContext || 'None'}
+
+PEOPLE IN THIS GROUP (use the name before "also:", never the nickname):
+${roster}
 
 GROUP HISTORY (episode notes):
 ${params.recentContent.slice(0, 3000) || '(none)'}
@@ -315,7 +320,9 @@ ${sources}
 - פלט = רק התדריך. בלי כותרת, בלי המילה בריפינג, בלי markdown, בלי כוכביות, בלי אימוג'י בכותרת, בלי רשימות ממוספרות.
 - משפטים שלמים ותקינים. התאם מין לשמות.
 - אל תפנה למפעיל ואל תתלונן על חוסר מידע. אם החומר דל — כתוב שהקבוצה הייתה שקטה.
-- שמות ומקומות ספציפיים. בלי הכללות.`;
+- שמות ומקומות ספציפיים. בלי הכללות.
+- השתמש רק בשמות הראשיים מרשימת האנשים. אם בשורות כתוב כינוי (My Love, Chen) — כתוב את השם הראשי (גל, חן).
+- אל תתרגם שמות: חן לא הופך לצ'ן, גל לא הופך ל-Gal.`;
   }
 
   return `${lang}
@@ -334,7 +341,9 @@ Rules:
 - Output ONLY the briefing. No preamble, no markdown, no title, no lists of what you need, no addressing the operator.
 - Never mention prompts, blocks, context windows, loading, or missing data.
 - If the notes are thin, say the group has been quiet — that is a valid briefing, not a reason to refuse.
-- Be specific (names, places, events). Skip generic observations.`;
+- Be specific (names, places, events). Skip generic observations.
+- Use only the canonical names from PEOPLE IN THIS GROUP. If a line uses a nickname (My Love, Chen), write the main name (גל, חן).
+- Do not transliterate names (חן stays חן, not צ'ן).`;
 }
 
 async function callGroupContext(prompt: string, usageContext?: SynthesisUsageContext, languageMode?: LanguageMode): Promise<string> {

@@ -27,6 +27,11 @@ describe('formatLinesForContext', () => {
   it('formats sender lines in order', () => {
     expect(formatLinesForContext([{ sender_name: 'דן', body: 'מי בא?' }])).toBe('דן: מי בא?');
   });
+
+  it('rewrites nicknames to curated names', () => {
+    const people = [{ display_name: 'גל', aliases: ['My Love'], wa_user_id: '1' }];
+    expect(formatLinesForContext([{ sender_name: 'My Love', sender_wa_id: '1', body: 'מגיעה' }], people)).toBe('גל: מגיעה');
+  });
 });
 
 describe('buildGroupContextPrompt', () => {
@@ -37,9 +42,13 @@ describe('buildGroupContextPrompt', () => {
       previousContext: 'חיכו לאישור',
       recentEvents: '- דן, שרה: נסעו לאילת (2026-08-01)',
       recentLines: 'דן: מי בא בשישי?',
+      memberRoster: 'גל (also: My Love)\nחן (also: Chen)',
       languageMode: 'he',
     });
 
+    expect(prompt).toContain('PEOPLE IN THIS GROUP');
+    expect(prompt).toContain('גל (also: My Love)');
+    expect(prompt).toContain('השם הראשי');
     expect(prompt).toContain('THINGS THAT HAPPENED');
     expect(prompt).toContain('REAL LINES FROM THIS CHAT');
     expect(prompt).toContain('דן, שרה: נסעו לאילת');
