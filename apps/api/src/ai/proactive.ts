@@ -1,6 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
-import { DEFAULT_REPLY_MODEL, isGroupReplyEnabled, type AutomationType, type DigestConfig, type GroupStatus, type ReplyModel, type ScheduledPostConfig, type SilenceNudgeConfig } from '@wavi/shared';
+import {
+  DEFAULT_REPLY_MODEL,
+  isGroupReplyEnabled,
+  type AutomationType,
+  type DigestConfig,
+  type GroupStatus,
+  type LanguageMode,
+  type ReplyModel,
+  type ScheduledPostConfig,
+  type SilenceNudgeConfig,
+} from '@wavi/shared';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { db } from '../db/client.js';
 
@@ -14,51 +24,68 @@ export type ProactiveMessage = {
   outputTokens: number;
 };
 
-function buildTriggerBody(type: AutomationType, config: SilenceNudgeConfig | DigestConfig | ScheduledPostConfig, elapsedHours?: number): string {
+type TriggerConfig = SilenceNudgeConfig | DigestConfig | ScheduledPostConfig;
+
+function useHebrewTrigger(languageMode: LanguageMode): boolean {
+  return languageMode !== 'en';
+}
+
+export function buildTriggerBody(type: AutomationType, config: TriggerConfig, opts?: { elapsedHours?: number; languageMode?: LanguageMode }): string {
+  const he = useHebrewTrigger(opts?.languageMode ?? 'auto');
+
   switch (type) {
     case 'silence_nudge': {
-      const hours = elapsedHours ?? (config as SilenceNudgeConfig).threshold_hours;
-      return `[system: the group has been quiet for ${hours} hours — start a natural conversation based on recent group activity, your character, and open threads]`;
+      const hours = opts?.elapsedHours ?? (config as SilenceNudgeConfig).threshold_hours;
+      return he
+        ? `[system: הקבוצה שקטה כבר ${hours} שעות — תפתח שיחה טבעית לפי מה שקורה בקבוצה, האופי שלך, וחוטים פתוחים. עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית.]`
+        : `[system: the group has been quiet for ${hours} hours — start a natural conversation based on recent group activity, your character, and open threads]`;
     }
     case 'daily_digest':
-      return "[system: generate a short in-character daily summary of what's been happening in the group]";
+      return he
+        ? '[system: כתוב סיכום קצר באופי הקבוצה של מה שקרה לאחרונה. עברית מדוברת ישראלית, משפטים תקינים, בלי כותרות ובלי תרגום מאנגלית.]'
+        : "[system: generate a short in-character daily summary of what's been happening in the group]";
     case 'scheduled_post': {
       const tpl = (config as ScheduledPostConfig).template;
       const isMeetingTemplate = tpl && /(?:מפגש|פגישה|יציאה|ביחד|meeting|meetup|hangout|gathering|dinner|lunch)/i.test(tpl);
-
-      const base = tpl ? `[system: post something in-character for the group — hint: ${tpl}]` : '[system: post something in-character for the group right now]';
+      const base = tpl
+        ? he
+          ? `[system: תכתוב הודעה באופי הקבוצה — רמז: ${tpl}. עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית.]`
+          : `[system: post something in-character for the group — hint: ${tpl}]`
+        : he
+          ? '[system: תכתוב הודעה באופי הקבוצה עכשיו. עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית.]'
+          : '[system: post something in-character for the group right now]';
 
       if (isMeetingTemplate) {
-        return `${base}\n[Also: naturally invite RSVPs at the end — something like "מי בא?" or "מי מגיע?" — keep it casual, in-character, one short question]`;
+        return he
+          ? `${base}\n[גם: תזמין בסוף בצורה טבעית — משהו כמו "מי בא?" או "מי מגיע?" — קצר, באופי, שאלה אחת.]`
+          : `${base}\n[Also: naturally invite RSVPs at the end — something like "מי בא?" or "מי מגיע?" — keep it casual, in-character, one short question]`;
       }
       return base;
     }
   }
 }
 
-function resolveModel(config: { reply_model?: ReplyModel } | null | undefined): ReplyModel {
+/** Hebrew/auto automations always use Sonnet — Haiku turns English outlines into broken Hebrew. */
+export function resolveAutomationModel(languageMode: LanguageMode, config?: { reply_model?: ReplyModel } | null): ReplyModel {
+  if (languageMode !== 'en') return 'claude-sonnet-4-6';
   return config?.reply_model ?? DEFAULT_REPLY_MODEL;
 }
 
-export async function generateProactiveMessage(
-  groupId: string,
-  type: AutomationType,
-  config: SilenceNudgeConfig | DigestConfig | ScheduledPostConfig,
-  elapsedHours?: number,
-): Promise<ProactiveMessage> {
+export async function generateProactiveMessage(groupId: string, type: AutomationType, config: TriggerConfig, elapsedHours?: number): Promise<ProactiveMessage> {
   const agentId = process.env.AGENT_ID ?? null;
   if (agentId) {
     const paused = await maybeAutoPauseOnBudget(agentId);
     if (paused) throw new Error('Budget auto-pause active — skipping proactive message');
   }
 
-  const { data: group } = await db.from('groups').select('status, wa_group_id').eq('id', groupId).maybeSingle();
+  const { data: group } = await db.from('groups').select('status, wa_group_id, language_mode').eq('id', groupId).maybeSingle();
   if (!group || !isGroupReplyEnabled(group.status as GroupStatus)) {
     throw new Error(`Group ${groupId} is not active (${group?.status ?? 'missing'})`);
   }
 
+  const languageMode = (group.language_mode ?? 'he') as LanguageMode;
   const agentName = process.env.WA_AGENT_NAME ?? 'wavi';
-  const triggerBody = buildTriggerBody(type, config, elapsedHours);
+  const triggerBody = buildTriggerBody(type, config, { elapsedHours, languageMode });
 
   const ctx = await buildPromptContext({
     groupId,
@@ -67,7 +94,7 @@ export async function generateProactiveMessage(
     quotedMessage: null,
   });
 
-  const replyModel = resolveModel(ctx.character_config);
+  const replyModel = resolveAutomationModel(languageMode, ctx.character_config);
   const systemPrompt = buildSystemPrompt(ctx);
   const conversationTurns = buildConversationTurns(ctx);
 
