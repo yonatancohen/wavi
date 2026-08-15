@@ -83,4 +83,10 @@ describe('isAgentTagged', () => {
   test('no match when agent identity unknown', () => {
     expect(isAgentTagged({}, '@262680938057813 בוקר טוב', 'wavi')).toBe(false);
   });
+
+  test('keeps a previous LID when a later bind omits it', () => {
+    bindAgentIdentity({ phoneUser: '972553151671', lidUser: '262680938057813' });
+    bindAgentIdentity({ phoneUser: '972553151671' });
+    expect(isAgentTagged({ mentionedIds: ['262680938057813@lid'] }, 'בוקר טוב', 'wavi')).toBe(true);
+  });
 });

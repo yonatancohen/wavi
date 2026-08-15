@@ -7,7 +7,7 @@ const { Client, LocalAuth, MessageTypes, MessageMedia } = pkg;
 import qrcode from 'qrcode';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage, handleReaction } from '../handlers.js';
-import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
+import { bindAgentIdentity, clearAgentIdentity, loadStoredAgentIdentity, persistBoundAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 import { participantCountFromWa } from '../../lib/participant-count.js';
 
@@ -421,9 +421,11 @@ export function createWwebjsProvider(): WhatsAppProvider {
     if (info) {
       const { phoneUser, lidUser } = await resolveAgentIdentity(waClient, info.wid._serialized, info.wid.user);
       _waPhoneNumber = phoneUser;
-      bindAgentIdentity({ phoneUser, lidUser, wid: info.wid._serialized });
-      if (lidUser) {
-        console.log(`[WA] Agent identity — phone: ${phoneUser}, lid: ${lidUser}`);
+      const stored = lidUser ? null : await loadStoredAgentIdentity();
+      bindAgentIdentity({ phoneUser, lidUser: lidUser ?? stored?.lidUser ?? null, wid: info.wid._serialized });
+      void persistBoundAgentIdentity();
+      if (lidUser ?? stored?.lidUser) {
+        console.log(`[WA] Agent identity — phone: ${phoneUser}, lid: ${lidUser ?? stored?.lidUser}`);
       }
     }
 

@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import { participantCountFromWa } from '../../lib/participant-count.js';
 import { db } from '../../db/client.js';
 import { handleIncomingMessage, handleReaction } from '../handlers.js';
-import { bindAgentIdentity, clearAgentIdentity } from '../agent-identity.js';
+import { bindAgentIdentity, clearAgentIdentity, loadStoredAgentIdentity, persistBoundAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 
 // Baileys uses @hapi/boom to encode disconnect reasons in lastDisconnect.error.
@@ -147,6 +147,7 @@ export function createBaileysProvider(): WhatsAppProvider {
         const lidUser = rawLid.split('@')[0]?.split(':')[0] ?? null;
         if (lidUser) {
           bindAgentIdentity({ phoneUser: _phoneNumber, wid: _wid, lidUser });
+          void persistBoundAgentIdentity();
           console.log(`[Baileys] LID updated — ${lidUser}`);
         }
       }
@@ -188,8 +189,11 @@ export function createBaileysProvider(): WhatsAppProvider {
           // so isAgentTagged() can match it (sock.user.lid may arrive slightly
           // later via creds.update, but grab it now if already present).
           const rawLid = (sock?.user as { lid?: string } | undefined)?.lid ?? null;
-          const lidUser = rawLid ? (rawLid.split('@')[0]?.split(':')[0] ?? null) : null;
+          const extractedLid = rawLid ? (rawLid.split('@')[0]?.split(':')[0] ?? null) : null;
+          const stored = extractedLid ? null : await loadStoredAgentIdentity();
+          const lidUser = extractedLid ?? stored?.lidUser ?? null;
           bindAgentIdentity({ phoneUser, wid: userId, lidUser });
+          void persistBoundAgentIdentity();
           console.log(`[Baileys] Connected — phone: ${phoneUser} | wid: ${userId} | lid: ${lidUser ?? 'pending'}`);
         }
 

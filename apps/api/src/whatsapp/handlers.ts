@@ -194,6 +194,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
 
   const tagged = isAgentTagged(msg, body);
   if (!tagged) {
+    console.log(`[WA] Not tagged — skip reply. group=${group.name} mentions=[${msg.mentionedIds.join(',')}] agentIds=[${getAgentUserIds().join(',')}] body=${body.slice(0, 80)}`);
     // Detect text-based negative reactions to recent Wavi replies (e.g. "wtf wavi, that was off")
     import('../ai/worker.js')
       .then(({ checkForNegativeReaction }) => checkForNegativeReaction({ groupId: group.id, senderWaId, body, waGroupId }))
@@ -206,6 +207,8 @@ export async function handleIncomingMessage(msg: InboundMessage) {
     }
     return;
   }
+
+  console.log(`[WA] Tagged — ${group.name} (${group.status}) from ${senderName}`);
 
   if (!isGroupReplyEnabled(group.status)) {
     console.log(`[WA] Group not live — ${group.name} (${group.status})`);
@@ -313,6 +316,7 @@ export async function handleIncomingMessage(msg: InboundMessage) {
   const effectiveBody = roastTarget ? `[ROAST: Be funny and specific about "${roastTarget.target}" — 1-2 sentences max, use what you know about them] ${body}` : body;
 
   const { queueReplyJob } = await import('../lib/reply-queue.js');
+  console.log(`[WA] Queueing reply — ${group.name} from ${senderName}`);
   await queueReplyJob({
     group_id: group.id,
     group_name: group.name,
