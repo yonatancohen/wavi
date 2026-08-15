@@ -743,5 +743,3 @@ export interface UpcomingEvent {
   next_fire_at: string;
   frequency: string;
 }
-
-export { fixMistransliteratedHebrewNames, hebrewGivenName } from './hebrew-names.js';

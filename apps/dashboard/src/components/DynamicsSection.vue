@@ -72,7 +72,7 @@
             </div>
           </div>
           <p v-else class="text-[13px] leading-relaxed text-on-surface-variant">
-            {{ pair.narrative ? fixMistransliteratedHebrewNames(pair.narrative) : t('dynamics.noSummaryYet') }}
+            {{ pair.narrative || t('dynamics.noSummaryYet') }}
           </p>
         </div>
       </article>
@@ -85,7 +85,7 @@ import { ref, watch, onMounted, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
-import { fixMistransliteratedHebrewNames, type RelationshipPair } from '@wavi/shared';
+import type { RelationshipPair } from '@wavi/shared';
 import { useConfirm } from '../composables/useConfirm';
 
 const { t } = useI18n();

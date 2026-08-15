@@ -4,7 +4,6 @@ import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
 import { extractMentionLabels, mergeAliases, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
-import { hebrewGivenName } from '@wavi/shared';
 import { applyCanonicalNames, resolveSenderLabel, type NameCanon } from './name-canon.js';
 import { loadMemberNames } from './group-context.js';
 
@@ -532,12 +531,11 @@ async function generateNarrativesBatch(
   const result = new Map<string, string>();
   if (pairs.length === 0) return result;
 
-  const hebrew = languageMode === 'he' || languageMode === 'auto';
   const pairDescriptions = pairs
     .map((p, idx) => {
       const s = p.signals;
-      const nameA = hebrew ? hebrewGivenName(p.nameA) : p.nameA;
-      const nameB = hebrew ? hebrewGivenName(p.nameB) : p.nameB;
+      const nameA = p.nameA;
+      const nameB = p.nameB;
       const lines = (p.snippets ?? []).slice(0, SNIPPET_MAX);
       const lineBlock = lines.length > 0 ? lines.map((line) => `  - ${line}`).join('\n') : '  (none)';
       return `[${idx + 1}] ${nameA} & ${nameB}: replies A→B=${s.reply_count_a_to_b}, B→A=${s.reply_count_b_to_a}, agreements=${s.agreement_count}, disagreements=${s.disagreement_count}, defenses=${s.defense_count}, interaction=${p.interaction_score.toFixed(2)}, conflict=${p.conflict_score.toFixed(2)}, solidarity=${p.solidarity_score.toFixed(2)}
@@ -556,7 +554,7 @@ ${lineBlock}`;
 
 For each pair below, write ONE sentence (max 30 words) of their dynamic from the lines, not by reciting the scores.
 Be specific (names, pattern). Do not invent facts not implied by the lines or scores.
-Use the names exactly as written (חן stays חן, not צ'ן). Do not transliterate names.
+Use the names exactly as written. Do not transliterate names into another alphabet.
 Every sentence MUST follow the language rule above.
 
 ${pairDescriptions}

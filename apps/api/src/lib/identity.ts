@@ -23,6 +23,59 @@ export function firstNameToken(name: string): string {
   return token ?? '';
 }
 
+/** First whitespace token, keeping geresh/apostrophe (צ'ן). */
+export function firstRawNameToken(name: string): string {
+  return stripUnicodeDirectionMarks(name).trim().split(/\s+/)[0] ?? '';
+}
+
+const APOSTROPHES = /['׳’‘`ʼ´ʹˈ]/g;
+
+/**
+ * Cross-script name skeleton so Latin and Hebrew spellings of the same person
+ * collapse (Chen / חן / צ'ן → hn, Gal / גל → gl). Not a per-person list.
+ */
+export function phoneticNameKey(name: string): string {
+  let s = stripUnicodeDirectionMarks(name).toLowerCase().replace(APOSTROPHES, "'");
+  s = s.replace(/צ'/g, 'h');
+  s = s.replace(/sch/g, 's').replace(/sh/g, 's').replace(/kh|ch/g, 'h').replace(/tz|ts/g, 'c').replace(/ph/g, 'f').replace(/th/g, 't');
+
+  const he: Record<string, string> = {
+    א: '',
+    ב: 'b',
+    ג: 'g',
+    ד: 'd',
+    ה: '',
+    ו: '',
+    ז: 'z',
+    ח: 'h',
+    ט: 't',
+    י: 'y',
+    כ: 'k',
+    ך: 'k',
+    ל: 'l',
+    מ: 'm',
+    ם: 'm',
+    נ: 'n',
+    ן: 'n',
+    ס: 's',
+    ע: '',
+    פ: 'p',
+    ף: 'p',
+    צ: 'c',
+    ץ: 'c',
+    ק: 'k',
+    ר: 'r',
+    ש: 's',
+    ת: 't',
+  };
+  s = [...s].map((ch) => (ch in he ? he[ch] : ch)).join('');
+  s = s
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/[aeiou]/g, '')
+    .replace(/y$/, '');
+  return s;
+}
+
 const PHONE_IN_LABEL = /^[\u200e\u200f\u202a-\u202e\u2066-\u2069\s]*~?\s*(\+?\d[\d\s\-().]{7,}\d)\s*$/;
 
 /** Extract digits-only phone user id from a WhatsApp export sender label. */
@@ -66,6 +119,10 @@ export function namesLikelyMatch(a: string, b: string): boolean {
   const fa = firstNameToken(a);
   const fb = firstNameToken(b);
   if (fa.length >= 3 && fa === fb) return true;
+
+  const pa = phoneticNameKey(firstRawNameToken(a));
+  const pb = phoneticNameKey(firstRawNameToken(b));
+  if (pa.length >= 2 && pa === pb) return true;
 
   return false;
 }

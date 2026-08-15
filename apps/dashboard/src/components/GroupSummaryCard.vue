@@ -44,7 +44,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import { formatRelativeTime } from '../lib/ui';
-import { fixMistransliteratedHebrewNames, type GroupContext } from '@wavi/shared';
+import type { GroupContext } from '@wavi/shared';
 
 const { t, locale } = useI18n();
 const props = defineProps<{ groupId: string }>();
@@ -55,7 +55,7 @@ const done = ref(false);
 const error = ref<string | null>(null);
 const context = ref<Pick<GroupContext, 'summary_text' | 'generated_at'> | null>(null);
 
-const summary = computed(() => fixMistransliteratedHebrewNames(context.value?.summary_text?.trim() || ''));
+const summary = computed(() => context.value?.summary_text?.trim() || '');
 const updatedAgo = computed(() => {
   if (!context.value?.generated_at) return '';
   return formatRelativeTime(context.value.generated_at, locale.value);

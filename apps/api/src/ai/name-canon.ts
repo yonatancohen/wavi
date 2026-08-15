@@ -1,5 +1,4 @@
-import { fixMistransliteratedHebrewNames, hebrewGivenName } from '@wavi/shared';
-import { mergeAliases, namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
+import { firstRawNameToken, mergeAliases, namesLikelyMatch, normalizeNameForMatch, phoneticNameKey } from '../lib/identity.js';
 
 export type NameCanon = {
   display_name: string;
@@ -7,25 +6,16 @@ export type NameCanon = {
   wa_user_id?: string;
 };
 
-/** Extra spellings the model invents (Chen → צ'ן) plus first-name tokens. */
+/** First-name tokens from the People-tab name and stored aliases — no per-person list. */
 export function expandCanonAliases(person: NameCanon, extraLabels: string[] = []): NameCanon {
   const extras = [...person.aliases, ...extraLabels].map((label) => label.trim()).filter(Boolean);
   const tokens: string[] = [];
   for (const label of [person.display_name, ...extras]) {
-    const first = label.trim().split(/\s+/)[0];
+    const first = firstRawNameToken(label);
     if (first && first.length >= 2) tokens.push(first);
   }
 
-  const haystack = [person.display_name, ...extras, ...tokens].join(' ');
-  const more: string[] = [];
-  if (person.display_name.includes('חן') || /\bchen\b/i.test(haystack)) {
-    more.push("צ'ן", 'צ׳ן', 'Chen');
-  }
-  if (person.display_name.includes('גל') || /\bgal\b/i.test(haystack) || /my love/i.test(haystack)) {
-    more.push('Gal', 'My Love');
-  }
-
-  return { ...person, aliases: mergeAliases([], ...extras, ...tokens, ...more) };
+  return { ...person, aliases: mergeAliases([], ...extras, ...tokens) };
 }
 
 export function formatMemberRoster(people: NameCanon[]): string {
@@ -69,21 +59,55 @@ function replaceNameToken(text: string, from: string, to: string): string {
   for (const variant of apostropheVariants(from)) {
     const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const latin = /^[\x00-\x7F]*$/.test(variant);
-    // Hebrew clitics attach to names (וצ'ן = and Chen).
+    // Hebrew clitics attach to names (וצ'ן = and <name>).
     const re = new RegExp(`(?<![\\p{L}\\p{N}])([ובלמהשכ]?)${escaped}(?![\\p{L}\\p{N}])`, latin ? 'gui' : 'gu');
     out = out.replace(re, `$1${to}`);
   }
   return out;
 }
 
-/** Rewrite contact nicknames / Latin spellings to the curated display name. */
+function phoneticTargetByKey(people: NameCanon[]): Map<string, string> {
+  const map = new Map<string, string>();
+  const ambiguous = new Set<string>();
+
+  for (const person of people) {
+    const to = person.display_name.trim();
+    if (!to) continue;
+    for (const label of [to, ...person.aliases]) {
+      const key = phoneticNameKey(firstRawNameToken(label));
+      if (key.length < 2) continue;
+      const existing = map.get(key);
+      if (existing && normalizeNameForMatch(existing) !== normalizeNameForMatch(to)) {
+        ambiguous.add(key);
+      } else {
+        map.set(key, to);
+      }
+    }
+  }
+
+  for (const key of ambiguous) map.delete(key);
+  return map;
+}
+
+function replacePhoneticNameTokens(text: string, people: NameCanon[]): string {
+  const targets = phoneticTargetByKey(people);
+  if (targets.size === 0) return text;
+
+  return text.replace(/(?<![\p{L}\p{N}])([ובלמהשכ]?)([\p{L}'׳’‘`]+)(?![\p{L}\p{N}])/gu, (match, prefix: string, token: string) => {
+    const key = phoneticNameKey(token);
+    const to = targets.get(key);
+    if (!to || normalizeNameForMatch(token) === normalizeNameForMatch(to)) return match;
+    if (normalizeNameForMatch(to).includes(normalizeNameForMatch(token)) && token.length >= 4) return match;
+    return `${prefix}${to}`;
+  });
+}
+
+/** Rewrite nicknames and other spellings to the People-tab display name. */
 export function applyCanonicalNames(text: string, people: NameCanon[]): string {
-  const hebrewText = /[\u0590-\u05FF]/.test(text);
   const replacements: Array<{ from: string; to: string }> = [];
   for (const person of people) {
-    const display = person.display_name.trim();
-    if (!display) continue;
-    const to = hebrewText ? hebrewGivenName(display) : display;
+    const to = person.display_name.trim();
+    if (!to) continue;
     for (const alias of person.aliases) {
       const from = alias.trim();
       if (!from || normalizeNameForMatch(from) === normalizeNameForMatch(to)) continue;
@@ -96,6 +120,5 @@ export function applyCanonicalNames(text: string, people: NameCanon[]): string {
   for (const { from, to } of replacements) {
     out = replaceNameToken(out, from, to);
   }
-  // Roster-independent: Chen → צ'ן even when People still says "Chen Arroyo".
-  return fixMistransliteratedHebrewNames(out);
+  return replacePhoneticNameTokens(out, people);
 }

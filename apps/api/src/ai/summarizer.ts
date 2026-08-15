@@ -321,8 +321,8 @@ ${sources}
 - משפטים שלמים ותקינים. התאם מין לשמות.
 - אל תפנה למפעיל ואל תתלונן על חוסר מידע. אם החומר דל — כתוב שהקבוצה הייתה שקטה.
 - שמות ומקומות ספציפיים. בלי הכללות.
-- השתמש רק בשמות הראשיים מרשימת האנשים. אם בשורות כתוב כינוי (My Love, Chen) — כתוב את השם הראשי (גל, חן).
-- אל תתרגם שמות: חן לא הופך לצ'ן, גל לא הופך ל-Gal.`;
+- השתמש רק בשמות הראשיים מרשימת האנשים. כינוי או איות אחר — השם הראשי מהרשימה.
+- אל תתרגם שמות לאלפבית אחר.`;
   }
 
   return `${lang}
@@ -342,8 +342,8 @@ Rules:
 - Never mention prompts, blocks, context windows, loading, or missing data.
 - If the notes are thin, say the group has been quiet — that is a valid briefing, not a reason to refuse.
 - Be specific (names, places, events). Skip generic observations.
-- Use only the canonical names from PEOPLE IN THIS GROUP. If a line uses a nickname (My Love, Chen), write the main name (גל, חן).
-- Do not transliterate names (חן stays חן, not צ'ן).`;
+- Use only the canonical names from PEOPLE IN THIS GROUP. Nicknames and other spellings → the main name on that list.
+- Do not transliterate names into another alphabet.`;
 }
 
 async function callGroupContext(prompt: string, usageContext?: SynthesisUsageContext, languageMode?: LanguageMode): Promise<string> {

@@ -15,7 +15,6 @@ describe('synthesisLanguageInstruction', () => {
     const he = synthesisLanguageInstruction('he');
     expect(he).toContain('עברית מדוברת');
     expect(he).toContain('בלי markdown');
-    expect(he).toContain('חן');
     expect(he).not.toContain('Write ALL output');
   });
 });

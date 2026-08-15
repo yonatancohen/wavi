@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { extractMentionLabels, mergeAliases, namesLikelyMatch, normalizeNameForMatch, parsePhoneFromLabel, resolveSenderIdentity, stripUnicodeDirectionMarks } from '../identity.js';
+import { extractMentionLabels, mergeAliases, namesLikelyMatch, normalizeNameForMatch, parsePhoneFromLabel, phoneticNameKey, resolveSenderIdentity, stripUnicodeDirectionMarks } from '../identity.js';
 
 describe('stripUnicodeDirectionMarks', () => {
   it('strips isolate chars from Hebrew @mentions', () => {
@@ -44,6 +44,20 @@ describe('namesLikelyMatch', () => {
 
   it('does not match unrelated names', () => {
     expect(namesLikelyMatch('Chen', 'Dan')).toBe(false);
+  });
+
+  it('matches the same name across Latin and Hebrew spellings', () => {
+    expect(namesLikelyMatch('Chen', 'חן')).toBe(true);
+    expect(namesLikelyMatch("צ'ן", 'חן')).toBe(true);
+    expect(namesLikelyMatch('Ron', 'רון')).toBe(true);
+  });
+});
+
+describe('phoneticNameKey', () => {
+  it('is stable across common Latin/Hebrew pairs', () => {
+    expect(phoneticNameKey('Chen')).toBe(phoneticNameKey('חן'));
+    expect(phoneticNameKey('Gal')).toBe(phoneticNameKey('גל'));
+    expect(phoneticNameKey('כן')).not.toBe(phoneticNameKey('חן'));
   });
 });
 
