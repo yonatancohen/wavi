@@ -40,6 +40,7 @@ export async function synthesizeCharacterForGroup(groupId: string): Promise<Char
     ...character,
     preset: 'custom',
     version: 1,
+    last_synthesized_at: new Date().toISOString(),
     ...(prevReplyModel ? { reply_model: prevReplyModel } : {}),
   };
 

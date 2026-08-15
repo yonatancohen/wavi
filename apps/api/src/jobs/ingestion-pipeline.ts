@@ -11,7 +11,8 @@ import { buildRelationshipMap } from '../ai/relationships.js';
 import { alignExportIdentities } from '../lib/export-alignment.js';
 import { resolveExportMessages, collectObservedAliasesByPerson, type ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { mergeAliases } from '../lib/identity.js';
-import type { IngestionProgress, LanguageMode, ParsedWAMessage } from '@wavi/shared';
+import type { IngestionProgress, LanguageMode, ParsedWAMessage, SyncOpKey } from '@wavi/shared';
+import { recordSyncRun } from '../lib/sync-status.js';
 
 export type IngestionMode = 'merge' | 'full_reset';
 
@@ -178,12 +179,14 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
 
   await setProgress({ stage: 'context' });
   const { data: group } = await db.from('groups').select('name').eq('id', groupId).single();
+  const completed: SyncOpKey[] = ['profiles', 'dynamics', 'sharpen', 'chunkDates'];
   try {
     await rebuildGroupContext({
       groupId,
       groupName: group?.name ?? 'the group',
       languageMode: resolveEffectiveLang(languageMode),
     });
+    completed.push('context');
   } catch (error) {
     if (error instanceof NoEpisodeSummariesError || error instanceof InsufficientHistoryError || error instanceof MetaGroupContextError) {
       console.warn('[Ingest] Group context skipped:', error.message);
@@ -195,6 +198,8 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
   await setProgress({ stage: 'synthesizing' });
 
   await synthesizeCharacterForGroup(groupId);
+  completed.push('character');
+  await recordSyncRun(groupId, completed);
 
   await setProgress({ stage: 'done' });
 }

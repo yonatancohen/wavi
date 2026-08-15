@@ -48,6 +48,7 @@ import type { GroupContext } from '@wavi/shared';
 
 const { t, locale } = useI18n();
 const props = defineProps<{ groupId: string; revision?: number }>();
+const emit = defineEmits<{ updated: [] }>();
 
 const loading = ref(false);
 const running = ref(false);
@@ -82,6 +83,7 @@ async function run() {
     if (result.context) context.value = result.context;
     else await load();
     done.value = true;
+    emit('updated');
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('sync.summaryFailed');
   } finally {
