@@ -171,9 +171,10 @@ describe('buildSystemPrompt', () => {
     });
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('Hebrew');
-    expect(prompt).toContain('Never transliterate');
-    expect(prompt).toContain('Complete grammatical sentences');
-    expect(prompt).toContain('No markdown, titles');
+    expect(prompt).toContain('דקדוק קודם');
+    expect(prompt).toContain('נושא → פועל → השלמה');
+    expect(prompt).toContain('אל תתעתק');
+    expect(prompt).toContain('בלי markdown');
   });
 
   it('describes formality correctly at extremes', () => {
@@ -337,6 +338,9 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Background only — ignore if unrelated');
     expect(prompt).toContain('Greetings and slang are not people');
     expect(prompt).toContain('If asked to involve someone');
+    expect(prompt).toContain('דקדוק קודם');
+    expect(prompt).toContain('ולגבי');
+    expect(prompt).toContain('תשובה תקינה לאותה בקשה');
   });
 
   it('labels briefing as background and drops humor DNA on a live social ask', () => {
@@ -394,5 +398,33 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('אלון');
     expect(prompt).toContain('Alon Arroyo');
     expect(prompt).not.toContain('PEOPLE REFERENCED IN THIS MESSAGE');
+  });
+
+  it('teaches Hebrew humor as seasoning on a grammatical answer, not a callback dump', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'מה אתם אוכלים הלילה?',
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 80, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+        humor_dna: {
+          style: 'dry',
+          recurring_bits: ['מגזינו זה מהלך'],
+          inside_references: ['הדרמה עם הסרט'],
+          example: 'מגזינו זה מהלך',
+        },
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('תיבול בלבד');
+    expect(prompt).toContain('רק אם הם מתאימים לבקשה');
+    expect(prompt).toContain('קאלבקים רק אם הבקשה עליהם');
+    expect(prompt).not.toContain('callbacks to reference');
+    expect(prompt).not.toContain('draw on these patterns');
+    expect(prompt).toContain('חצוף');
   });
 });
