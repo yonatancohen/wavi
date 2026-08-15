@@ -170,11 +170,15 @@ describe('buildSystemPrompt', () => {
       current_message: 'שלום',
     });
     const prompt = buildSystemPrompt(ctx);
-    expect(prompt).toContain('Hebrew');
+    expect(prompt).toContain('עברית מדוברת');
     expect(prompt).toContain('דקדוק קודם');
     expect(prompt).toContain('נושא → פועל → השלמה');
     expect(prompt).toContain('אל תתעתק');
     expect(prompt).toContain('בלי markdown');
+    expect(prompt).toContain('בלוק 1 — זהות');
+    expect(prompt).not.toContain('BLOCK 1 — IDENTITY');
+    expect(prompt).not.toContain('Always reply in natural');
+    expect(prompt).not.toContain('IN SCOPE');
   });
 
   it('describes formality correctly at extremes', () => {
@@ -334,13 +338,14 @@ describe('buildSystemPrompt', () => {
       },
     });
     const prompt = buildSystemPrompt(ctx);
-    expect(prompt).toContain('Answer the tagged message first');
-    expect(prompt).toContain('Background only — ignore if unrelated');
-    expect(prompt).toContain('Greetings and slang are not people');
-    expect(prompt).toContain('If asked to involve someone');
+    expect(prompt).toContain('תענה קודם להודעה שתייגו אותך בה');
+    expect(prompt).toContain('רקע בלבד — להתעלם אם לא קשור');
+    expect(prompt).toContain('ברכות וסלנג הם לא אנשים');
+    expect(prompt).toContain('אם ביקשו לערב מישהו');
     expect(prompt).toContain('דקדוק קודם');
     expect(prompt).toContain('ולגבי');
     expect(prompt).toContain('תשובה תקינה לאותה בקשה');
+    expect(prompt).not.toContain('Answer the tagged message first');
   });
 
   it('labels briefing as background and drops humor DNA on a live social ask', () => {
@@ -394,9 +399,10 @@ describe('buildSystemPrompt', () => {
       },
     });
     const prompt = buildSystemPrompt(ctx);
-    expect(prompt).toContain('PEOPLE YOU WERE ASKED TO INVOLVE');
+    expect(prompt).toContain('אנשים שביקשו שתערב');
     expect(prompt).toContain('אלון');
     expect(prompt).toContain('Alon Arroyo');
+    expect(prompt).not.toContain('PEOPLE YOU WERE ASKED TO INVOLVE');
     expect(prompt).not.toContain('PEOPLE REFERENCED IN THIS MESSAGE');
   });
 

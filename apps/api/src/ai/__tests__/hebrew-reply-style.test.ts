@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { hebrewGrammarFirstRules, hebrewHumorCraftRules, hebrewWhatsAppFormatRules } from '../hebrew-reply-style.js';
+import { hebrewGrammarFirstRules, hebrewHumorCraftRules, hebrewHumorStyleLabel, hebrewWhatsAppFormatRules } from '../hebrew-reply-style.js';
 
 describe('hebrewGrammarFirstRules', () => {
   it('orders grammar before format and humor', () => {
@@ -36,5 +36,12 @@ describe('hebrewHumorCraftRules', () => {
     expect(rules).toContain('חצוף');
     expect(rules).toContain('לא סטאנדאפ');
     expect(rules).toContain('רק אם זה על הנושא');
+  });
+});
+
+describe('hebrewHumorStyleLabel', () => {
+  it('maps stored English style ids to Hebrew', () => {
+    expect(hebrewHumorStyleLabel('dry')).toBe('יבש');
+    expect(hebrewHumorStyleLabel('sarcastic')).toBe('סרקסטי');
   });
 });
