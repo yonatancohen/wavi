@@ -31,7 +31,8 @@ import { generateWelcomeMessage } from '../ai/welcome-message.js';
 import { buildUserProfilesFromHistory, recomputeAliasesForMember } from '../ai/profiler.js';
 import { synthesizeCharacterForGroup } from '../ai/character-synthesis.js';
 import { backfillGroupEvents, isMissingGroupEventsTable } from '../ai/group-events.js';
-import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
+import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, loadMemberNames, rebuildGroupContext } from '../ai/group-context.js';
+import { applyCanonicalNames } from '../ai/name-canon.js';
 import { usableGroupContext } from '../ai/context-quality.js';
 import { resolveExportMessages, collectObservedAliasesByPerson } from '../lib/resolve-export-messages.js';
 import { getCostStats, recordTestChatUsage } from '../lib/cost.js';
@@ -698,7 +699,14 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     if (!group) return reply.code(404).send({ error: 'Group not found' });
 
     const { data } = await db.from('relationship_map').select('*').eq('group_id', req.params.id).order('interaction_score', { ascending: false }).throwOnError();
-    return data;
+    const people = await loadMemberNames(req.params.id);
+    const nameById = new Map(people.filter((person) => person.wa_user_id).map((person) => [person.wa_user_id!, person.display_name]));
+    return (data ?? []).map((row) => ({
+      ...row,
+      user_a_name: nameById.get(row.user_a_wa_id) ?? row.user_a_name,
+      user_b_name: nameById.get(row.user_b_wa_id) ?? row.user_b_name,
+      narrative: applyCanonicalNames(row.narrative ?? '', people),
+    }));
   });
 
   fastify.patch<{ Params: { id: string; relationshipId: string }; Body: UpdateRelationshipRequest }>('/:id/relationships/:relationshipId', async (req, reply) => {

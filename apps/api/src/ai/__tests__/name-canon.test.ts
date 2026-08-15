@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'bun:test';
-import { applyCanonicalNames, formatMemberRoster, resolveSenderLabel } from '../name-canon.js';
+import { applyCanonicalNames, expandCanonAliases, formatMemberRoster, resolveSenderLabel } from '../name-canon.js';
 
 const people = [
   { display_name: 'גל', aliases: ['My Love', 'Gal'], wa_user_id: '1' },
   { display_name: 'חן', aliases: ['Chen', "צ'ן"], wa_user_id: '2' },
 ];
+
+describe('expandCanonAliases', () => {
+  it('adds צ׳ן when the curated name is חן', () => {
+    const person = expandCanonAliases({ display_name: 'חן', aliases: ['Chen Arroyo'] });
+    expect(person.aliases).toContain("צ'ן");
+    expect(person.aliases).toContain('Chen');
+    expect(applyCanonicalNames("אלון וצ'ן התווכחו", [person])).toContain('אלון וחן התווכחו');
+  });
+});
 
 describe('formatMemberRoster', () => {
   it('lists canonical names with aliases', () => {

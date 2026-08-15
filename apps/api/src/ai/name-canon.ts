@@ -1,10 +1,31 @@
-import { namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
+import { mergeAliases, namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
 
 export type NameCanon = {
   display_name: string;
   aliases: string[];
   wa_user_id?: string;
 };
+
+/** Extra spellings the model invents (Chen → צ'ן) plus first-name tokens. */
+export function expandCanonAliases(person: NameCanon, extraLabels: string[] = []): NameCanon {
+  const extras = [...person.aliases, ...extraLabels].map((label) => label.trim()).filter(Boolean);
+  const tokens: string[] = [];
+  for (const label of [person.display_name, ...extras]) {
+    const first = label.trim().split(/\s+/)[0];
+    if (first && first.length >= 2) tokens.push(first);
+  }
+
+  const haystack = [person.display_name, ...extras, ...tokens].join(' ');
+  const more: string[] = [];
+  if (person.display_name.includes('חן') || /\bchen\b/i.test(haystack)) {
+    more.push("צ'ן", 'צ׳ן', 'Chen');
+  }
+  if (person.display_name.includes('גל') || /\bgal\b/i.test(haystack) || /my love/i.test(haystack)) {
+    more.push('Gal', 'My Love');
+  }
+
+  return { ...person, aliases: mergeAliases([], ...extras, ...tokens, ...more) };
+}
 
 export function formatMemberRoster(people: NameCanon[]): string {
   return people
@@ -35,11 +56,23 @@ export function resolveSenderLabel(senderWaId: string | null | undefined, sender
   return senderName;
 }
 
+const APOSTROPHES = ["'", '׳', '’', '‘', '`'];
+
+function apostropheVariants(from: string): string[] {
+  if (!APOSTROPHES.some((mark) => from.includes(mark))) return [from];
+  return [...new Set(APOSTROPHES.map((mark) => from.replace(/['׳’‘`]/g, mark)))];
+}
+
 function replaceNameToken(text: string, from: string, to: string): string {
-  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const latin = /^[\x00-\x7F]*$/.test(from);
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, latin ? 'gui' : 'gu');
-  return text.replace(re, to);
+  let out = text;
+  for (const variant of apostropheVariants(from)) {
+    const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const latin = /^[\x00-\x7F]*$/.test(variant);
+    // Hebrew clitics attach to names (וצ'ן = and Chen).
+    const re = new RegExp(`(?<![\\p{L}\\p{N}])([ובלמהשכ]?)${escaped}(?![\\p{L}\\p{N}])`, latin ? 'gui' : 'gu');
+    out = out.replace(re, `$1${to}`);
+  }
+  return out;
 }
 
 /** Rewrite contact nicknames / Latin spellings to the curated display name. */

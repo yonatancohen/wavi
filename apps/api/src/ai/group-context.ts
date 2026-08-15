@@ -4,7 +4,7 @@ import { generateGroupContext, MetaGroupContextError } from './summarizer.js';
 import { isMissingGroupEventsTable } from './group-events.js';
 import { isThinEpisodeSummary, usableGroupContext } from './context-quality.js';
 import { getProfileAliases } from '../lib/alias-store.js';
-import { applyCanonicalNames, formatMemberRoster, resolveSenderLabel, type NameCanon } from './name-canon.js';
+import { applyCanonicalNames, expandCanonAliases, formatMemberRoster, resolveSenderLabel, type NameCanon } from './name-canon.js';
 
 export { MetaGroupContextError };
 
@@ -82,7 +82,7 @@ async function loadRecentLines(groupId: string, people: NameCanon[]): Promise<st
   return formatLinesForContext(((data ?? []) as Array<{ sender_wa_id: string | null; sender_name: string; body: string }>).reverse(), people);
 }
 
-async function loadMemberNames(groupId: string): Promise<NameCanon[]> {
+export async function loadMemberNames(groupId: string): Promise<NameCanon[]> {
   const { data, error } = await db.from('user_profiles').select('wa_user_id, display_name, profile_data').eq('group_id', groupId);
   if (error) {
     console.warn('[GroupContext] roster fetch failed:', error.message);
@@ -90,11 +90,13 @@ async function loadMemberNames(groupId: string): Promise<NameCanon[]> {
   }
 
   return ((data ?? []) as Array<{ wa_user_id: string; display_name: string | null; profile_data: UserProfileData | null }>)
-    .map((row) => ({
-      wa_user_id: row.wa_user_id,
-      display_name: row.display_name?.trim() ?? '',
-      aliases: getProfileAliases(row.profile_data),
-    }))
+    .map((row) =>
+      expandCanonAliases({
+        wa_user_id: row.wa_user_id,
+        display_name: row.display_name?.trim() ?? '',
+        aliases: getProfileAliases(row.profile_data),
+      }),
+    )
     .filter((person) => person.display_name);
 }
 

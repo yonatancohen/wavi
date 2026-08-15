@@ -1,9 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
-import { extractMentionLabels, messageReferencesName } from '../lib/identity.js';
+import { extractMentionLabels, mergeAliases, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
+import { applyCanonicalNames, resolveSenderLabel, type NameCanon } from './name-canon.js';
+import { loadMemberNames } from './group-context.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -84,6 +86,26 @@ function detectDefense(body: string, target: MemberInfo): boolean {
   return DEFENSE_POSITIVE.some((w) => lower.includes(w));
 }
 
+async function overlayProfileNames(groupId: string, members: Map<string, MemberInfo>, aliasMap?: Map<string, string[]>): Promise<NameCanon[]> {
+  const people = await loadMemberNames(groupId);
+  for (const person of people) {
+    if (!person.wa_user_id) continue;
+    const existing = members.get(person.wa_user_id);
+    const aliases = mergeAliases(person.aliases, ...(aliasMap?.get(person.wa_user_id) ?? []));
+    if (existing) {
+      existing.displayName = person.display_name;
+      existing.aliases = aliases;
+    } else {
+      members.set(person.wa_user_id, {
+        waId: person.wa_user_id,
+        displayName: person.display_name,
+        aliases,
+      });
+    }
+  }
+  return people;
+}
+
 function toHistoryMessages(messages: ResolvedExportMessage[]): HistoryMessage[] {
   return messages
     .filter((m) => !m.is_system_message)
@@ -116,6 +138,7 @@ export async function buildRelationshipMap(
       });
     }
   }
+  const people = await overlayProfileNames(groupId, members, aliasMap);
 
   const pairs = new Map<string, PairData>();
 
@@ -163,13 +186,16 @@ export async function buildRelationshipMap(
     if (prev && prev.sender_wa_id !== msg.sender_wa_id) {
       const delta = msg.timestamp.getTime() - prev.timestamp.getTime();
       if (delta >= 0 && delta <= PROXIMITY_MS) {
-        incrementReply(msg.sender_wa_id, prev.sender_wa_id, [snippetLine(prev.sender_name, prev.body), snippetLine(msg.sender_name, msg.body)]);
+        incrementReply(msg.sender_wa_id, prev.sender_wa_id, [
+          snippetLine(resolveSenderLabel(prev.sender_wa_id, prev.sender_name, people), prev.body),
+          snippetLine(resolveSenderLabel(msg.sender_wa_id, msg.sender_name, people), msg.body),
+        ]);
       }
     }
 
     for (const targetId of detectMentions(msg.body, members)) {
       if (targetId !== msg.sender_wa_id) {
-        incrementReply(msg.sender_wa_id, targetId, [snippetLine(msg.sender_name, msg.body)]);
+        incrementReply(msg.sender_wa_id, targetId, [snippetLine(resolveSenderLabel(msg.sender_wa_id, msg.sender_name, people), msg.body)]);
       }
     }
   }
@@ -208,7 +234,7 @@ export async function buildRelationshipMap(
     const batch = narrativePairs.slice(i, i + 5);
     const batchNarratives = await generateNarrativesBatch(batch, languageMode, groupId);
     for (const [key, narrative] of batchNarratives) {
-      narratives.set(key, narrative);
+      narratives.set(key, applyCanonicalNames(narrative, people));
     }
   }
 
@@ -372,7 +398,7 @@ export async function updateRelationshipsIncremental(groupId: string, messages: 
   }
 }
 
-function collectRefreshSnippets(history: HistoryMessage[], pairs: Array<{ userA: string; userB: string; nameA: string; nameB: string }>): Map<string, string[]> {
+function collectRefreshSnippets(history: HistoryMessage[], pairs: Array<{ userA: string; userB: string; nameA: string; nameB: string }>, people: NameCanon[] = []): Map<string, string[]> {
   const pairByKey = new Map(pairs.map((p) => [pairKey(p.userA, p.userB), p]));
   const snippetsByPair = new Map<string, string[]>();
 
@@ -392,13 +418,13 @@ function collectRefreshSnippets(history: HistoryMessage[], pairs: Array<{ userA:
       if (delta < 0 || delta > PROXIMITY_MS) continue;
       const key = pairKey(msg.sender_wa_id, prev.sender_wa_id);
       if (!pairByKey.has(key)) continue;
-      addLines(key, [snippetLine(prev.sender_name, prev.body), snippetLine(msg.sender_name, msg.body)]);
+      addLines(key, [snippetLine(resolveSenderLabel(prev.sender_wa_id, prev.sender_name, people), prev.body), snippetLine(resolveSenderLabel(msg.sender_wa_id, msg.sender_name, people), msg.body)]);
     }
 
     for (const [key, pair] of pairByKey) {
       const otherName = msg.sender_wa_id === pair.userA ? pair.nameB : msg.sender_wa_id === pair.userB ? pair.nameA : null;
       if (!otherName || !msg.body.includes(otherName)) continue;
-      addLines(key, [snippetLine(msg.sender_name, msg.body)]);
+      addLines(key, [snippetLine(resolveSenderLabel(msg.sender_wa_id, msg.sender_name, people), msg.body)]);
     }
   }
 
@@ -440,19 +466,22 @@ export async function refreshRelationshipNarratives(groupId: string, languageMod
       timestamp: new Date(m.timestamp),
     }));
 
+  const people = await loadMemberNames(groupId);
+  const nameById = new Map(people.filter((person) => person.wa_user_id).map((person) => [person.wa_user_id!, person.display_name]));
+
   const pairMeta = unlocked.map((row) => ({
     userA: row.user_a_wa_id,
     userB: row.user_b_wa_id,
-    nameA: row.user_a_name,
-    nameB: row.user_b_name,
+    nameA: nameById.get(row.user_a_wa_id) ?? row.user_a_name,
+    nameB: nameById.get(row.user_b_wa_id) ?? row.user_b_name,
   }));
-  const snippetsByPair = collectRefreshSnippets(history, pairMeta);
+  const snippetsByPair = collectRefreshSnippets(history, pairMeta, people);
 
   const narrativePairs: Array<PairData & { interaction_score: number; conflict_score: number; solidarity_score: number }> = unlocked.map((row) => ({
     userA: row.user_a_wa_id,
     userB: row.user_b_wa_id,
-    nameA: row.user_a_name,
-    nameB: row.user_b_name,
+    nameA: nameById.get(row.user_a_wa_id) ?? row.user_a_name,
+    nameB: nameById.get(row.user_b_wa_id) ?? row.user_b_name,
     signals: row.signals as RelationshipSignals,
     snippets: snippetsByPair.get(pairKey(row.user_a_wa_id, row.user_b_wa_id)) ?? [],
     interaction_score: row.interaction_score,
@@ -465,7 +494,7 @@ export async function refreshRelationshipNarratives(groupId: string, languageMod
     const batch = narrativePairs.slice(i, i + 5);
     const batchNarratives = await generateNarrativesBatch(batch, languageMode, groupId);
     for (const [key, narrative] of batchNarratives) {
-      narratives.set(key, narrative);
+      narratives.set(key, applyCanonicalNames(narrative, people));
     }
   }
 
@@ -480,8 +509,8 @@ export async function refreshRelationshipNarratives(groupId: string, languageMod
         group_id: groupId,
         user_a_wa_id: row.user_a_wa_id,
         user_b_wa_id: row.user_b_wa_id,
-        user_a_name: row.user_a_name,
-        user_b_name: row.user_b_name,
+        user_a_name: nameById.get(row.user_a_wa_id) ?? row.user_a_name,
+        user_b_name: nameById.get(row.user_b_wa_id) ?? row.user_b_name,
         interaction_score: row.interaction_score,
         conflict_score: row.conflict_score,
         solidarity_score: row.solidarity_score,
@@ -523,6 +552,7 @@ ${lineBlock}`;
 
 For each pair below, write ONE sentence (max 30 words) of their dynamic from the lines, not by reciting the scores.
 Be specific (names, pattern). Do not invent facts not implied by the lines or scores.
+Use the names exactly as written (חן stays חן, not צ'ן). Do not transliterate names.
 Every sentence MUST follow the language rule above.
 
 ${pairDescriptions}
