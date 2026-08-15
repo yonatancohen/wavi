@@ -27,9 +27,9 @@
             <p class="text-[13px] font-medium text-on-surface">{{ t('automations.scheduledTitle') }}</p>
             <p class="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.scheduledHint') }}</p>
           </div>
-          <button type="button" class="btn btn-primary flex w-full shrink-0 items-center justify-center gap-1 text-[12px] sm:w-auto" @click="addingPost = !addingPost">
-            <span class="material-symbols-outlined text-[14px]">{{ addingPost ? 'close' : 'add' }}</span>
-            {{ addingPost ? t('common.cancel') : t('automations.addSchedule') }}
+          <button v-if="!addingPost" type="button" class="btn btn-primary flex w-full shrink-0 items-center justify-center gap-1 text-[12px] sm:w-auto" @click="openAddPost">
+            <span class="material-symbols-outlined text-[14px]">add</span>
+            {{ t('automations.addSchedule') }}
           </button>
         </div>
 
@@ -153,7 +153,7 @@
                 <span v-if="savingNew" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
                 {{ t('automations.saveSchedule') }}
               </button>
-              <button type="button" class="btn btn-secondary text-[12px]" @click="addingPost = false">
+              <button type="button" class="btn btn-secondary text-[12px]" :disabled="savingNew" @click="cancelAddPost">
                 {{ t('common.cancel') }}
               </button>
             </div>
@@ -227,14 +227,14 @@
               <button
                 type="button"
                 class="btn btn-primary flex items-center gap-1.5 text-[12px]"
-                :disabled="silenceNudge.sending || !silenceNudge.draft.trim() || !group?.status?.startsWith('active')"
+                :disabled="silenceNudge.sending || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
                 @click="sendSilenceNudge"
               >
                 <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
                 <span v-else class="material-symbols-outlined text-[14px]">send</span>
                 {{ t('automations.sendNudge') }}
               </button>
-              <button type="button" class="btn btn-secondary text-[12px]" :disabled="silenceNudge.sending" @click="silenceNudge.draft = null">
+              <button type="button" class="btn btn-secondary text-[12px]" :disabled="silenceNudge.sending" @click="cancelSilencePreview">
                 {{ t('common.cancel') }}
               </button>
             </div>
@@ -400,7 +400,7 @@ const silenceNudge = reactive<SilenceState>({
 });
 const dailyDigest = reactive<DigestState>({ id: null, enabled: false, time: '09:00', frequency: 'daily', weekday: 0, last_fired_at: null, saving: false, triggering: false });
 const scheduledPosts = ref<ScheduledPostItem[]>([]);
-const addingPost = ref(true);
+const addingPost = ref(false);
 const newPost = reactive({
   label: t('automations.morningLabel'),
   time: '09:00',
@@ -666,6 +666,21 @@ function applyMorningPreset() {
   newPost.time = '09:00';
   newPost.frequency = 'daily';
   newPost.template = t('automations.morningTemplate');
+}
+
+function openAddPost() {
+  if (!newPost.label.trim()) applyMorningPreset();
+  addingPost.value = true;
+}
+
+function cancelAddPost() {
+  addingPost.value = false;
+  resetNewPost();
+}
+
+function cancelSilencePreview() {
+  silenceNudge.draft = null;
+  silenceNudge.draftTokens = null;
 }
 
 function showToast(message: string, type: 'success' | 'error') {
