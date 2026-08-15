@@ -5,6 +5,7 @@ import { generateEpisodeSummary, generateChunkSummary } from '../ai/summarizer.j
 import { InsufficientHistoryError, MetaGroupContextError, NoEpisodeSummariesError, rebuildGroupContext } from '../ai/group-context.js';
 import { persistEpisodeEvents } from '../ai/group-events.js';
 import { profileUser } from '../ai/profiler.js';
+import { isAgentExportSender } from '../lib/agent-name.js';
 
 const CHUNK_SIZE = 50;
 const CHUNK_OVERLAP = 25;
@@ -54,7 +55,7 @@ export async function flushChunkBuffer(groupId: string) {
 
     const content = messages.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
 
-    const members = [...new Set(messages.map((m) => m.sender_name))];
+    const members = [...new Set(messages.map((m) => m.sender_name).filter((name) => !isAgentExportSender(name)))];
     const msgFrom = messages[0].timestamp;
     const msgTo = messages[messages.length - 1].timestamp;
 
@@ -192,6 +193,7 @@ async function maybeGenerateGroupContext(groupId: string) {
 function queueLiveReProfiling(groupId: string, messages: BufferMessage[]) {
   const senderCounts = new Map<string, { waId: string; name: string; count: number }>();
   for (const msg of messages) {
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     const existing = senderCounts.get(msg.sender_wa_id);
     if (existing) {
       existing.count++;
@@ -214,6 +216,8 @@ function queueLiveReProfiling(groupId: string, messages: BufferMessage[]) {
 }
 
 async function maybeReProfileUser(groupId: string, waUserId: string, displayName: string, msgCount: number) {
+  if (isAgentExportSender(displayName, waUserId)) return;
+
   const counterKey = `profile_counter:${groupId}:${waUserId}`;
   const count = await redis.incrby(counterKey, msgCount);
 

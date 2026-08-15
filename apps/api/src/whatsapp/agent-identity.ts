@@ -1,3 +1,4 @@
+import { isAgentExportSender } from '../lib/agent-name.js';
 import type { QuotedMessage } from './provider.js';
 
 let widStr: string | null = null;
@@ -68,10 +69,9 @@ export function getAgentWaJid(): string | null {
 }
 
 function isAgentSender(senderWaId: string, senderName?: string, agentName = process.env.WA_AGENT_NAME ?? 'wavi'): boolean {
-  if (senderWaId === 'agent') return true;
+  if (isAgentExportSender(senderName, senderWaId, agentName)) return true;
   const agentIds = getAgentUserIds();
   if (agentIds.length > 0 && agentIds.includes(waUserId(senderWaId))) return true;
-  if (senderName && senderName.toLowerCase() === agentName.toLowerCase()) return true;
   return false;
 }
 

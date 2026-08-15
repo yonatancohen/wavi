@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import type { RelationshipSignals, LanguageMode } from '@wavi/shared';
+import { isAgentExportSender } from '../lib/agent-name.js';
 import { extractMentionLabels, mergeAliases, messageReferencesName } from '../lib/identity.js';
 import type { ResolvedExportMessage } from '../lib/resolve-export-messages.js';
 import { hebrewAwareModel, synthesisLanguageInstruction } from './language.js';
@@ -108,7 +109,7 @@ async function overlayProfileNames(groupId: string, members: Map<string, MemberI
 
 function toHistoryMessages(messages: ResolvedExportMessage[]): HistoryMessage[] {
   return messages
-    .filter((m) => !m.is_system_message)
+    .filter((m) => !m.is_system_message && !isAgentExportSender(m.sender_name, m.sender_wa_id))
     .map((m) => ({
       sender_wa_id: m.sender_wa_id,
       sender_name: m.sender_name,
@@ -130,6 +131,7 @@ export async function buildRelationshipMap(
 
   const members = new Map<string, MemberInfo>();
   for (const msg of history) {
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     if (!members.has(msg.sender_wa_id)) {
       members.set(msg.sender_wa_id, {
         waId: msg.sender_wa_id,
@@ -181,9 +183,10 @@ export async function buildRelationshipMap(
 
   for (let i = 0; i < history.length; i++) {
     const msg = history[i];
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     const prev = i > 0 ? history[i - 1] : null;
 
-    if (prev && prev.sender_wa_id !== msg.sender_wa_id) {
+    if (prev && !isAgentExportSender(prev.sender_name, prev.sender_wa_id) && prev.sender_wa_id !== msg.sender_wa_id) {
       const delta = msg.timestamp.getTime() - prev.timestamp.getTime();
       if (delta >= 0 && delta <= PROXIMITY_MS) {
         incrementReply(msg.sender_wa_id, prev.sender_wa_id, [
@@ -201,6 +204,7 @@ export async function buildRelationshipMap(
   }
 
   for (const msg of history) {
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     for (const [otherId, otherInfo] of members) {
       if (otherId === msg.sender_wa_id) continue;
       const pair = getPair(msg.sender_wa_id, otherId);
@@ -300,6 +304,7 @@ export async function updateRelationshipsIncremental(groupId: string, messages: 
 
   const memberMap = new Map<string, { waId: string; displayName: string }>();
   for (const m of messages) {
+    if (isAgentExportSender(m.sender_name, m.sender_wa_id)) continue;
     if (!memberMap.has(m.sender_wa_id)) {
       memberMap.set(m.sender_wa_id, { waId: m.sender_wa_id, displayName: m.sender_name });
     }
@@ -325,8 +330,11 @@ export async function updateRelationshipsIncremental(groupId: string, messages: 
     const curr = messages[i];
     const currTime = new Date(curr.timestamp).getTime();
 
+    if (isAgentExportSender(curr.sender_name, curr.sender_wa_id)) continue;
+
     for (let j = Math.max(0, i - PROXIMITY_LOOKBACK); j < i; j++) {
       const prev = messages[j];
+      if (isAgentExportSender(prev.sender_name, prev.sender_wa_id)) continue;
       const prevTime = new Date(prev.timestamp).getTime();
       if (curr.sender_wa_id === prev.sender_wa_id) continue;
       if (currTime - prevTime > PROXIMITY_MS) continue;

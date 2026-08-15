@@ -10,6 +10,7 @@ import { buildUserProfilesFromHistory } from '../ai/profiler.js';
 import { buildRelationshipMap } from '../ai/relationships.js';
 import { alignExportIdentities } from '../lib/export-alignment.js';
 import { resolveExportMessages, collectObservedAliasesByPerson, type ResolvedExportMessage } from '../lib/resolve-export-messages.js';
+import { isAgentExportSender } from '../lib/agent-name.js';
 import { mergeAliases } from '../lib/identity.js';
 import type { IngestionProgress, LanguageMode, ParsedWAMessage, SyncOpKey } from '@wavi/shared';
 import { recordSyncRun } from '../lib/sync-status.js';
@@ -125,7 +126,7 @@ async function embedMessageChunks(groupId: string, realMessages: ResolvedExportM
       embedding: JSON.stringify(embeddings[idx]),
       msg_from: chunk[0]?.timestamp.toISOString(),
       msg_to: chunk[chunk.length - 1]?.timestamp.toISOString(),
-      members: [...new Set(chunk.map((m) => m.sender_name))],
+      members: [...new Set(chunk.map((m) => m.sender_name).filter((name) => !isAgentExportSender(name)))],
     }));
 
     await db.from('message_chunks').insert(rows);
@@ -156,7 +157,9 @@ async function runIntelligenceStages(groupId: string, realMessages: ResolvedExpo
 
   for (let i = 0; i < realMessages.length; i += 100) {
     const slice = realMessages.slice(i, i + 100);
-    const content = slice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
+    const humanSlice = slice.filter((m) => !isAgentExportSender(m.sender_name, m.sender_wa_id));
+    if (humanSlice.length === 0) continue;
+    const content = humanSlice.map((m) => `${m.sender_name}: ${m.body}`).join('\n');
     const episode = await generateEpisodeSummary(content, resolveEffectiveLang(languageMode), { groupId });
 
     const embedding = await embed(episode.summary, { groupId });
@@ -228,7 +231,7 @@ async function persistExportMessages(groupId: string, messages: ResolvedExportMe
       sender_wa_id: m.sender_wa_id ?? m.sender_name,
       sender_name: m.sender_name,
       body: m.body,
-      is_agent_reply: false,
+      is_agent_reply: isAgentExportSender(m.sender_name, m.sender_wa_id),
       is_from_export: true,
       timestamp: m.timestamp.toISOString(),
     }));

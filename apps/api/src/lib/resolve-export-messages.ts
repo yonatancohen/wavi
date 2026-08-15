@@ -1,4 +1,5 @@
 import type { ParsedWAMessage } from '@wavi/shared';
+import { isAgentExportSender } from './agent-name.js';
 import type { AlignmentResult } from './export-alignment.js';
 import { mergeAliases, resolveSenderIdentity } from './identity.js';
 
@@ -63,6 +64,7 @@ export function collectObservedAliasesByPerson(messages: ResolvedExportMessage[]
 
   for (const msg of messages) {
     if (msg.is_system_message) continue;
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     let entry = byPerson.get(msg.sender_wa_id);
     if (!entry) {
       entry = { displayName: msg.sender_name, labels: new Set() };

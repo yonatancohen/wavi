@@ -1,5 +1,6 @@
 import type { LanguageMode } from '@wavi/shared';
 import { db } from '../db/client.js';
+import { isAgentExportSender } from '../lib/agent-name.js';
 import { mergeAliases, messageReferencesName } from '../lib/identity.js';
 import { buildMinimalProfileData, filterCrossMemberAliases, MIN_LLM_PROFILE_MESSAGES, minimalBehavioralSummary, parseProfileJson } from '../lib/profile-fallback.js';
 import { upsertUserProfile } from '../lib/profile-store.js';
@@ -66,6 +67,7 @@ function collectAddressedSamples(waUserId: string, displayName: string, messages
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
     if (msg.is_system_message || msg.sender_wa_id === waUserId) continue;
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
 
     const prev = i > 0 ? messages[i - 1] : null;
     const proximityReply = prev && prev.sender_wa_id === waUserId && msg.timestamp.getTime() - prev.timestamp.getTime() <= PROXIMITY_MS;
@@ -151,6 +153,8 @@ export async function profileUser(
   preloadedAliases: string[] = [],
   options?: { merge?: boolean; otherMemberNames?: string[] },
 ): Promise<ProfileBuildResult> {
+  if (isAgentExportSender(displayName, waUserId)) return 'skipped';
+
   const msgCount = messages.length;
   if (msgCount === 0) return 'skipped';
 
@@ -197,6 +201,15 @@ export async function profileUser(
   return 'stub';
 }
 
+/** Drop leftover People-tab rows for the agent (export used to profile "Wavi" as a member). */
+async function removeAgentProfiles(groupId: string) {
+  const { data: existing } = await db.from('user_profiles').select('id, wa_user_id, display_name').eq('group_id', groupId);
+  const ids = (existing ?? []).filter((p) => isAgentExportSender(p.display_name, p.wa_user_id)).map((p) => p.id);
+  if (ids.length === 0) return;
+  await db.from('user_profiles').delete().in('id', ids);
+  console.log(`[Profiler] Removed ${ids.length} agent profile(s) — the bot is not a group member`);
+}
+
 /** Merge mode: existing profiles with no export messages are left untouched in the DB. */
 async function logPreservedSilentProfiles(groupId: string, exportWaIds: Set<string>, merge: boolean) {
   if (!merge) return;
@@ -218,10 +231,13 @@ export async function buildUserProfilesFromHistory(
   const byUser: Record<string, { displayName: string; bodies: string[] }> = {};
   for (const msg of messages) {
     if (msg.is_system_message) continue;
+    if (isAgentExportSender(msg.sender_name, msg.sender_wa_id)) continue;
     const id = msg.sender_wa_id;
     if (!byUser[id]) byUser[id] = { displayName: msg.sender_name, bodies: [] };
     byUser[id].bodies.push(msg.body);
   }
+
+  await removeAgentProfiles(groupId);
 
   const otherMemberNames = Object.values(byUser).map((u) => u.displayName);
   const stats = { full: 0, stub: 0, skipped: 0 };
