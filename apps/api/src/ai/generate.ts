@@ -3,6 +3,7 @@ import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from '.
 import { parseImageReply } from './image-reply.js';
 import { anthropicContentTypes, textFromAnthropicContent } from './anthropic-text.js';
 import { normalizeReplyModel, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
+import { invokedRewriteInstruction, replyMissesInvokedPeople } from './reply-grounding.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -48,14 +49,12 @@ export async function generateReplyText(params: {
     messages: [...conversationTurns, ...(params.extraTurns ?? []), { role: 'user', content: `${params.senderName}: ${ctx.current_message}` }],
   });
 
-  const rawReply = textFromAnthropicContent(response.content);
+  let rawReply = textFromAnthropicContent(response.content);
   if (!rawReply) {
     console.warn(`[Generate] Empty reply text (blocks: ${anthropicContentTypes(response.content)})`);
   }
-  const usage = {
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-  };
+  let inputTokens = response.usage.input_tokens;
+  let outputTokens = response.usage.output_tokens;
 
   if (ctx.image_generation_enabled) {
     const imageReply = parseImageReply(rawReply);
@@ -64,13 +63,35 @@ export async function generateReplyText(params: {
         replyText: imageReply.caption,
         imagePrompt: imageReply.imagePrompt,
         imageCaption: imageReply.caption,
-        ...usage,
+        inputTokens,
+        outputTokens,
       };
     }
   }
 
+  const invoked = ctx.invoked_people ?? [];
+  if (rawReply && invoked.length > 0 && replyMissesInvokedPeople(rawReply, invoked)) {
+    const retry = await anthropic.messages.create({
+      model: replyModel,
+      max_tokens: replyModel === 'claude-haiku-4-5' ? MAX_TOKENS : 1024,
+      system: systemPrompt,
+      messages: [
+        ...conversationTurns,
+        ...(params.extraTurns ?? []),
+        { role: 'user', content: `${params.senderName}: ${ctx.current_message}` },
+        { role: 'assistant', content: rawReply },
+        { role: 'user', content: invokedRewriteInstruction(invoked) },
+      ],
+    });
+    const retryText = textFromAnthropicContent(retry.content);
+    if (retryText) rawReply = retryText;
+    inputTokens += retry.usage.input_tokens;
+    outputTokens += retry.usage.output_tokens;
+  }
+
   return {
     replyText: rawReply,
-    ...usage,
+    inputTokens,
+    outputTokens,
   };
 }

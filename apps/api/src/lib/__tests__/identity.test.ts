@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'bun:test';
-import { extractMentionLabels, mergeAliases, namesLikelyMatch, normalizeNameForMatch, parsePhoneFromLabel, resolveSenderIdentity, stripUnicodeDirectionMarks } from '../identity.js';
+import {
+  extractMentionLabels,
+  mergeAliases,
+  messageReferencesName,
+  nameAppearsInText,
+  namesLikelyMatch,
+  normalizeNameForMatch,
+  parsePhoneFromLabel,
+  resolveSenderIdentity,
+  stripGreetingOpener,
+  stripUnicodeDirectionMarks,
+} from '../identity.js';
 
 describe('stripUnicodeDirectionMarks', () => {
   it('strips isolate chars from Hebrew @mentions', () => {
@@ -63,5 +74,39 @@ describe('extractMentionLabels', () => {
 describe('normalizeNameForMatch', () => {
   it('lowercases and collapses whitespace', () => {
     expect(normalizeNameForMatch('  Alon   Arroyo ')).toBe('alon arroyo');
+  });
+});
+
+describe('nameAppearsInText', () => {
+  it('matches a Hebrew name with a clitic prefix', () => {
+    expect(nameAppearsInText('דברתי עם לאלון אתמול', 'אלון')).toBe(true);
+  });
+
+  it('does not match Gal inside Galaxy', () => {
+    expect(nameAppearsInText('Galaxy trip', 'Gal')).toBe(false);
+  });
+
+  it('matches a standalone Latin first name', () => {
+    expect(nameAppearsInText('ask Alon later', 'Alon')).toBe(true);
+  });
+});
+
+describe('messageReferencesName', () => {
+  it('does not treat a greeting opener as a person', () => {
+    expect(messageReferencesName('שאביז. בוא נלך לראות ספיידרמן', 'שאביז', ['שאביז'])).toBe(false);
+  });
+
+  it('still matches a name that appears after the greeting', () => {
+    expect(messageReferencesName('שאביז. תזרימי את אלון', 'אלון', [])).toBe(true);
+  });
+
+  it('matches Alon via first-name alias after greeting slang', () => {
+    expect(messageReferencesName('שאביז. בוא נלך עם Alon', 'Alon Arroyo', ['Alon'])).toBe(true);
+  });
+});
+
+describe('stripGreetingOpener', () => {
+  it('strips שאביז. from the start of a message', () => {
+    expect(stripGreetingOpener('שאביז. בוא נלך לראות ספיידרמן')).toBe('בוא נלך לראות ספיידרמן');
   });
 });

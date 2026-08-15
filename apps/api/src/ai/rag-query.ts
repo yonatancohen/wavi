@@ -49,6 +49,28 @@ export function isRecallQuery(text: string): boolean {
   return RECALL_HE.test(text) || RECALL_EN.test(text);
 }
 
+// Present/future invites and "bring X in" — embed the tagged message alone.
+// Do not fire on standalone "מה אומר" / "what do you say"; those are too common
+// in ordinary chat and still benefit from a recent-message RAG anchor.
+const LIVE_SOCIAL_HE_INVITE = /(?:^|[\s,])(?:בוא|בואי)\s+נ(?:לך|סיע|טוס|ראה|צא|עשה)/;
+const LIVE_SOCIAL_HE_BRING = /(?:תזרימ[יי]?|תזרים|תכניס[יי]?|תזמינ[יי]?|תזמין)\s+את\s+\S+/;
+const LIVE_SOCIAL_EN = /\b(?:let'?s\s+go|bring\s+(?:in\s+\w+|\w+\s+in))\b/i;
+
+/** True for a present/future invite or an explicit "bring this person in" ask. */
+export function isLiveSocialAsk(text: string): boolean {
+  return LIVE_SOCIAL_HE_INVITE.test(text) || LIVE_SOCIAL_HE_BRING.test(text) || LIVE_SOCIAL_EN.test(text);
+}
+
+export type RagQueryClass = 'recall' | 'live_social' | 'deictic' | 'default';
+
+/** Single classifier for RAG prepend policy and retrieval caps. Recall wins over live-social. */
+export function classifyRagQuery(text: string): RagQueryClass {
+  if (isRecallQuery(text)) return 'recall';
+  if (isLiveSocialAsk(text)) return 'live_social';
+  if (isDeictic(text)) return 'deictic';
+  return 'default';
+}
+
 /** Strip agent tag and filler before embedding. */
 export function normalizeRagQuery(message: string, recentMessages: { sender_name: string; body: string }[]): string {
   let q = message
@@ -60,19 +82,20 @@ export function normalizeRagQuery(message: string, recentMessages: { sender_name
   const filler = /^(וואו|wow|היי|hey|please|pls|תגיד|say)\b[!.?\s]*/i;
   q = q.replace(filler, '').trim();
 
-  // Recall queries ("last time abroad", "הלכנו למסעדה") must be embedded alone.
-  // Prepending recent context — which is typically unrelated current chat —
-  // shifts the vector away from the historical memory we're trying to retrieve.
-  if (isRecallQuery(q)) {
+  // Recall and live social asks must be embedded alone. Prepending recent
+  // restaurant/movie chat to "let's see Spider-Man, bring Alon in" pulls the
+  // wrong history into Block 8.
+  const kind = classifyRagQuery(q);
+  if (kind === 'recall' || kind === 'live_social') {
     return q || message;
   }
 
-  if (recentMessages.length >= 1 && isDeictic(q)) {
+  if (recentMessages.length >= 1 && kind === 'deictic') {
     // Short deictic question: one anchor message is enough; more context dilutes the embedding.
     const last = recentMessages[recentMessages.length - 1];
     q = `${last.sender_name}: ${last.body} | ${q}`;
   } else if (recentMessages.length >= 2) {
-    // Longer statement or recall question: full 3-message window.
+    // Longer statement: full 3-message window.
     const context = recentMessages
       .slice(-3)
       .map((m) => `${m.sender_name}: ${m.body}`)

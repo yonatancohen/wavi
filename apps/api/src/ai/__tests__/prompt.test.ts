@@ -318,4 +318,81 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('People in this group: Dan, Sara, Lea.');
     expect(prompt.indexOf('Coffee > tea')).toBeLessThan(prompt.indexOf('Trip to Eilat'));
   });
+
+  it('grounds Hebrew replies on the tagged message and roster-only people', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'שאביז. בוא נלך לראות ספיידרמן ביחד מה אומר? @wavi תזרימי את אלון',
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 70, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('Answer the tagged message first');
+    expect(prompt).toContain('Background only — ignore if unrelated');
+    expect(prompt).toContain('Greetings and slang are not people');
+    expect(prompt).toContain('If asked to involve someone');
+  });
+
+  it('labels briefing as background and drops humor DNA on a live social ask', () => {
+    const ctx = makeContext({
+      live_social_ask: true,
+      group_context_summary: 'The group is planning Magzzino after the movie drama.',
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 70, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+        humor_dna: {
+          style: 'dry',
+          recurring_bits: ['Magzzino'],
+          inside_references: ['the movie drama'],
+          example: 'מגזינו זה מהלך',
+        },
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('Background only — do not mention unless the tagged message is about it');
+    expect(prompt).toContain('Magzzino after the movie drama');
+    expect(prompt).not.toContain('HUMOR FINGERPRINT');
+    expect(prompt).not.toContain('Group-specific callbacks');
+  });
+
+  it('includes an invoked-people block and does not treat a greeting alias as mentioned', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'שאביז. בוא נלך לראות ספיידרמן @wavi תזרימי את אלון',
+      invoked_people: [
+        {
+          display_name: 'Alon Arroyo',
+          aliases: ['Alon'],
+          invoked_as: 'אלון',
+          behavioral_summary: 'Quiet lately.',
+          sensitivity_flags: [],
+          relationships: [],
+        },
+      ],
+      mentioned_people: [],
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 70, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('PEOPLE YOU WERE ASKED TO INVOLVE');
+    expect(prompt).toContain('אלון');
+    expect(prompt).toContain('Alon Arroyo');
+    expect(prompt).not.toContain('PEOPLE REFERENCED IN THIS MESSAGE');
+  });
 });

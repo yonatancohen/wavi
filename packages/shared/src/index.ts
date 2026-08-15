@@ -606,6 +606,8 @@ export interface MentionedPerson {
   dominant_topics?: string[];
   /** Last few messages sent by this person (oldest first), for recent-activity context. */
   recent_messages?: string[];
+  /** Raw name the sender used when asking Wavi to involve this person. */
+  invoked_as?: string;
 }
 
 export interface WebSearchSnippet {
@@ -633,6 +635,10 @@ export interface PromptContext {
   /** Display names of people in the group — roster only, not full profiles. */
   member_roster?: string[];
   mentioned_people: MentionedPerson[];
+  /** People the sender explicitly asked Wavi to involve ("bring Alon in"). */
+  invoked_people?: MentionedPerson[];
+  /** Present/future invite or "bring X in" — keep the reply on the tagged ask. */
+  live_social_ask?: boolean;
   rag_chunks: string[]; // top 5 message chunk summaries
   rag_episode_summaries: string[]; // top 3 episode summaries
   recent_messages: Message[]; // last 20 verbatim

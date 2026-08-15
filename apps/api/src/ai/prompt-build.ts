@@ -22,6 +22,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const datetimeBlock = buildDatetimeBlock();
   const sensitivityBlock = buildSensitivityBlock(ctx);
   const mentionedBlock = buildMentionedPeopleBlock(ctx);
+  const invokedBlock = buildInvokedPeopleBlock(ctx);
   const quotedBlock = buildQuotedReplyBlock(ctx);
   const memoriesBlock = buildMemoriesBlock(ctx);
   const eventsBlock = buildGroupEventsBlock(ctx);
@@ -69,7 +70,7 @@ Emoji usage: ${emojiUsage} (${emojiUsagePromptHint(emojiUsage)})
 
 <group_context>
 BLOCK 5 — GROUP CONTEXT
-${buildMemberRosterLine(ctx)}${ctx.group_context_summary || 'No group context available yet.'}
+${buildGroupContextBlock(ctx)}
 </group_context>
 
 ${upcomingEventsBlock ? `<upcoming_events>\n${upcomingEventsBlock}\n</upcoming_events>` : ''}
@@ -88,6 +89,8 @@ BLOCK 7 — RELATIONSHIP CONTEXT
 ${ctx.relevant_relationships.length > 0 ? ctx.relevant_relationships.map((r) => r.narrative).join(' ') : 'No notable relationship patterns for this person yet.'}
 </relationships>
 
+${invokedBlock ? `<invoked_people>\n${invokedBlock}\n</invoked_people>` : ''}
+
 ${mentionedBlock ? `<mentioned_people>\n${mentionedBlock}\n</mentioned_people>` : ''}
 
 ${eventsBlock ? `<group_events>\n${eventsBlock}\n</group_events>` : ''}
@@ -96,6 +99,7 @@ ${memoriesBlock ? `<memories>\n${memoriesBlock}\n</memories>` : ''}
 
 <relevant_history>
 BLOCK 8 — RELEVANT HISTORY (retrieved by semantic search)
+Background only — ignore if unrelated to the tagged message.
 ${ctx.rag_chunks.length > 0 ? ctx.rag_chunks.map((chunk, i) => `[Past context ${i + 1}]: ${chunk}`).join('\n') : 'No relevant past context found.'}
 ${ctx.rag_episode_summaries.length > 0 ? ctx.rag_episode_summaries.map((s, i) => `[Episode ${i + 1}]: ${s}`).join('\n') : ''}
 </relevant_history>
@@ -122,7 +126,10 @@ Verbosity slider = personality density, not message length.
 BLOCK 10 — LANGUAGE & RULES (critical)
 ${languageRules}
 Stay in character at all times. You are a group member, not a bot.
-Use facts (events, memories, RAG, recent messages) for what/when/who happened.
+Answer the tagged message first. Retrieved history, briefing, events, memories, and humor callbacks are optional background — use them only when they are about the same topic or person as the tagged message.
+Only treat people on the roster (and anyone you were asked to involve) as group members. Greetings and slang are not people — do not invent activity about them.
+If asked to involve someone, name them and pull them into the reply. If they are not on the roster, say so like a person.
+Do not invent places, films, or claims like "X has been quiet for N days" unless that fact is in recent messages, events, or memories.
 Use opinions for what you think. Never promote a retrieved event into a new stance.
 If someone reacts negatively to something you said, apologize in your own voice — not formally.
 Never say "As an AI..." or break the fourth wall unless directly asked if you are an AI.
@@ -215,7 +222,7 @@ function buildSensitivityBlock(ctx: PromptContext): string {
   if (ctx.sender_profile?.profile_data?.sensitivity_flags?.length) {
     flags.push(...ctx.sender_profile.profile_data.sensitivity_flags.map((f) => `${ctx.sender_profile!.display_name}: ${f}`));
   }
-  for (const person of ctx.mentioned_people ?? []) {
+  for (const person of [...(ctx.mentioned_people ?? []), ...(ctx.invoked_people ?? [])]) {
     for (const f of person.sensitivity_flags) {
       flags.push(`${person.display_name}: ${f}`);
     }
@@ -224,6 +231,19 @@ function buildSensitivityBlock(ctx: PromptContext): string {
   return `BLOCK — SENSITIVITY (do not punch down)
 Avoid these topics/tones for the people involved: ${flags.join('; ')}.
 Be playful but never cruel about flagged sensitivities.`;
+}
+
+function buildInvokedPeopleBlock(ctx: PromptContext): string {
+  if (!ctx.invoked_people?.length) return '';
+  const entries = ctx.invoked_people.map((p) => {
+    const aka = p.aliases?.length ? ` (also: ${p.aliases.join(', ')})` : '';
+    const askedAs = p.invoked_as && p.invoked_as !== p.display_name ? ` — asked as "${p.invoked_as}"` : '';
+    const matched = p.behavioral_summary ? `\n  ${p.behavioral_summary}` : '\n  Not matched to a roster profile — still involve them if they are clearly a member.';
+    return `- ${p.display_name}${aka}${askedAs}:${matched}`;
+  });
+  return `BLOCK — PEOPLE YOU WERE ASKED TO INVOLVE
+The sender asked you to bring these people into the reply. Name them and address the ask.
+${entries.join('\n')}`;
 }
 
 function buildMentionedPeopleBlock(ctx: PromptContext): string {
@@ -262,7 +282,20 @@ ${ctx.quoted_message.sender_name} said: "${ctx.quoted_message.body}"`;
 
 function buildMemberRosterLine(ctx: PromptContext): string {
   if (!ctx.member_roster?.length) return '';
+  const detailed = ctx.member_roster.some((entry) => entry.includes('also:'));
+  if (detailed) {
+    return `People in this group:\n${ctx.member_roster.map((entry) => `- ${entry}`).join('\n')}\n`;
+  }
   return `People in this group: ${ctx.member_roster.join(', ')}.\n`;
+}
+
+function buildGroupContextBlock(ctx: PromptContext): string {
+  const roster = buildMemberRosterLine(ctx);
+  const summary = ctx.group_context_summary || 'No group context available yet.';
+  if (ctx.live_social_ask && ctx.group_context_summary) {
+    return `${roster}Background only — do not mention unless the tagged message is about it:\n${summary}`;
+  }
+  return `${roster}${summary}`;
 }
 
 function buildGroupEventsBlock(ctx: PromptContext): string {
@@ -298,6 +331,7 @@ ${lines}`;
 }
 
 function buildHumorDnaBlock(ctx: PromptContext): string {
+  if (ctx.live_social_ask) return '';
   const dna = ctx.character_config?.humor_dna;
   if (!dna) return '';
 

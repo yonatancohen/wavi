@@ -129,15 +129,46 @@ export function pairMentionLabelsWithIds(labels: string[], waIds: string[]): Arr
   return pairs;
 }
 
-/** Check if a message text references a person by display name or any alias. */
-export function messageReferencesName(message: string, displayName: string, aliases: string[] = []): boolean {
-  const lower = stripUnicodeDirectionMarks(message).toLowerCase();
-  const candidates = [displayName, ...aliases].filter((n) => n.trim().length >= 2);
-  for (const name of candidates) {
-    const norm = normalizeNameForMatch(name);
-    if (norm.length >= 2 && lower.includes(norm)) return true;
-    // Also try raw lowercase for Hebrew without normalization side-effects
-    if (lower.includes(name.toLowerCase())) return true;
+const APOSTROPHES = ["'", '׳', '’', '‘', '`'];
+
+/** Apostrophe spellings of a name (צ'ן / צ׳ן) so boundary matching hits WhatsApp variants. */
+export function apostropheNameVariants(from: string): string[] {
+  if (!APOSTROPHES.some((mark) => from.includes(mark))) return [from];
+  return [...new Set(APOSTROPHES.map((mark) => from.replace(/['׳’‘`]/g, mark)))];
+}
+
+/**
+ * Word-boundary regex for a person name. Hebrew clitics (ו/ב/ל/מ/ה/ש/כ) may prefix the name.
+ * Latin names use the `i` flag; Hebrew does not (niqqud-free letters are case-less).
+ */
+export function nameBoundaryRegex(name: string): RegExp | null {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return null;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const latin = /^[\x00-\x7F]*$/.test(trimmed);
+  return new RegExp(`(?<![\\p{L}\\p{N}])([ובלמהשכ]?)${escaped}(?![\\p{L}\\p{N}])`, latin ? 'gui' : 'gu');
+}
+
+/** True when `name` appears as its own token in `text` (not a substring of a longer word). */
+export function nameAppearsInText(text: string, name: string): boolean {
+  const cleaned = stripUnicodeDirectionMarks(text);
+  for (const variant of apostropheNameVariants(name.trim())) {
+    const re = nameBoundaryRegex(variant);
+    if (!re) continue;
+    re.lastIndex = 0;
+    if (re.test(cleaned)) return true;
   }
   return false;
+}
+
+/** Drop a leading "שאביז." / "hey," greeting so slang openers are not treated as people. */
+export function stripGreetingOpener(message: string): string {
+  return stripUnicodeDirectionMarks(message).replace(/^[\p{L}\p{N}'’׳]+[!.?,]\s+/u, '');
+}
+
+/** Check if a message text references a person by display name or any alias. */
+export function messageReferencesName(message: string, displayName: string, aliases: string[] = []): boolean {
+  const haystack = stripGreetingOpener(message);
+  const candidates = [displayName, ...aliases].filter((n) => n.trim().length >= 2);
+  return candidates.some((name) => nameAppearsInText(haystack, name));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { isDeictic, isRecallQuery, normalizeRagQuery } from '../rag-query.js';
+import { classifyRagQuery, isDeictic, isLiveSocialAsk, isRecallQuery, normalizeRagQuery } from '../rag-query.js';
 
 describe('isDeictic', () => {
   it('returns true for a short Hebrew who-question', () => {
@@ -161,5 +161,59 @@ describe('normalizeRagQuery', () => {
     const q = normalizeRagQuery('@wavi הלכנו למסעדה שם בנמל', recent);
     expect(q).not.toContain('בסדר גמור');
     expect(q).toContain('מסעדה');
+  });
+
+  it('does NOT prepend recent restaurant chat for a Spider-Man invite + bring Alon', () => {
+    const recent = [
+      { sender_name: 'דן', body: 'מגזינו זה רעיון טוב' },
+      { sender_name: 'יוני', body: 'סוף סוף אוכל טוב אחרי הדרמה עם הסרט' },
+    ];
+    const q = normalizeRagQuery('שאביז. בוא נלך לראות ספיידרמן ביחד מה אומר? @wavi תזרימי את אלון', recent);
+    expect(q).not.toContain('מגזינו');
+    expect(q).not.toContain('אוכל');
+    expect(q).toContain('ספיידרמן');
+    expect(q).toContain('אלון');
+  });
+
+  it('still prepends recent context for a standalone מה אומר opinion', () => {
+    const recent = [
+      { sender_name: 'Bob', body: 'first msg' },
+      { sender_name: 'Alice', body: 'second msg' },
+    ];
+    const q = normalizeRagQuery('@wavi מה אומר על הפיצה לארוחת ערב הלילה עם כולם', recent);
+    expect(q).toContain('first msg');
+    expect(q).toContain('פיצה');
+  });
+});
+
+describe('isLiveSocialAsk', () => {
+  it('detects בוא נלך invites', () => {
+    expect(isLiveSocialAsk('בוא נלך לראות ספיידרמן')).toBe(true);
+  });
+
+  it('detects תזרימי את X', () => {
+    expect(isLiveSocialAsk('תזרימי את אלון')).toBe(true);
+  });
+
+  it('does not fire on standalone מה אומר', () => {
+    expect(isLiveSocialAsk('מה אומר על הפיצה')).toBe(false);
+  });
+
+  it('does not steal recall search queries', () => {
+    expect(isLiveSocialAsk('בוא נחפש בהיסטוריה')).toBe(false);
+  });
+});
+
+describe('classifyRagQuery', () => {
+  it('ranks recall above live-social', () => {
+    expect(classifyRagQuery('בוא נחפש בהיסטוריה')).toBe('recall');
+  });
+
+  it('classifies the Spider-Man + Alon ask as live_social', () => {
+    expect(classifyRagQuery('שאביז. בוא נלך לראות ספיידרמן ביחד מה אומר? @wavi תזרימי את אלון')).toBe('live_social');
+  });
+
+  it('classifies short who-questions as deictic', () => {
+    expect(classifyRagQuery('מי זה?')).toBe('deictic');
   });
 });

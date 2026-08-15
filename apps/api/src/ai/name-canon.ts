@@ -1,4 +1,4 @@
-import { mergeAliases, namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
+import { apostropheNameVariants, mergeAliases, nameBoundaryRegex, namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
 
 export type NameCanon = {
   display_name: string;
@@ -56,20 +56,11 @@ export function resolveSenderLabel(senderWaId: string | null | undefined, sender
   return senderName;
 }
 
-const APOSTROPHES = ["'", '׳', '’', '‘', '`'];
-
-function apostropheVariants(from: string): string[] {
-  if (!APOSTROPHES.some((mark) => from.includes(mark))) return [from];
-  return [...new Set(APOSTROPHES.map((mark) => from.replace(/['׳’‘`]/g, mark)))];
-}
-
 function replaceNameToken(text: string, from: string, to: string): string {
   let out = text;
-  for (const variant of apostropheVariants(from)) {
-    const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const latin = /^[\x00-\x7F]*$/.test(variant);
-    // Hebrew clitics attach to names (וצ'ן = and Chen).
-    const re = new RegExp(`(?<![\\p{L}\\p{N}])([ובלמהשכ]?)${escaped}(?![\\p{L}\\p{N}])`, latin ? 'gui' : 'gu');
+  for (const variant of apostropheNameVariants(from)) {
+    const re = nameBoundaryRegex(variant);
+    if (!re) continue;
     out = out.replace(re, `$1${to}`);
   }
   return out;

@@ -3,10 +3,12 @@ import { embed } from '../lib/embeddings.js';
 import { normalizeWebSearchQuery, searchWeb, shouldUseWebSearch } from '../lib/web-search.js';
 import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData, RelationshipPair } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
-import { messageReferencesName } from '../lib/identity.js';
+import { messageReferencesName, namesLikelyMatch } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
-import { normalizeRagQuery } from './rag-query.js';
+import { classifyRagQuery, normalizeRagQuery, type RagQueryClass } from './rag-query.js';
 import { usableGroupContext } from './context-quality.js';
+import { expandCanonAliases, formatMemberRoster } from './name-canon.js';
+import { extractInvokedNames } from './reply-grounding.js';
 
 // Lowered from 0.35 — conversational Hebrew chunks about real events (trips,
 // restaurants, etc.) often score 0.28–0.33 against a memory-recall query even
@@ -48,11 +50,14 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     return name ? `@${name}` : `@${id}`;
   });
 
+  const queryClass = classifyRagQuery(normalizedMessage);
+  const liveSocialAsk = queryClass === 'live_social';
   const ragQuery = normalizeRagQuery(normalizedMessage, structured.recent_messages);
   const rag = await fetchRAGContext(
     groupId,
     ragQuery,
     structured.recent_messages.map((m) => m.body),
+    queryClass,
   );
 
   let web_search = null;
@@ -60,14 +65,17 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
   }
 
-  const mentionedPeople = await fetchMentionedPeople(groupId, normalizedMessage, senderWaId);
-  const relevant_relationships = await mergeNamedPairRelationships(groupId, senderWaId, normalizedMessage, structured.relevant_relationships);
+  const { mentioned, invoked, mentionedIds } = await fetchReferencedPeople(groupId, normalizedMessage, senderWaId);
+  const relevant_relationships = await mergeNamedPairRelationships(groupId, senderWaId, mentionedIds, structured.relevant_relationships);
 
   return {
     ...structured,
     ...rag,
+    group_events: liveSocialAsk ? [] : structured.group_events,
     relevant_relationships,
-    mentioned_people: mentionedPeople,
+    mentioned_people: mentioned,
+    invoked_people: invoked,
+    live_social_ask: liveSocialAsk,
     resolved_display_names: resolvedNames,
     quoted_message: quotedMessage ?? null,
     current_message: normalizedMessage,
@@ -108,8 +116,21 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
 
     db.from('group_events').select('*').eq('group_id', groupId).order('occurred_on', { ascending: false, nullsFirst: false }).limit(8),
 
-    db.from('user_profiles').select('display_name').eq('group_id', groupId),
+    db.from('user_profiles').select('display_name, profile_data').eq('group_id', groupId),
   ]);
+
+  const member_roster = formatMemberRoster(
+    ((rosterResult.data ?? []) as Array<{ display_name: string | null; profile_data: UserProfileData | null }>)
+      .map((row) =>
+        expandCanonAliases({
+          display_name: row.display_name?.trim() ?? '',
+          aliases: getProfileAliases(row.profile_data),
+        }),
+      )
+      .filter((person) => person.display_name),
+  )
+    .split('\n')
+    .filter(Boolean);
 
   return {
     character_config: groupResult.data?.character_config ?? null,
@@ -121,7 +142,7 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     relevant_relationships: relationshipsResult.data ?? [],
     group_memories: memoriesResult.data ?? [],
     group_events: groupEventsResult.error ? [] : (groupEventsResult.data ?? []),
-    member_roster: [...new Set((rosterResult.data ?? []).map((row) => row.display_name).filter(Boolean))],
+    member_roster,
     group_context_summary: usableGroupContext(contextResult.data?.summary_text),
     recent_messages: (messagesResult.data ?? []).reverse(),
     upcoming_events: ((eventsResult.data ?? []) as Array<{ type: string; config: { template?: string; frequency?: string }; next_fire_at: string }>).map((a) => ({
@@ -147,7 +168,7 @@ function formatChunkDateRange(msgFrom?: string | null, msgTo?: string | null): s
   return from === to ? `[${from}]` : `[${from} – ${to}]`;
 }
 
-async function fetchRAGContext(groupId: string, query: string, recentMessageBodies: string[] = []) {
+async function fetchRAGContext(groupId: string, query: string, recentMessageBodies: string[] = [], queryClass: RagQueryClass = 'default') {
   const queryEmbedding = await embed(query, { groupId });
 
   const [chunksResult, episodesResult] = await Promise.all([
@@ -176,7 +197,7 @@ async function fetchRAGContext(groupId: string, query: string, recentMessageBodi
   const rag_chunks = ((chunksResult.data ?? []) as ChunkRow[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary ?? r.content ?? ''))
-    .slice(0, 7)
+    .slice(0, queryClass === 'recall' ? 7 : 3)
     .map((r) => {
       const text = r.summary ?? r.content;
       if (!text) return undefined;
@@ -188,7 +209,7 @@ async function fetchRAGContext(groupId: string, query: string, recentMessageBodi
   const rag_episode_summaries = ((episodesResult.data ?? []) as EpisodeRow[])
     .filter((r) => (r.similarity ?? 0) >= RAG_SIMILARITY_THRESHOLD)
     .filter((r) => !isRecentDup(r.summary))
-    .slice(0, 4)
+    .slice(0, queryClass === 'recall' ? 4 : 2)
     .map((r) => {
       const dateLabel = formatChunkDateRange(r.msg_from, r.msg_to);
       return dateLabel ? `${dateLabel}\n${r.summary}` : r.summary;
@@ -211,48 +232,94 @@ export async function resolveDisplayNames(groupId: string, waIds: string[]): Pro
   return map;
 }
 
-/** Detect member names referenced in the message and load their context. */
-export async function fetchMentionedPeople(groupId: string, message: string, senderWaId: string): Promise<MentionedPerson[]> {
+type ProfileRow = {
+  wa_user_id: string;
+  display_name: string | null;
+  behavioral_summary?: string | null;
+  profile_data: UserProfileData | null;
+};
+
+function expandedAliases(profile: ProfileRow): string[] {
+  return expandCanonAliases({
+    display_name: profile.display_name ?? '',
+    aliases: getProfileAliases(profile.profile_data),
+  }).aliases;
+}
+
+function profileMatchesInvokedName(profile: ProfileRow, invoked: string): boolean {
+  const aliases = expandedAliases(profile);
+  const candidates = [profile.display_name ?? '', ...aliases];
+  return candidates.some((candidate) => namesLikelyMatch(candidate, invoked));
+}
+
+async function hydratePerson(groupId: string, profile: ProfileRow, invokedAs?: string): Promise<MentionedPerson> {
+  const aliases = expandedAliases(profile);
+  const pd = profile.profile_data;
+
+  const [relsResult, recentResult] = await Promise.all([
+    db
+      .from('relationship_map')
+      .select('narrative')
+      .eq('group_id', groupId)
+      .or(`user_a_wa_id.eq.${profile.wa_user_id},user_b_wa_id.eq.${profile.wa_user_id}`)
+      .order('interaction_score', { ascending: false })
+      .limit(2),
+    db.from('messages').select('body').eq('group_id', groupId).eq('sender_wa_id', profile.wa_user_id).eq('is_agent_reply', false).order('timestamp', { ascending: false }).limit(5),
+  ]);
+
+  return {
+    display_name: profile.display_name ?? invokedAs ?? '',
+    aliases,
+    behavioral_summary: profile.behavioral_summary ?? '',
+    sensitivity_flags: pd?.sensitivity_flags ?? [],
+    relationships: (relsResult.data ?? []).map((r) => r.narrative),
+    activity_level: pd?.activity_level,
+    dominant_topics: pd?.dominant_topics,
+    recent_messages: (recentResult.data ?? []).map((m) => m.body as string).reverse(),
+    invoked_as: invokedAs,
+  };
+}
+
+async function fetchReferencedPeople(groupId: string, message: string, senderWaId: string): Promise<{ mentioned: MentionedPerson[]; invoked: MentionedPerson[]; mentionedIds: string[] }> {
   const { data: profiles } = await db.from('user_profiles').select('*').eq('group_id', groupId);
+  const rows = (profiles ?? []) as ProfileRow[];
+  const invokedNames = extractInvokedNames(message);
 
-  if (!profiles?.length) return [];
+  const invokedResolved: MentionedPerson[] = [];
+  const invokedIds = new Set<string>();
 
-  const mentioned = profiles.filter((p) => {
-    if (p.wa_user_id === senderWaId) return false;
-    const aliases = getProfileAliases(p.profile_data as UserProfileData);
-    return messageReferencesName(message, p.display_name ?? '', aliases);
+  for (const raw of invokedNames.slice(0, 3)) {
+    const match = rows.find((p) => p.wa_user_id !== senderWaId && profileMatchesInvokedName(p, raw));
+    if (match) {
+      invokedIds.add(match.wa_user_id);
+      invokedResolved.push(await hydratePerson(groupId, match, raw));
+    } else {
+      invokedResolved.push({
+        display_name: raw,
+        aliases: [],
+        behavioral_summary: '',
+        sensitivity_flags: [],
+        relationships: [],
+        invoked_as: raw,
+      });
+    }
+  }
+
+  const casual = rows.filter((p) => {
+    if (p.wa_user_id === senderWaId || invokedIds.has(p.wa_user_id)) return false;
+    return messageReferencesName(message, p.display_name ?? '', expandedAliases(p));
   });
 
-  if (!mentioned.length) return [];
+  const mentioned = await Promise.all(casual.slice(0, 3).map((profile) => hydratePerson(groupId, profile)));
+  const mentionedIds = [...invokedIds, ...casual.slice(0, 3).map((profile) => profile.wa_user_id)];
 
-  return Promise.all(
-    mentioned.slice(0, 3).map(async (profile) => {
-      const aliases = getProfileAliases(profile.profile_data as UserProfileData);
-      const pd = profile.profile_data as UserProfileData | null;
+  return { mentioned, invoked: invokedResolved, mentionedIds };
+}
 
-      const [relsResult, recentResult] = await Promise.all([
-        db
-          .from('relationship_map')
-          .select('narrative')
-          .eq('group_id', groupId)
-          .or(`user_a_wa_id.eq.${profile.wa_user_id},user_b_wa_id.eq.${profile.wa_user_id}`)
-          .order('interaction_score', { ascending: false })
-          .limit(2),
-        db.from('messages').select('body').eq('group_id', groupId).eq('sender_wa_id', profile.wa_user_id).eq('is_agent_reply', false).order('timestamp', { ascending: false }).limit(5),
-      ]);
-
-      return {
-        display_name: profile.display_name,
-        aliases,
-        behavioral_summary: profile.behavioral_summary ?? '',
-        sensitivity_flags: pd?.sensitivity_flags ?? [],
-        relationships: (relsResult.data ?? []).map((r) => r.narrative),
-        activity_level: pd?.activity_level,
-        dominant_topics: pd?.dominant_topics,
-        recent_messages: (recentResult.data ?? []).map((m) => m.body as string).reverse(),
-      } satisfies MentionedPerson;
-    }),
-  );
+/** Detect member names referenced in the message and load their context. */
+export async function fetchMentionedPeople(groupId: string, message: string, senderWaId: string): Promise<MentionedPerson[]> {
+  const { mentioned, invoked } = await fetchReferencedPeople(groupId, message, senderWaId);
+  return [...invoked, ...mentioned];
 }
 
 function pairKey(a: string, b: string): string {
@@ -260,19 +327,7 @@ function pairKey(a: string, b: string): string {
 }
 
 /** If the message names people, include that pair even when neither is the sender. Cap 5. */
-async function mergeNamedPairRelationships(groupId: string, senderWaId: string, message: string, existing: RelationshipPair[]): Promise<RelationshipPair[]> {
-  const { data: profiles } = await db.from('user_profiles').select('wa_user_id, display_name, profile_data').eq('group_id', groupId);
-  if (!profiles?.length) return existing.slice(0, 5);
-
-  const mentionedIds = profiles
-    .filter((p) => {
-      if (p.wa_user_id === senderWaId) return false;
-      const aliases = getProfileAliases(p.profile_data as UserProfileData);
-      return messageReferencesName(message, p.display_name ?? '', aliases);
-    })
-    .map((p) => p.wa_user_id as string)
-    .slice(0, 3);
-
+async function mergeNamedPairRelationships(groupId: string, senderWaId: string, mentionedIds: string[], existing: RelationshipPair[]): Promise<RelationshipPair[]> {
   if (mentionedIds.length === 0) return existing.slice(0, 5);
 
   const ids = [...new Set([senderWaId, ...mentionedIds])];
