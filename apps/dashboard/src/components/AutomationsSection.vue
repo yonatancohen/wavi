@@ -20,6 +20,151 @@
     </div>
 
     <div v-else class="space-y-4">
+      <!-- Scheduled Posts first so the add form is visible on mobile -->
+      <div class="rounded-xl border border-outline-variant bg-surface p-4">
+        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-on-surface">{{ t('automations.scheduledTitle') }}</p>
+            <p class="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.scheduledHint') }}</p>
+          </div>
+          <button type="button" class="btn btn-primary flex w-full shrink-0 items-center justify-center gap-1 text-[12px] sm:w-auto" @click="addingPost = !addingPost">
+            <span class="material-symbols-outlined text-[14px]">{{ addingPost ? 'close' : 'add' }}</span>
+            {{ addingPost ? t('common.cancel') : t('automations.addSchedule') }}
+          </button>
+        </div>
+
+        <div v-if="scheduledPosts.length" class="mb-3 space-y-3">
+          <div v-for="post in scheduledPosts" :key="post.id" class="rounded-xl border border-outline-variant/60 bg-surface-variant/10 p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-[13px] font-medium text-on-surface">{{ post.label }}</p>
+                <p class="text-[11px] text-on-surface-variant">
+                  {{ post.frequency === 'weekly' ? weekdays[post.weekday] : t('automations.daily') }} · {{ post.time }}
+                  <span v-if="post.last_fired_at"> · {{ t('automations.lastSent', { time: formatTime(post.last_fired_at) }) }}</span>
+                </p>
+              </div>
+              <div class="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-secondary flex items-center gap-1 text-[11px]"
+                  :disabled="post.triggering || !group?.status?.startsWith('active')"
+                  @click="triggerScheduledPost(post)"
+                >
+                  <span v-if="post.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-[13px]">send</span>
+                </button>
+                <button
+                  type="button"
+                  role="switch"
+                  :aria-checked="post.enabled"
+                  class="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+                  :class="post.enabled ? 'bg-primary' : 'bg-outline-variant'"
+                  :disabled="post.saving"
+                  @click="toggleScheduledPost(post)"
+                >
+                  <span class="absolute left-0 top-0.5 block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="post.enabled ? 'translate-x-4' : 'translate-x-0.5'" />
+                </button>
+                <button type="button" class="text-on-surface-variant transition-colors hover:text-error" :disabled="post.deleting" @click="deleteScheduledPost(post)">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+              </div>
+            </div>
+
+            <details class="mt-2">
+              <summary class="cursor-pointer text-[11px] text-on-surface-variant hover:text-on-surface">{{ t('automations.editSchedule') }}</summary>
+              <div class="mt-2 space-y-2">
+                <input
+                  v-model="post.label"
+                  type="text"
+                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                  :placeholder="t('automations.labelPlaceholder')"
+                  @blur="saveScheduledPost(post)"
+                />
+                <div class="flex flex-wrap gap-2">
+                  <input
+                    v-model="post.time"
+                    type="time"
+                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    @change="saveScheduledPost(post)"
+                  />
+                  <select
+                    v-model="post.frequency"
+                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    @change="saveScheduledPost(post)"
+                  >
+                    <option value="daily">{{ t('automations.daily') }}</option>
+                    <option value="weekly">{{ t('automations.weekly') }}</option>
+                  </select>
+                  <select
+                    v-if="post.frequency === 'weekly'"
+                    v-model="post.weekday"
+                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    @change="saveScheduledPost(post)"
+                  >
+                    <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
+                  </select>
+                </div>
+                <textarea
+                  v-model="post.template"
+                  rows="2"
+                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                  :placeholder="t('automations.templatePlaceholder')"
+                  @blur="saveScheduledPost(post)"
+                />
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div v-if="addingPost" class="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <p class="mb-2 text-[12px] font-medium text-on-surface">{{ t('automations.newSchedule') }}</p>
+          <button type="button" class="btn btn-secondary mb-2 w-full justify-center px-3 py-1.5 text-[11px] sm:w-auto" @click="applyMorningPreset">
+            {{ t('automations.morningPreset') }}
+          </button>
+          <div class="space-y-2">
+            <input
+              v-model="newPost.label"
+              type="text"
+              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              :placeholder="t('automations.labelPlaceholder')"
+            />
+            <div class="flex flex-wrap gap-2">
+              <input v-model="newPost.time" type="time" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50" />
+              <select v-model="newPost.frequency" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50">
+                <option value="daily">{{ t('automations.daily') }}</option>
+                <option value="weekly">{{ t('automations.weekly') }}</option>
+              </select>
+              <select
+                v-if="newPost.frequency === 'weekly'"
+                v-model="newPost.weekday"
+                class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              >
+                <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
+              </select>
+            </div>
+            <textarea
+              v-model="newPost.template"
+              rows="3"
+              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              :placeholder="t('automations.templatePlaceholder')"
+            />
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn btn-primary flex items-center gap-1.5 text-[12px]" :disabled="savingNew" @click="addScheduledPost">
+                <span v-if="savingNew" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                {{ t('automations.saveSchedule') }}
+              </button>
+              <button type="button" class="btn btn-secondary text-[12px]" @click="addingPost = false">
+                {{ t('common.cancel') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="!scheduledPosts.length && !addingPost" class="text-[12px] text-on-surface-variant">
+          {{ t('automations.noSchedules') }}
+        </p>
+      </div>
+
       <!-- Silence Nudge -->
       <div class="rounded-xl border border-outline-variant bg-surface p-4">
         <div class="flex items-start justify-between gap-4">
@@ -153,151 +298,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Scheduled Posts (multiple) -->
-      <div class="rounded-xl border border-outline-variant bg-surface p-4">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <div>
-            <p class="text-[13px] font-medium text-on-surface">{{ t('automations.scheduledTitle') }}</p>
-            <p class="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.scheduledHint') }}</p>
-          </div>
-          <button type="button" class="btn btn-secondary flex shrink-0 items-center gap-1 text-[12px]" @click="addingPost = !addingPost">
-            <span class="material-symbols-outlined text-[14px]">add</span>
-            {{ t('automations.addSchedule') }}
-          </button>
-        </div>
-
-        <!-- Existing scheduled posts -->
-        <div v-if="scheduledPosts.length" class="mb-3 space-y-3">
-          <div v-for="post in scheduledPosts" :key="post.id" class="rounded-xl border border-outline-variant/60 bg-surface-variant/10 p-3">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-[13px] font-medium text-on-surface">{{ post.label }}</p>
-                <p class="text-[11px] text-on-surface-variant">
-                  {{ post.frequency === 'weekly' ? weekdays[post.weekday] : t('automations.daily') }} · {{ post.time }}
-                  <span v-if="post.last_fired_at"> · {{ t('automations.lastSent', { time: formatTime(post.last_fired_at) }) }}</span>
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  class="btn btn-secondary flex items-center gap-1 text-[11px]"
-                  :disabled="post.triggering || !group?.status?.startsWith('active')"
-                  @click="triggerScheduledPost(post)"
-                >
-                  <span v-if="post.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
-                  <span v-else class="material-symbols-outlined text-[13px]">send</span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  :aria-checked="post.enabled"
-                  class="relative h-5 w-9 shrink-0 rounded-full transition-colors"
-                  :class="post.enabled ? 'bg-primary' : 'bg-outline-variant'"
-                  :disabled="post.saving"
-                  @click="toggleScheduledPost(post)"
-                >
-                  <span class="absolute left-0 top-0.5 block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="post.enabled ? 'translate-x-4' : 'translate-x-0.5'" />
-                </button>
-                <button type="button" class="text-on-surface-variant transition-colors hover:text-error" :disabled="post.deleting" @click="deleteScheduledPost(post)">
-                  <span class="material-symbols-outlined text-[16px]">delete</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Editable fields -->
-            <details class="mt-2">
-              <summary class="cursor-pointer text-[11px] text-on-surface-variant hover:text-on-surface">{{ t('automations.editSchedule') }}</summary>
-              <div class="mt-2 space-y-2">
-                <input
-                  v-model="post.label"
-                  type="text"
-                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-                  :placeholder="t('automations.labelPlaceholder')"
-                  @blur="saveScheduledPost(post)"
-                />
-                <div class="flex flex-wrap gap-2">
-                  <input
-                    v-model="post.time"
-                    type="time"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-                    @change="saveScheduledPost(post)"
-                  />
-                  <select
-                    v-model="post.frequency"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-                    @change="saveScheduledPost(post)"
-                  >
-                    <option value="daily">{{ t('automations.daily') }}</option>
-                    <option value="weekly">{{ t('automations.weekly') }}</option>
-                  </select>
-                  <select
-                    v-if="post.frequency === 'weekly'"
-                    v-model="post.weekday"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-                    @change="saveScheduledPost(post)"
-                  >
-                    <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
-                  </select>
-                </div>
-                <textarea
-                  v-model="post.template"
-                  rows="2"
-                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-                  :placeholder="t('automations.templatePlaceholder')"
-                  @blur="saveScheduledPost(post)"
-                />
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <!-- Add new schedule form -->
-        <div v-if="addingPost" class="rounded-xl border border-primary/30 bg-primary/5 p-3">
-          <p class="mb-2 text-[12px] font-medium text-on-surface">{{ t('automations.newSchedule') }}</p>
-          <div class="space-y-2">
-            <input
-              v-model="newPost.label"
-              type="text"
-              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              :placeholder="t('automations.labelPlaceholder')"
-            />
-            <div class="flex flex-wrap gap-2">
-              <input v-model="newPost.time" type="time" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50" />
-              <select v-model="newPost.frequency" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50">
-                <option value="daily">{{ t('automations.daily') }}</option>
-                <option value="weekly">{{ t('automations.weekly') }}</option>
-              </select>
-              <select
-                v-if="newPost.frequency === 'weekly'"
-                v-model="newPost.weekday"
-                class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              >
-                <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
-              </select>
-            </div>
-            <textarea
-              v-model="newPost.template"
-              rows="2"
-              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              :placeholder="t('automations.templatePlaceholder')"
-            />
-            <div class="flex items-center gap-2">
-              <button type="button" class="btn btn-primary flex items-center gap-1.5 text-[12px]" :disabled="savingNew" @click="addScheduledPost">
-                <span v-if="savingNew" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-                {{ t('automations.saveSchedule') }}
-              </button>
-              <button type="button" class="btn btn-secondary text-[12px]" @click="addingPost = false">
-                {{ t('common.cancel') }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <p v-if="!scheduledPosts.length && !addingPost" class="text-[12px] text-on-surface-variant">
-          {{ t('automations.noSchedules') }}
-        </p>
-      </div>
     </div>
 
     <!-- Toast -->
@@ -363,8 +363,14 @@ interface ScheduledPostItem {
 const silenceNudge = reactive<SilenceState>({ id: null, enabled: false, threshold_hours: 24, last_fired_at: null, saving: false, triggering: false });
 const dailyDigest = reactive<DigestState>({ id: null, enabled: false, time: '09:00', frequency: 'daily', weekday: 0, last_fired_at: null, saving: false, triggering: false });
 const scheduledPosts = ref<ScheduledPostItem[]>([]);
-const addingPost = ref(false);
-const newPost = reactive({ label: '', time: '10:00', frequency: 'weekly' as 'daily' | 'weekly', weekday: 5, template: '' });
+const addingPost = ref(true);
+const newPost = reactive({
+  label: t('automations.morningLabel'),
+  time: '09:00',
+  frequency: 'daily' as 'daily' | 'weekly',
+  weekday: 5,
+  template: t('automations.morningTemplate'),
+});
 const savingNew = ref(false);
 
 const toast = ref<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -380,22 +386,22 @@ const weekdays = [
 ];
 
 function applyAutomation(a: GroupAutomation) {
+  const cfg = a.config && typeof a.config === 'object' ? a.config : {};
   if (a.type === 'silence_nudge') {
     silenceNudge.id = a.id;
     silenceNudge.enabled = a.enabled;
     silenceNudge.last_fired_at = a.last_fired_at;
-    const cfg = a.config as { threshold_hours?: number };
-    silenceNudge.threshold_hours = cfg.threshold_hours ?? 24;
+    silenceNudge.threshold_hours = (cfg as { threshold_hours?: number }).threshold_hours ?? 24;
   } else if (a.type === 'daily_digest') {
     dailyDigest.id = a.id;
     dailyDigest.enabled = a.enabled;
     dailyDigest.last_fired_at = a.last_fired_at;
-    const cfg = a.config as { time?: string; frequency?: 'daily' | 'weekly'; weekday?: number };
-    dailyDigest.time = cfg.time ?? '09:00';
-    dailyDigest.frequency = cfg.frequency ?? 'daily';
-    dailyDigest.weekday = cfg.weekday ?? 0;
+    const digest = cfg as { time?: string; frequency?: 'daily' | 'weekly'; weekday?: number };
+    dailyDigest.time = digest.time ?? '09:00';
+    dailyDigest.frequency = digest.frequency ?? 'daily';
+    dailyDigest.weekday = digest.weekday ?? 0;
   } else if (a.type === 'scheduled_post') {
-    const cfg = a.config as { time?: string; frequency?: 'daily' | 'weekly'; weekday?: number; template?: string };
+    const post = cfg as { time?: string; frequency?: 'daily' | 'weekly'; weekday?: number; template?: string };
     const existing = scheduledPosts.value.find((p) => p.id === a.id);
     if (existing) {
       existing.enabled = a.enabled;
@@ -403,12 +409,12 @@ function applyAutomation(a: GroupAutomation) {
     } else {
       scheduledPosts.value.push({
         id: a.id,
-        label: a.label ?? cfg.template ?? t('automations.scheduledTitle'),
+        label: a.label ?? post.template ?? t('automations.scheduledTitle'),
         enabled: a.enabled,
-        time: cfg.time ?? '10:00',
-        frequency: cfg.frequency ?? 'weekly',
-        weekday: cfg.weekday ?? 5,
-        template: cfg.template ?? '',
+        time: post.time ?? '09:00',
+        frequency: post.frequency ?? 'daily',
+        weekday: post.weekday ?? 5,
+        template: post.template ?? '',
         last_fired_at: a.last_fired_at,
         saving: false,
         triggering: false,
@@ -432,6 +438,7 @@ async function load() {
         // skip malformed rows
       }
     }
+    addingPost.value = scheduledPosts.value.length === 0;
   } catch (e) {
     console.error('[AutomationsSection] load failed:', e);
     loadError.value = e instanceof Error ? e.message : t('automations.failedLoad');
@@ -559,16 +566,27 @@ async function addScheduledPost() {
     });
     applyAutomation(result);
     addingPost.value = false;
-    newPost.label = '';
-    newPost.time = '10:00';
-    newPost.frequency = 'weekly';
-    newPost.weekday = 5;
-    newPost.template = '';
+    resetNewPost();
   } catch (e) {
     showToast(e instanceof Error ? e.message : t('automations.failedSave'), 'error');
   } finally {
     savingNew.value = false;
   }
+}
+
+function resetNewPost() {
+  newPost.label = '';
+  newPost.time = '09:00';
+  newPost.frequency = 'daily';
+  newPost.weekday = 5;
+  newPost.template = '';
+}
+
+function applyMorningPreset() {
+  newPost.label = t('automations.morningLabel');
+  newPost.time = '09:00';
+  newPost.frequency = 'daily';
+  newPost.template = t('automations.morningTemplate');
 }
 
 function showToast(message: string, type: 'success' | 'error') {

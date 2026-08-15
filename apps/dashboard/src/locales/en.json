@@ -767,6 +767,9 @@
     "editSchedule": "Edit",
     "labelPlaceholder": "Label (e.g. Friday meetup)",
     "noSchedules": "No scheduled posts yet — add one above or type \"@wavi schedule every friday at 6pm meetup\" in the group chat.",
+    "morningPreset": "Daily 9:00 morning briefing",
+    "morningLabel": "Morning briefing",
+    "morningTemplate": "Morning summary and todo list of what's going on. If nothing new, just a simple good morning.",
     "deleteSchedule": "Delete",
     "weekdays": {
       "sun": "Sunday",

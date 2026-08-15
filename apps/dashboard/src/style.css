@@ -252,12 +252,10 @@
      1. page-content::after — a block spacer appended after the tab content so
         the last element scrolls clear of the fixed nav. Works for setup/character
         tabs that are regular block flow inside main-content.
-     2. group-panel padding-bottom — group-panel has overflow-y:auto on all
-        widths, so its inner scroll area doesn't inherit the ::after spacer.
-        We add explicit padding-bottom there for the range where the bottom nav
-        is fixed (<lg). Uses padding-bottom rather than ::after because the
-        panel is itself a scroll container (WebKit bug doesn't apply here since
-        we are padding the panel, not the outer scroll root). */
+     2. group-panel padding-bottom — desktop group-panel is an inner scroller
+        (overflow-y:auto), so it doesn't inherit the ::after spacer. On <lg we
+        turn that scroller off (see .group-panel below) and pad the panel so
+        the last card clears the fixed nav. */
   @media (max-width: 1023px) {
     .page-content {
       padding-bottom: 0;
@@ -450,9 +448,13 @@
     @apply max-h-[calc(100vh-12.5rem)] overflow-y-auto overscroll-y-contain pe-0.5;
   }
 
-  @media (max-width: 768px) {
+  /* <lg: GroupDetailView is height:auto inside the page scroller. A flex-1
+     page-content + overflow-y:auto panel with no max-height collapses to 0
+     (min-height:auto treats overflow:auto as 0). Let main-content scroll. */
+  @media (max-width: 1023px) {
     .group-panel {
       max-height: none;
+      overflow: visible;
     }
   }
 
