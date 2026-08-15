@@ -44,6 +44,7 @@ import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
 import { mergeDuplicateNameProfiles, mergeProfileInto } from '../lib/merge-profiles.js';
 import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
 import { friendlyDbError } from '../lib/db-errors.js';
+import { getSyncLastRun, recordSyncRun } from '../lib/sync-status.js';
 
 function getAgentId(): string {
   const id = process.env.AGENT_ID;
@@ -801,6 +802,13 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     return resolveExportMessages(parsed).filter((m) => !m.is_system_message);
   }
 
+  fastify.get<{ Params: { id: string } }>('/:id/sync-status', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+    return { last_run: await getSyncLastRun(id) };
+  });
+
   fastify.post<{ Params: { id: string } }>('/:id/sync-dynamics', async (req, reply) => {
     const { id } = req.params;
     const { data: group } = await db.from('groups').select('id, language_mode').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
@@ -812,6 +820,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const languageMode = resolveEffectiveLang(group.language_mode);
     const observedAliases = collectObservedAliasesByPerson(resolved);
     await buildRelationshipMap(id, resolved, languageMode, observedAliases, { merge: true, pruneStale: true });
+    await recordSyncRun(id, 'dynamics');
     return { ok: true, message: 'Dynamics rebuilt' };
   });
 
@@ -826,6 +835,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const languageMode = resolveEffectiveLang(group.language_mode);
     const observedAliases = collectObservedAliasesByPerson(resolved);
     await buildUserProfilesFromHistory(id, resolved, languageMode, observedAliases, { merge: true });
+    await recordSyncRun(id, 'profiles');
     return { ok: true, message: 'Profiles rebuilt' };
   });
 
@@ -840,6 +850,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         groupName: (group as { name: string }).name ?? 'the group',
         languageMode: resolveEffectiveLang(group.language_mode),
       });
+      await recordSyncRun(id, 'context');
       return { ok: true, message: 'Context regenerated', context };
     } catch (error) {
       if (error instanceof NoEpisodeSummariesError || error instanceof InsufficientHistoryError || error instanceof MetaGroupContextError) {
@@ -905,6 +916,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     await synthesizeCharacterForGroup(id);
+    await recordSyncRun(id, 'character');
     return { ok: true, message: 'Character re-synthesized' };
   });
 
@@ -934,6 +946,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     await synthesizeCharacterForGroup(id);
+    await recordSyncRun(id, ['sharpen', 'character']);
     return {
       ok: true,
       message: 'Character sharpened',
@@ -957,7 +970,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data: chunks, error: fetchErr } = await db.from('message_chunks').select('id, content, msg_from, msg_to').eq('group_id', id).not('content', 'like', '[%');
 
     if (fetchErr) return reply.code(500).send({ error: fetchErr.message });
-    if (!chunks || chunks.length === 0) return { ok: true, message: 'All chunks already have date headers.', patched: 0 };
+    if (!chunks || chunks.length === 0) {
+      await recordSyncRun(id, 'chunkDates');
+      return { ok: true, message: 'All chunks already have date headers.', patched: 0 };
+    }
 
     type ChunkRow = { id: string; content: string | null; msg_from: string | null; msg_to: string | null };
     const rows = chunks as ChunkRow[];
@@ -992,6 +1008,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       patched += batch.length;
     }
 
+    await recordSyncRun(id, 'chunkDates');
     return { ok: true, message: `Patched ${patched} chunk(s) with date headers.`, patched };
   });
 };

@@ -812,6 +812,8 @@
     "running": "Running…",
     "done": "Done",
     "failed": "Sync failed",
+    "lastRun": "Last run {ago}",
+    "lastRunNever": "Not run yet",
     "summaryTitle": "Group summary",
     "summaryHint": "What's going on lately — threads, mood, open loops. Written in the group's language from recent chat and remembered events.",
     "summaryBuild": "Build summary",

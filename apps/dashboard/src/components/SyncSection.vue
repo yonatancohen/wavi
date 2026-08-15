@@ -3,7 +3,7 @@
     <!-- Full rebuild -->
     <RebuildIntelligence :group-id="groupId" @complete="onOpComplete" />
 
-    <GroupSummaryCard :group-id="groupId" :revision="summaryRevision" />
+    <GroupSummaryCard :group-id="groupId" :revision="summaryRevision" @updated="loadLastRun" />
 
     <!-- Individual operations -->
     <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
@@ -24,6 +24,11 @@
               <p class="mt-0.5 text-[11px] leading-snug text-on-surface-variant">{{ t(`sync.ops.${op.key}.desc`) }}</p>
             </div>
           </div>
+
+          <p class="flex items-center gap-1.5 text-[11px] text-on-surface-variant" :title="lastRunAbsolute(op.key)">
+            <span class="material-symbols-outlined text-[14px]">schedule</span>
+            <span class="tabular-nums">{{ lastRunLabel(op.key) }}</span>
+          </p>
 
           <div class="flex items-center gap-2">
             <button type="button" class="btn btn-secondary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" :disabled="states[op.key].running || anyRunning" @click="run(op)">
@@ -49,19 +54,21 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref } from 'vue';
+import { reactive, computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
+import { formatRelativeTime } from '../lib/ui';
 import RebuildIntelligence from './RebuildIntelligence.vue';
 import GroupSummaryCard from './GroupSummaryCard.vue';
+import type { SyncLastRun, SyncOpKey, SyncStatusResponse } from '@wavi/shared';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const props = defineProps<{ groupId: string }>();
 const emit = defineEmits<{ complete: [] }>();
 
 interface Op {
-  key: string;
+  key: SyncOpKey;
   icon: string;
   iconColor: string;
   endpoint: string;
@@ -116,11 +123,49 @@ const states = reactive<Record<string, OpState>>(Object.fromEntries(OPS.map((op)
 
 const anyRunning = computed(() => OPS.some((op) => states[op.key].running));
 const summaryRevision = ref(0);
+const lastRun = ref<SyncLastRun>({
+  sharpen: null,
+  chunkDates: null,
+  dynamics: null,
+  profiles: null,
+  context: null,
+  character: null,
+});
+
+function lastRunLabel(key: SyncOpKey) {
+  const iso = lastRun.value[key];
+  if (!iso) return t('sync.lastRunNever');
+  return t('sync.lastRun', { ago: formatRelativeTime(iso, locale.value) });
+}
+
+function lastRunAbsolute(key: SyncOpKey) {
+  const iso = lastRun.value[key];
+  if (!iso) return '';
+  return new Date(iso).toLocaleString(locale.value === 'he' ? 'he-IL' : 'en-US');
+}
+
+async function loadLastRun() {
+  try {
+    const data = await apiFetch<SyncStatusResponse>(`/groups/${props.groupId}/sync-status`);
+    if (data?.last_run) lastRun.value = data.last_run;
+  } catch {
+    // Cubes still work without timestamps.
+  }
+}
 
 function onOpComplete() {
   summaryRevision.value += 1;
+  void loadLastRun();
   emit('complete');
 }
+
+onMounted(loadLastRun);
+watch(
+  () => props.groupId,
+  () => {
+    void loadLastRun();
+  },
+);
 
 async function run(op: Op) {
   const s = states[op.key];

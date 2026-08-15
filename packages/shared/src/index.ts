@@ -137,6 +137,8 @@ export interface CharacterConfig {
   agent_gender?: AgentGender;
   /** The group's humor fingerprint — derived from history, drives in-character jokes. */
   humor_dna?: HumorDNA;
+  /** When character was last synthesized (not a manual dashboard edit). */
+  last_synthesized_at?: string;
 }
 
 export const DEFAULT_SLIDERS: PersonalitySliders = {
@@ -317,6 +319,14 @@ export interface GroupContext {
   summary_text: string;
   character_version: number;
   generated_at: string;
+}
+
+export const SYNC_OP_KEYS = ['sharpen', 'chunkDates', 'dynamics', 'profiles', 'context', 'character'] as const;
+export type SyncOpKey = (typeof SYNC_OP_KEYS)[number];
+export type SyncLastRun = Record<SyncOpKey, string | null>;
+
+export interface SyncStatusResponse {
+  last_run: SyncLastRun;
 }
 
 // ── Group Memory ─────────────────────────────────────────────
