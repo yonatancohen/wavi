@@ -200,20 +200,44 @@
             </select>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-3">
             <button
               type="button"
               class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
-              :disabled="silenceNudge.triggering || !group?.status?.startsWith('active')"
-              @click="triggerSingletonAutomation('silence_nudge')"
+              :disabled="silenceNudge.previewing || !group?.status?.startsWith('active')"
+              @click="previewSilenceNudge"
             >
-              <span v-if="silenceNudge.triggering" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-              <span v-else class="material-symbols-outlined text-[14px]">send</span>
-              {{ t('automations.triggerNow') }}
+              <span v-if="silenceNudge.previewing" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+              <span v-else class="material-symbols-outlined text-[14px]">visibility</span>
+              {{ silenceNudge.draft ? t('automations.regeneratePreview') : t('automations.previewNudge') }}
             </button>
             <span v-if="silenceNudge.last_fired_at" class="text-[11px] text-on-surface-variant">
               {{ t('automations.lastSent', { time: formatTime(silenceNudge.last_fired_at) }) }}
             </span>
+          </div>
+
+          <div v-if="silenceNudge.draft !== null" class="space-y-3 rounded-xl border border-outline-variant/70 bg-surface-variant/15 p-3">
+            <p class="text-[11px] text-on-surface-variant">{{ t('automations.previewHint') }}</p>
+            <textarea
+              v-model="silenceNudge.draft"
+              rows="4"
+              class="w-full resize-y rounded-xl border border-outline-variant bg-surface px-3 py-2 text-[13px] leading-relaxed text-on-surface outline-none focus:border-primary/50"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-primary flex items-center gap-1.5 text-[12px]"
+                :disabled="silenceNudge.sending || !silenceNudge.draft.trim() || !group?.status?.startsWith('active')"
+                @click="sendSilenceNudge"
+              >
+                <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                <span v-else class="material-symbols-outlined text-[14px]">send</span>
+                {{ t('automations.sendNudge') }}
+              </button>
+              <button type="button" class="btn btn-secondary text-[12px]" :disabled="silenceNudge.sending" @click="silenceNudge.draft = null">
+                {{ t('common.cancel') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -286,7 +310,7 @@
               type="button"
               class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
               :disabled="dailyDigest.triggering || !group?.status?.startsWith('active')"
-              @click="triggerSingletonAutomation('daily_digest')"
+              @click="triggerDailyDigest"
             >
               <span v-if="dailyDigest.triggering" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
               <span v-else class="material-symbols-outlined text-[14px]">send</span>
@@ -332,7 +356,10 @@ interface SilenceState {
   threshold_hours: number;
   last_fired_at: string | null;
   saving: boolean;
-  triggering: boolean;
+  previewing: boolean;
+  sending: boolean;
+  draft: string | null;
+  draftTokens: { input_tokens: number; output_tokens: number } | null;
 }
 
 interface DigestState {
@@ -360,7 +387,17 @@ interface ScheduledPostItem {
   deleting: boolean;
 }
 
-const silenceNudge = reactive<SilenceState>({ id: null, enabled: false, threshold_hours: 24, last_fired_at: null, saving: false, triggering: false });
+const silenceNudge = reactive<SilenceState>({
+  id: null,
+  enabled: false,
+  threshold_hours: 24,
+  last_fired_at: null,
+  saving: false,
+  previewing: false,
+  sending: false,
+  draft: null,
+  draftTokens: null,
+});
 const dailyDigest = reactive<DigestState>({ id: null, enabled: false, time: '09:00', frequency: 'daily', weekday: 0, last_fired_at: null, saving: false, triggering: false });
 const scheduledPosts = ref<ScheduledPostItem[]>([]);
 const addingPost = ref(true);
@@ -488,8 +525,50 @@ async function saveSingletonAutomation(type: 'silence_nudge' | 'daily_digest') {
   }
 }
 
-async function triggerSingletonAutomation(type: 'silence_nudge' | 'daily_digest') {
-  const state = type === 'silence_nudge' ? silenceNudge : dailyDigest;
+async function previewSilenceNudge() {
+  if (!silenceNudge.id) {
+    showToast(t('automations.failedSave'), 'error');
+    return;
+  }
+  silenceNudge.previewing = true;
+  try {
+    const result = await apiFetch<{ ok: boolean; body: string; input_tokens?: number; output_tokens?: number }>(`/automations/${silenceNudge.id}/preview`, {
+      method: 'POST',
+    });
+    silenceNudge.draft = result.body;
+    silenceNudge.draftTokens = { input_tokens: result.input_tokens ?? 0, output_tokens: result.output_tokens ?? 0 };
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : t('automations.previewFailed'), 'error');
+  } finally {
+    silenceNudge.previewing = false;
+  }
+}
+
+async function sendSilenceNudge() {
+  if (!silenceNudge.id || !silenceNudge.draft?.trim()) return;
+  silenceNudge.sending = true;
+  try {
+    const result = await apiFetch<{ ok: boolean; body: string }>(`/automations/${silenceNudge.id}/send`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message: silenceNudge.draft,
+        input_tokens: silenceNudge.draftTokens?.input_tokens,
+        output_tokens: silenceNudge.draftTokens?.output_tokens,
+      }),
+    });
+    showToast(t('automations.triggerSuccess', { preview: result.body.slice(0, 80) }), 'success');
+    silenceNudge.last_fired_at = new Date().toISOString();
+    silenceNudge.draft = null;
+    silenceNudge.draftTokens = null;
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : t('automations.triggerFailed'), 'error');
+  } finally {
+    silenceNudge.sending = false;
+  }
+}
+
+async function triggerDailyDigest() {
+  const state = dailyDigest;
   if (!state.id) {
     showToast(t('automations.failedSave'), 'error');
     return;

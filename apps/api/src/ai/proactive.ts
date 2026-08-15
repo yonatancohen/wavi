@@ -14,6 +14,7 @@ import {
 } from '@wavi/shared';
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { db } from '../db/client.js';
+import { textFromAnthropicContent } from './anthropic-text.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -106,7 +107,7 @@ export async function generateProactiveMessage(groupId: string, type: Automation
     messages: [...conversationTurns, { role: 'user', content: `${agentName}: ${triggerBody}` }],
   });
 
-  const body = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+  const body = textFromAnthropicContent(response.content);
 
   return {
     body,

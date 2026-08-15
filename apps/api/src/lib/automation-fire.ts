@@ -26,10 +26,29 @@ export async function shouldFireSilenceNudge(groupId: string, thresholdHours: nu
   return { ok: elapsedHours >= thresholdHours, elapsedHours: Math.round(elapsedHours) };
 }
 
-export async function fireAutomation(automation: Pick<GroupAutomation, 'id' | 'group_id' | 'type' | 'config'>, waGroupId: string, opts?: { elapsedHours?: number }): Promise<FireAutomationResult> {
+export async function previewAutomation(
+  automation: Pick<GroupAutomation, 'group_id' | 'type' | 'config'>,
+  opts?: { elapsedHours?: number },
+): Promise<{ body: string; inputTokens: number; outputTokens: number }> {
+  let elapsedHours = opts?.elapsedHours;
+  if (elapsedHours == null && automation.type === 'silence_nudge') {
+    const threshold = (automation.config as SilenceNudgeConfig).threshold_hours ?? 24;
+    elapsedHours = (await shouldFireSilenceNudge(automation.group_id, threshold)).elapsedHours;
+  }
+  return generateProactiveMessage(automation.group_id, automation.type, automation.config, elapsedHours);
+}
+
+export async function deliverAutomationBody(
+  automation: Pick<GroupAutomation, 'id' | 'group_id' | 'type' | 'config'>,
+  waGroupId: string,
+  body: string,
+  usage?: { inputTokens?: number; outputTokens?: number },
+): Promise<FireAutomationResult> {
   const startTime = Date.now();
-  const generated = await generateProactiveMessage(automation.group_id, automation.type, automation.config, opts?.elapsedHours);
-  await sendReply(waGroupId, generated.body);
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error('Message is required');
+
+  await sendReply(waGroupId, trimmed);
 
   const latencyMs = Date.now() - startTime;
   const now = new Date();
@@ -38,7 +57,7 @@ export async function fireAutomation(automation: Pick<GroupAutomation, 'id' | 'g
     group_id: automation.group_id,
     sender_wa_id: 'agent',
     sender_name: process.env.WA_AGENT_NAME ?? 'wavi',
-    body: generated.body,
+    body: trimmed,
     is_agent_reply: true,
     timestamp: now.toISOString(),
   });
@@ -46,9 +65,9 @@ export async function fireAutomation(automation: Pick<GroupAutomation, 'id' | 'g
   await db.from('replies').insert({
     group_id: automation.group_id,
     message_id: null,
-    body: generated.body,
-    prompt_tokens: generated.inputTokens,
-    completion_tokens: generated.outputTokens,
+    body: trimmed,
+    prompt_tokens: usage?.inputTokens ?? 0,
+    completion_tokens: usage?.outputTokens ?? 0,
     latency_ms: latencyMs,
   });
 
@@ -62,7 +81,12 @@ export async function fireAutomation(automation: Pick<GroupAutomation, 'id' | 'g
     .eq('id', automation.id)
     .throwOnError();
 
-  return { ...generated, latencyMs };
+  return { body: trimmed, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, latencyMs };
+}
+
+export async function fireAutomation(automation: Pick<GroupAutomation, 'id' | 'group_id' | 'type' | 'config'>, waGroupId: string, opts?: { elapsedHours?: number }): Promise<FireAutomationResult> {
+  const generated = await previewAutomation(automation, opts);
+  return deliverAutomationBody(automation, waGroupId, generated.body, generated);
 }
 
 export async function computeAutomationNextFireAt(automation: Pick<GroupAutomation, 'type' | 'group_id' | 'config'>, from = new Date()): Promise<Date> {

@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/client.js';
 import { computeNextFireAt } from '../lib/automation-schedule.js';
-import { fireAutomation } from '../lib/automation-fire.js';
-import { isGroupReplyEnabled, type AutomationConfig, type AutomationType, type GroupAutomation, type GroupStatus } from '@wavi/shared';
+import { deliverAutomationBody, fireAutomation, previewAutomation } from '../lib/automation-fire.js';
+import { isGroupReplyEnabled, type AutomationConfig, type AutomationType, type GroupStatus } from '@wavi/shared';
 
 export const automationsRoute: FastifyPluginAsync = async (fastify) => {
   // GET /api/automations?group_id=...
@@ -90,32 +90,58 @@ export const automationsRoute: FastifyPluginAsync = async (fastify) => {
     return { ok: true };
   });
 
-  // POST /api/automations/:id/trigger — fire immediately, bypassing schedule
-  fastify.post<{ Params: { id: string } }>('/:id/trigger', async (req, reply) => {
-    const { id } = req.params;
-
+  async function loadLiveAutomation(id: string) {
     const { data: automation } = await db.from('group_automations').select('*, groups!group_automations_group_id_fkey(wa_group_id, status)').eq('id', id).maybeSingle().throwOnError();
-
-    if (!automation) return reply.code(404).send({ error: 'Automation not found' });
+    if (!automation) return { ok: false as const, code: 404 as const, message: 'Automation not found' };
 
     const group = automation.groups as { wa_group_id: string; status: string } | null;
-    if (!group) return reply.code(404).send({ error: 'Group not found' });
-
+    if (!group) return { ok: false as const, code: 404 as const, message: 'Group not found' };
     if (!isGroupReplyEnabled(group.status as GroupStatus)) {
-      return reply.code(409).send({ error: 'Group is not active — resume it before triggering' });
+      return { ok: false as const, code: 409 as const, message: 'Group is not active — resume it before triggering' };
     }
 
-    // Re-uses the shared fireAutomation helper which calls generateProactiveMessage,
-    // sendReply, persists messages+replies, and updates last_fired_at+next_fire_at.
-    // Budget check is handled inside generateProactiveMessage.
-    const typedAutomation: Pick<GroupAutomation, 'id' | 'group_id' | 'type' | 'config'> = {
-      id: automation.id as string,
-      group_id: automation.group_id as string,
-      type: automation.type as AutomationType,
-      config: automation.config as AutomationConfig,
+    return {
+      ok: true as const,
+      automation: {
+        id: automation.id as string,
+        group_id: automation.group_id as string,
+        type: automation.type as AutomationType,
+        config: automation.config as AutomationConfig,
+      },
+      group,
     };
+  }
 
-    const result = await fireAutomation(typedAutomation, group.wa_group_id);
+  // POST /api/automations/:id/preview — generate without sending
+  fastify.post<{ Params: { id: string } }>('/:id/preview', async (req, reply) => {
+    const loaded = await loadLiveAutomation(req.params.id);
+    if (!loaded.ok) return reply.code(loaded.code).send({ error: loaded.message });
+
+    const generated = await previewAutomation(loaded.automation);
+    return { ok: true, body: generated.body, input_tokens: generated.inputTokens, output_tokens: generated.outputTokens };
+  });
+
+  // POST /api/automations/:id/send — send a reviewed body
+  fastify.post<{ Params: { id: string }; Body: { message?: string; input_tokens?: number; output_tokens?: number } }>('/:id/send', async (req, reply) => {
+    const message = req.body?.message?.trim();
+    if (!message) return reply.code(400).send({ error: 'message is required' });
+
+    const loaded = await loadLiveAutomation(req.params.id);
+    if (!loaded.ok) return reply.code(loaded.code).send({ error: loaded.message });
+
+    const result = await deliverAutomationBody(loaded.automation, loaded.group.wa_group_id, message, {
+      inputTokens: req.body?.input_tokens,
+      outputTokens: req.body?.output_tokens,
+    });
+    return { ok: true, body: result.body };
+  });
+
+  // POST /api/automations/:id/trigger — fire immediately, bypassing schedule
+  fastify.post<{ Params: { id: string } }>('/:id/trigger', async (req, reply) => {
+    const loaded = await loadLiveAutomation(req.params.id);
+    if (!loaded.ok) return reply.code(loaded.code).send({ error: loaded.message });
+
+    const result = await fireAutomation(loaded.automation, loaded.group.wa_group_id);
     return { ok: true, body: result.body };
   });
 };
