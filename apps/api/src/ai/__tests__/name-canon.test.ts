@@ -45,4 +45,17 @@ describe('applyCanonicalNames', () => {
   it('does not rewrite inside longer Latin words', () => {
     expect(applyCanonicalNames('Galaxy trip', [{ display_name: 'גל', aliases: ['Gal'] }])).toBe('Galaxy trip');
   });
+
+  it('rewrites צ׳ן to חן even without a People-tab roster', () => {
+    expect(applyCanonicalNames("יוני שאל את צ'ן מה כדאי", [])).toBe('יוני שאל את חן מה כדאי');
+    expect(applyCanonicalNames('אלון וצ׳ן התווכחו', [])).toBe('אלון וחן התווכחו');
+  });
+
+  it('uses חן in Hebrew prose when People still says Chen Arroyo', () => {
+    const person = expandCanonAliases({ display_name: 'Chen Arroyo', aliases: ['Chen'] });
+    const text = applyCanonicalNames("אלון וצ'ן התווכחו בצחוק", [person]);
+    expect(text).toContain('אלון וחן התווכחו');
+    expect(text).not.toContain("צ'ן");
+    expect(text).not.toContain('Chen');
+  });
 });

@@ -7,6 +7,8 @@ import { messageReferencesName } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
 import { normalizeRagQuery } from './rag-query.js';
 import { usableGroupContext } from './context-quality.js';
+import { loadMemberNames } from './group-context.js';
+import { applyCanonicalNames } from './name-canon.js';
 
 // Lowered from 0.35 — conversational Hebrew chunks about real events (trips,
 // restaurants, etc.) often score 0.28–0.33 against a memory-recall query even
@@ -111,6 +113,12 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     db.from('user_profiles').select('display_name').eq('group_id', groupId),
   ]);
 
+  const people = await loadMemberNames(groupId);
+  const relationships = (relationshipsResult.data ?? []).map((row) => ({
+    ...row,
+    narrative: applyCanonicalNames(row.narrative ?? '', people),
+  }));
+
   return {
     character_config: groupResult.data?.character_config ?? null,
     group_name: groupResult.data?.name ?? 'the group',
@@ -118,11 +126,11 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
     web_search_enabled: groupResult.data?.web_search_enabled ?? false,
     image_generation_enabled: groupResult.data?.image_generation_enabled ?? false,
     sender_profile: profileResult.data ?? null,
-    relevant_relationships: relationshipsResult.data ?? [],
+    relevant_relationships: relationships,
     group_memories: memoriesResult.data ?? [],
     group_events: groupEventsResult.error ? [] : (groupEventsResult.data ?? []),
     member_roster: [...new Set((rosterResult.data ?? []).map((row) => row.display_name).filter(Boolean))],
-    group_context_summary: usableGroupContext(contextResult.data?.summary_text),
+    group_context_summary: usableGroupContext(applyCanonicalNames(contextResult.data?.summary_text ?? '', people)),
     recent_messages: (messagesResult.data ?? []).reverse(),
     upcoming_events: ((eventsResult.data ?? []) as Array<{ type: string; config: { template?: string; frequency?: string }; next_fire_at: string }>).map((a) => ({
       label: a.config?.template ?? 'scheduled post',
@@ -246,7 +254,7 @@ export async function fetchMentionedPeople(groupId: string, message: string, sen
         aliases,
         behavioral_summary: profile.behavioral_summary ?? '',
         sensitivity_flags: pd?.sensitivity_flags ?? [],
-        relationships: (relsResult.data ?? []).map((r) => r.narrative),
+        relationships: (relsResult.data ?? []).map((r) => applyCanonicalNames(r.narrative ?? '', [])),
         activity_level: pd?.activity_level,
         dominant_topics: pd?.dominant_topics,
         recent_messages: (recentResult.data ?? []).map((m) => m.body as string).reverse(),
@@ -300,7 +308,7 @@ async function mergeNamedPairRelationships(groupId: string, senderWaId: string, 
     const key = pairKey(row.user_a_wa_id, row.user_b_wa_id);
     if (have.has(key) || !row.narrative) continue;
     have.add(key);
-    merged.push(row as RelationshipPair);
+    merged.push({ ...row, narrative: applyCanonicalNames(row.narrative ?? '', []) } as RelationshipPair);
   }
   return merged.slice(0, 5);
 }

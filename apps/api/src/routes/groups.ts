@@ -701,12 +701,17 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data } = await db.from('relationship_map').select('*').eq('group_id', req.params.id).order('interaction_score', { ascending: false }).throwOnError();
     const people = await loadMemberNames(req.params.id);
     const nameById = new Map(people.filter((person) => person.wa_user_id).map((person) => [person.wa_user_id!, person.display_name]));
-    return (data ?? []).map((row) => ({
+    const rows = (data ?? []).map((row) => ({
       ...row,
       user_a_name: nameById.get(row.user_a_wa_id) ?? row.user_a_name,
       user_b_name: nameById.get(row.user_b_wa_id) ?? row.user_b_name,
       narrative: applyCanonicalNames(row.narrative ?? '', people),
     }));
+    const dirty = rows.filter((row, index) => row.narrative !== ((data ?? [])[index]?.narrative ?? ''));
+    if (dirty.length > 0) {
+      await Promise.all(dirty.map((row) => db.from('relationship_map').update({ narrative: row.narrative }).eq('id', row.id).eq('group_id', req.params.id)));
+    }
+    return rows;
   });
 
   fastify.patch<{ Params: { id: string; relationshipId: string }; Body: UpdateRelationshipRequest }>('/:id/relationships/:relationshipId', async (req, reply) => {
@@ -718,10 +723,13 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
     if (req.body?.narrative === undefined) return reply.code(400).send({ error: 'narrative is required' });
 
+    const people = await loadMemberNames(req.params.id);
+    const narrative = applyCanonicalNames(req.body.narrative.trim(), people);
+
     const { data, error } = await db
       .from('relationship_map')
       .update({
-        narrative: req.body.narrative.trim(),
+        narrative,
         signals: {
           ...((relationship.signals as Record<string, unknown>) ?? {}),
           curation: { narrative_locked: true },
@@ -758,7 +766,17 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     if (data && !usableGroupContext((data as { summary_text?: string }).summary_text ?? '')) {
       return { context: null };
     }
-    return { context: data };
+    if (!data) return { context: null };
+    const people = await loadMemberNames(req.params.id);
+    const summary_text = applyCanonicalNames((data as { summary_text?: string }).summary_text ?? '', people);
+    if (summary_text !== ((data as { summary_text?: string }).summary_text ?? '')) {
+      await db
+        .from('group_contexts')
+        .update({ summary_text })
+        .eq('id', (data as { id: string }).id)
+        .eq('group_id', req.params.id);
+    }
+    return { context: { ...data, summary_text } };
   });
 
   // Memories

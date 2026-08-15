@@ -1,3 +1,4 @@
+import { fixMistransliteratedHebrewNames, hebrewGivenName } from '@wavi/shared';
 import { mergeAliases, namesLikelyMatch, normalizeNameForMatch } from '../lib/identity.js';
 
 export type NameCanon = {
@@ -77,10 +78,12 @@ function replaceNameToken(text: string, from: string, to: string): string {
 
 /** Rewrite contact nicknames / Latin spellings to the curated display name. */
 export function applyCanonicalNames(text: string, people: NameCanon[]): string {
+  const hebrewText = /[\u0590-\u05FF]/.test(text);
   const replacements: Array<{ from: string; to: string }> = [];
   for (const person of people) {
-    const to = person.display_name.trim();
-    if (!to) continue;
+    const display = person.display_name.trim();
+    if (!display) continue;
+    const to = hebrewText ? hebrewGivenName(display) : display;
     for (const alias of person.aliases) {
       const from = alias.trim();
       if (!from || normalizeNameForMatch(from) === normalizeNameForMatch(to)) continue;
@@ -93,5 +96,6 @@ export function applyCanonicalNames(text: string, people: NameCanon[]): string {
   for (const { from, to } of replacements) {
     out = replaceNameToken(out, from, to);
   }
-  return out;
+  // Roster-independent: Chen → צ'ן even when People still says "Chen Arroyo".
+  return fixMistransliteratedHebrewNames(out);
 }

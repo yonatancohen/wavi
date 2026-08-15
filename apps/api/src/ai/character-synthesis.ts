@@ -1,5 +1,6 @@
 import type { CharacterConfig, LanguageMode } from '@wavi/shared';
 import { db } from '../db/client.js';
+import { applyCanonicalNames } from './name-canon.js';
 import { synthesizeCharacter } from './summarizer.js';
 import { selectVoiceSamples } from './voice-samples.js';
 
@@ -30,7 +31,7 @@ export async function synthesizeCharacterForGroup(groupId: string): Promise<Char
     groupName: groupMeta.name ?? 'the group',
     episodeSummaries: episodeSummaries.slice(-10),
     userProfiles: (profiles ?? []).map((p) => `${p.display_name}: ${p.behavioral_summary}`),
-    relationshipNarratives: (relationships ?? []).map((r) => r.narrative).filter(Boolean),
+    relationshipNarratives: (relationships ?? []).map((r) => applyCanonicalNames(r.narrative ?? '', [])).filter(Boolean),
     voiceSamples: selectVoiceSamples(sampleMsgs ?? []),
     languageMode,
     usageContext: { groupId },
