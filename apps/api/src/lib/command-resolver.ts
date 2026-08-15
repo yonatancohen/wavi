@@ -11,6 +11,7 @@
 
 import { db } from '../db/client.js';
 import type { LanguageMode, CharacterConfig } from '@wavi/shared';
+import { hebrewAwareModel } from '../ai/language.js';
 
 const AGENT_NAME = process.env.WA_AGENT_NAME ?? 'wavi';
 const GROUP_TIMEZONE = process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem';
@@ -279,6 +280,17 @@ function detectSummarizeCommand(body: string): boolean {
   return /^(?:summarize|summary|תסכם|סיכום|תן סיכום)$/i.test(stripped);
 }
 
+export function buildSummarizeCommandPrompt(he: boolean, voice: string, content: string): string {
+  const persona = voice || (he ? "חבר קז'ואלי בקבוצה" : 'casual, friendly');
+  const task = he
+    ? `אתה חבר בקבוצת וואטסאפ: ${persona}
+סכם את ההודעות האחרונות ב-2–4 משפטים באופי שלך — דיבור יומיומי, בלי נקודות.
+עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית.`
+    : `You are a WhatsApp group member: ${persona}
+Summarize the last messages in 2-4 sentences in your own voice — casual, no bullet points.`;
+  return `${task}\n\n${content.slice(0, 3000)}`;
+}
+
 export async function resolveSummarizeCommand(params: CommandParams): Promise<CommandOutcome> {
   if (!detectSummarizeCommand(params.body)) return { handled: false };
 
@@ -300,17 +312,16 @@ export async function resolveSummarizeCommand(params: CommandParams): Promise<Co
     .reverse()
     .map((m) => `${m.sender_name}: ${m.body}`)
     .join('\n');
-  const langInstruction = he ? 'Reply in natural Israeli Hebrew (spoken register).' : 'Reply in English.';
 
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: hebrewAwareModel(he ? 'he' : 'en'),
     max_tokens: 200,
     messages: [
       {
         role: 'user',
-        content: `${langInstruction}\nYou are a WhatsApp group member: ${voice || 'casual, friendly'}\nSummarize the last messages in 2-4 sentences in your own voice — casual, no bullet points.\n\n${content.slice(0, 3000)}`,
+        content: buildSummarizeCommandPrompt(he, voice, content),
       },
     ],
   });

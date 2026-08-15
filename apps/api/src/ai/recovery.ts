@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { CharacterConfig } from '@wavi/shared';
+import type { CharacterConfig, LanguageMode } from '@wavi/shared';
+import { hebrewAwareModel } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -27,41 +28,63 @@ export function detectNegativeReaction(message: string): boolean {
   return NEGATIVE_SIGNALS.some((pattern) => pattern.test(message));
 }
 
+function useHebrew(languageMode: LanguageMode): boolean {
+  return languageMode !== 'en';
+}
+
+export function fallbackApology(humor: number, languageMode: LanguageMode = 'he'): string {
+  const he = useHebrew(languageMode);
+  if (humor > 70) {
+    return he ? 'אוקיי אוקיי, זה לא נחת. אני פורש את הבדיחה הזאת. כנראה. 😅' : "Ok ok, that one didn't land. I'll retire that joke. Probably. 😅";
+  }
+  if (humor > 40) {
+    return he ? 'פייר — פספוס. ממשיכים.' : 'Fair enough — that was a miss. Moving on.';
+  }
+  return he ? 'קיבלתי. זה היה לא במקום. סליחה.' : 'Noted. That was off. Sorry.';
+}
+
+export function buildApologyPrompt(voice: string, languageMode: LanguageMode): string {
+  if (useHebrew(languageMode)) {
+    return `אתה חבר בקבוצת וואטסאפ. האופי שלך: ${voice}
+מישהו אמר שההודעה האחרונה שלך לא נחתה / לא מצחיקה.
+כתוב התנצלות קצרה (1–2 משפטים) באופי שלך — מודע לעצמך, קצת מצטנע, בלי פורמליות.
+עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית. בלי מרכאות.`;
+  }
+  return `You are a witty WhatsApp group bot. Your character: ${voice}
+Someone just told you your last message was off or not funny.
+Write a SHORT (1-2 sentence) in-character apology that's self-aware and slightly self-deprecating but still on-brand.
+Do NOT be overly formal. Stay in character. No quotes.`;
+}
+
 // ── In-character apology ──────────────────────────────────────
 
-export async function generateApology(characterConfig: CharacterConfig | null, groupId?: string): Promise<string> {
+export async function generateApology(characterConfig: CharacterConfig | null, groupId?: string, languageMode: LanguageMode = 'he'): Promise<string> {
+  const he = useHebrew(languageMode);
+
   if (!characterConfig) {
-    return 'Ok, that was off. My bad.';
+    return he ? 'אוקיי, זה לא נחת. סליחה.' : 'Ok, that was off. My bad.';
   }
 
   const { sliders, voice } = characterConfig;
   const humor = sliders.humor;
   const formality = sliders.formality;
 
-  // For very high humor characters, we can generate a contextual apology
-  // For others, use a deterministic template (cheaper, faster)
-
   if (humor < 40) {
-    // Formal/serious character
     if (formality > 60) {
-      return "I apologize — that reply was inappropriate. Let me know if you'd like me to try again.";
+      return he ? 'סליחה — התגובה ההיא הייתה לא במקום. אם תרצה אנסה שוב.' : "I apologize — that reply was inappropriate. Let me know if you'd like me to try again.";
     }
-    return "That was off, sorry. I'll recalibrate.";
+    return he ? 'זה לא נחת, סליחה. אתקן.' : "That was off, sorry. I'll recalibrate.";
   }
 
   if (humor > 75) {
-    // High humor — generate something in-character
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
+        model: hebrewAwareModel(languageMode),
         max_tokens: 80,
         messages: [
           {
             role: 'user',
-            content: `You are a witty WhatsApp group bot. Your character: ${voice}
-Someone just told you your last message was off or not funny.
-Write a SHORT (1-2 sentence) in-character apology that's self-aware and slightly self-deprecating but still on-brand.
-Do NOT be overly formal. Stay in character. No quotes.`,
+            content: buildApologyPrompt(voice, languageMode),
           },
         ],
       });
@@ -69,21 +92,11 @@ Do NOT be overly formal. Stay in character. No quotes.`,
       const { recordAnthropicCall } = await import('../lib/usage-record.js');
       await recordAnthropicCall({ type: 'recovery', groupId, usage: response.usage });
 
-      return response.content[0].type === 'text' ? response.content[0].text.trim() : fallbackApology(humor);
+      return response.content[0].type === 'text' ? response.content[0].text.trim() : fallbackApology(humor, languageMode);
     } catch {
-      return fallbackApology(humor);
+      return fallbackApology(humor, languageMode);
     }
   }
 
-  return fallbackApology(humor);
-}
-
-function fallbackApology(humor: number): string {
-  if (humor > 70) {
-    return "Ok ok, that one didn't land. I'll retire that joke. Probably. 😅";
-  }
-  if (humor > 40) {
-    return 'Fair enough — that was a miss. Moving on.';
-  }
-  return 'Noted. That was off. Sorry.';
+  return fallbackApology(humor, languageMode);
 }

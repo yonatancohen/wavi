@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { hebrewAwareModel, synthesisLanguageInstruction } from '../language.js';
-import { buildEpisodeSummaryPrompt } from '../summarizer.js';
+import { buildChunkSummaryPrompt, buildEpisodeSummaryPrompt, buildExtractEventsPrompt } from '../summarizer.js';
 
 describe('hebrewAwareModel', () => {
   it('uses Sonnet for Hebrew and Haiku for English', () => {
@@ -25,5 +25,21 @@ describe('buildEpisodeSummaryPrompt', () => {
     expect(prompt).toContain('משפטים תקינים');
     expect(prompt).toContain('התאם מין לשמות');
     expect(prompt).toContain('דן: מי בא בשישי?');
+  });
+});
+
+describe('buildChunkSummaryPrompt', () => {
+  it('asks for a Hebrew one-liner in he/auto', () => {
+    const prompt = buildChunkSummaryPrompt('דן: מי בא?', 'he');
+    expect(prompt).toContain('משפט אחד');
+    expect(prompt).not.toContain('ONE sentence');
+  });
+});
+
+describe('buildExtractEventsPrompt', () => {
+  it('asks for events in Hebrew for he mode', () => {
+    const prompt = buildExtractEventsPrompt('יצאנו לאילת', 'he');
+    expect(prompt).toContain('חלץ');
+    expect(prompt).not.toContain('Extract 0–3');
   });
 });

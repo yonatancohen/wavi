@@ -251,9 +251,9 @@ export async function checkForNegativeReaction(params: { groupId: string; sender
   const isNegative = detectNegativeReaction(params.body);
   if (!isNegative) return;
 
-  const { data: group } = await db.from('groups').select('character_config').eq('id', params.groupId).single();
+  const { data: group } = await db.from('groups').select('character_config, language_mode').eq('id', params.groupId).single();
 
-  const apology = await generateApology(group?.character_config, params.groupId);
+  const apology = await generateApology(group?.character_config, params.groupId, (group?.language_mode as import('@wavi/shared').LanguageMode) ?? 'he');
 
   try {
     await deliverReply(params.waGroupId, apology);

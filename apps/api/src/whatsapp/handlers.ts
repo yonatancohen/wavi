@@ -493,9 +493,12 @@ export async function handleReaction(reaction: InboundReaction) {
   const { autoInsertMissMemory } = await import('../ai/worker.js');
 
   if (isNegative) {
-    const { data: groupWithConfig } = await db.from('groups').select('character_config').eq('id', group.id).maybeSingle();
+    const { data: groupWithConfig } = await db.from('groups').select('character_config, language_mode').eq('id', group.id).maybeSingle();
     const { generateApology } = await import('../ai/recovery.js');
-    const apology = await generateApology((groupWithConfig?.character_config as import('@wavi/shared').CharacterConfig | null) ?? null, group.id).catch(() => 'אוקיי, זה לא נחת טוב. מבין.');
+    const languageMode = (groupWithConfig?.language_mode as import('@wavi/shared').LanguageMode) ?? 'he';
+    const apology = await generateApology((groupWithConfig?.character_config as import('@wavi/shared').CharacterConfig | null) ?? null, group.id, languageMode).catch(
+      () => 'אוקיי, זה לא נחת טוב. מבין.',
+    );
 
     for (const key of keys) {
       const parts = key.split(':');

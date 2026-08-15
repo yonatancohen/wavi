@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { detectNegativeReaction } from '../recovery.js';
+import { buildApologyPrompt, detectNegativeReaction, fallbackApology } from '../recovery.js';
 
 describe('detectNegativeReaction', () => {
   // ── Should trigger ────────────────────────────────────────
@@ -47,5 +47,27 @@ describe('detectNegativeReaction', () => {
     expect(detectNegativeReaction("THAT'S NOT FUNNY")).toBe(true);
     expect(detectNegativeReaction('Bad Bot')).toBe(true);
     expect(detectNegativeReaction('SHUT UP WAVI')).toBe(true);
+  });
+});
+
+describe('fallbackApology', () => {
+  it('returns spoken Hebrew for he/auto', () => {
+    expect(fallbackApology(80, 'he')).toContain('לא נחת');
+    expect(fallbackApology(50, 'auto')).toContain('פספוס');
+    expect(fallbackApology(20, 'he')).toContain('סליחה');
+  });
+
+  it('keeps English fallbacks for en', () => {
+    expect(fallbackApology(80, 'en')).toContain("didn't land");
+    expect(fallbackApology(20, 'en')).toContain('Sorry');
+  });
+});
+
+describe('buildApologyPrompt', () => {
+  it('writes the high-humor apology task in Hebrew', () => {
+    const prompt = buildApologyPrompt('חבר ותיק בקבוצה', 'he');
+    expect(prompt).toContain('עברית מדוברת');
+    expect(prompt).toContain('חבר ותיק בקבוצה');
+    expect(prompt).not.toContain('You are a witty');
   });
 });

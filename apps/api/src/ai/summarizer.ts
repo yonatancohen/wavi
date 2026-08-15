@@ -237,23 +237,33 @@ export async function generateEpisodeSummary(content: string, languageMode: Lang
   return parseEpisodeSummaryResponse(text || 'Group activity.');
 }
 
+export function buildExtractEventsPrompt(summary: string, languageMode: LanguageMode = 'auto'): string {
+  const lang = synthesisLanguageInstruction(languageMode);
+  const task =
+    languageMode === 'en'
+      ? `Extract 0–3 durable events from this group episode summary. JSON only:
+{ "events": [{ "who": ["<names>"], "what": "<concrete event>", "when": "<if known>", "why_it_matters": "<why it might come up again>" }] }
+Skip vibe-only summaries. Empty events is fine.`
+      : `חלץ 0–3 אירועים יציבים מתקציר הפרק. JSON בלבד:
+{ "events": [{ "who": ["<שמות>"], "what": "<אירוע ממשי>", "when": "<אם ידוע>", "why_it_matters": "<למה זה עלול לחזור>" }] }
+דלג על אווירה בלבד. מערך ריק זה בסדר.`;
+  return `${lang}
+
+${task}
+
+Summary:
+${summary.slice(0, 1500)}`;
+}
+
 /** Cheap backfill: extract events from an existing episode summary, not raw messages. */
 export async function extractEventsFromSummary(summary: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<ExtractedEvent[]> {
-  const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: hebrewAwareModel(languageMode),
     max_tokens: 250,
     messages: [
       {
         role: 'user',
-        content: `${lang}
-
-Extract 0–3 durable events from this group episode summary. JSON only:
-{ "events": [{ "who": ["<names>"], "what": "<concrete event>", "when": "<if known>", "why_it_matters": "<why it might come up again>" }] }
-Skip vibe-only summaries. Empty events is fine.
-
-Summary:
-${summary.slice(0, 1500)}`,
+        content: buildExtractEventsPrompt(summary, languageMode),
       },
     ],
   });
@@ -412,21 +422,29 @@ export async function synthesizeCharacter(params: CharacterSynthesisInput & { us
   return defaultCharacterFallback(params.groupName, params.languageMode);
 }
 
+export function buildChunkSummaryPrompt(content: string, languageMode: LanguageMode = 'auto'): string {
+  const lang = synthesisLanguageInstruction(languageMode);
+  const task =
+    languageMode === 'en'
+      ? 'Summarize this WhatsApp group conversation in ONE sentence (max 20 words). Focus on the main topic or event.'
+      : 'סכם את השיחה במשפט אחד (עד 20 מילים). התמקד בנושא או באירוע המרכזי. עברית מדוברת, משפט תקין.';
+  return `${lang}\n\n${task}\n\n${content.slice(0, 2000)}`;
+}
+
 /** Chunk summary (1 sentence). */
 export async function generateChunkSummary(content: string, languageMode: LanguageMode = 'auto', usageContext?: SynthesisUsageContext): Promise<string> {
-  const lang = synthesisLanguageInstruction(languageMode);
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: hebrewAwareModel(languageMode),
     max_tokens: 100,
     messages: [
       {
         role: 'user',
-        content: `${lang}\n\nSummarize this WhatsApp group conversation in ONE sentence (max 20 words). Focus on the main topic or event.\n\n${content.slice(0, 2000)}`,
+        content: buildChunkSummaryPrompt(content, languageMode),
       },
     ],
   });
   const { recordAnthropicCall } = await import('../lib/usage-record.js');
   await recordAnthropicCall({ type: 'synthesis', groupId: usageContext?.groupId, usage: response.usage });
 
-  return response.content[0].type === 'text' ? response.content[0].text.trim() : 'Group conversation.';
+  return response.content[0].type === 'text' ? response.content[0].text.trim() : languageMode === 'en' ? 'Group conversation.' : 'שיחה בקבוצה.';
 }
