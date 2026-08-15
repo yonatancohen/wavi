@@ -1,4 +1,4 @@
-import type { CharacterConfig, LanguageMode } from '@wavi/shared';
+import { normalizeReplyModel, type CharacterConfig, type LanguageMode } from '@wavi/shared';
 import { db } from '../db/client.js';
 import { synthesizeCharacter } from './summarizer.js';
 import { selectVoiceSamples } from './voice-samples.js';
@@ -41,7 +41,7 @@ export async function synthesizeCharacterForGroup(groupId: string): Promise<Char
     preset: 'custom',
     version: 1,
     last_synthesized_at: new Date().toISOString(),
-    ...(prevReplyModel ? { reply_model: prevReplyModel } : {}),
+    ...(prevReplyModel ? { reply_model: normalizeReplyModel(prevReplyModel) } : {}),
   };
 
   const { error: updateError } = await db.from('groups').update({ character_config: characterConfig }).eq('id', groupId);

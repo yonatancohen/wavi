@@ -102,9 +102,15 @@ export interface PersonalitySliders {
   emoji_usage: EmojiUsageLevel;
 }
 
-export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-4-6';
+export type ReplyModel = 'claude-haiku-4-5' | 'claude-sonnet-5';
 
-export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-sonnet-4-6';
+export const DEFAULT_REPLY_MODEL: ReplyModel = 'claude-sonnet-5';
+
+/** Map stored/legacy model ids so old character_config rows keep working. */
+export function normalizeReplyModel(model?: string | null): ReplyModel {
+  if (model === 'claude-haiku-4-5') return 'claude-haiku-4-5';
+  return DEFAULT_REPLY_MODEL;
+}
 
 /** A single few-shot exchange that shows how Wavi sounds in this group. */
 export interface VoiceExample {

@@ -710,10 +710,10 @@ _Estimate: 5 groups · ~30 agent replies/day · 1,000 new messages/day_
 
 | Task                   | Model                    | Reason                                               |
 | ---------------------- | ------------------------ | ---------------------------------------------------- |
-| Tag & Reply (default)  | `claude-sonnet-4-6`      | Best quality; per-group opt-down to Haiku available  |
-| Character synthesis    | `claude-sonnet-4-6`      | High-stakes, one-time; quality over cost             |
-| User profile synthesis | `claude-sonnet-4-6`      | Richer profiles → better adaptive tone per sender    |
-| Character drift        | `claude-sonnet-4-6`      | Consequential + low-frequency (at most daily)        |
+| Tag & Reply (default)  | `claude-sonnet-5`        | Best quality; per-group opt-down to Haiku available  |
+| Character synthesis    | `claude-sonnet-5`        | High-stakes, one-time; quality over cost             |
+| User profile synthesis | `claude-sonnet-5`        | Richer profiles → better adaptive tone per sender    |
+| Character drift        | `claude-sonnet-5`        | Consequential + low-frequency (at most daily)        |
 | Episode summaries      | `claude-haiku-4-5`       | High-volume background job; simple summarization     |
 | Chunk summaries        | `claude-haiku-4-5`       | Very high volume (every 50 msgs); 1-sentence output  |
 | Rolling group context  | `claude-haiku-4-5`       | Template-style task, quality gap negligible          |

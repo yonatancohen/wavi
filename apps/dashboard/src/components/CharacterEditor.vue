@@ -32,7 +32,7 @@
             class="w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
           >
             <option value="claude-haiku-4-5">{{ t('character.modelHaiku') }}</option>
-            <option value="claude-sonnet-4-6">{{ t('character.modelSonnet') }}</option>
+            <option value="claude-sonnet-5">{{ t('character.modelSonnet') }}</option>
           </select>
           <p class="mt-1.5 text-[11px] text-on-surface-variant">{{ t('character.replyModelHint') }}</p>
         </div>
@@ -177,7 +177,7 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import type { GroupWithStats, CharacterConfig, PersonalitySliders, CharacterPreset, AgentGender } from '@wavi/shared';
-import { DEFAULT_REPLY_MODEL, PRESET_SLIDERS, normalizePersonalitySliders } from '@wavi/shared';
+import { PRESET_SLIDERS, normalizePersonalitySliders, normalizeReplyModel } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -200,7 +200,7 @@ const GENDER_OPTIONS: { value: AgentGender; label: string }[] = [
 
 function cloneConfig(config: CharacterConfig): CharacterConfig {
   const cloned = JSON.parse(JSON.stringify(config)) as CharacterConfig;
-  if (!cloned.reply_model) cloned.reply_model = DEFAULT_REPLY_MODEL;
+  cloned.reply_model = normalizeReplyModel(cloned.reply_model);
   cloned.sliders = normalizePersonalitySliders(cloned.sliders);
   return cloned;
 }

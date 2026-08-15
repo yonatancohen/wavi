@@ -23,7 +23,7 @@ async function extractAliasesFromContext(displayName: string, _ownMessages: stri
   const lang = synthesisLanguageInstruction(languageMode);
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     max_tokens: 150,
     messages: [
       {
@@ -107,7 +107,7 @@ async function callProfileLlm(displayName: string, sample: string, languageMode:
   const lang = synthesisLanguageInstruction(languageMode);
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     max_tokens: 512,
     messages: [
       {

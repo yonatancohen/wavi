@@ -3,13 +3,14 @@ import { buildTriggerBody, resolveAutomationModel } from '../proactive.js';
 
 describe('resolveAutomationModel', () => {
   it('forces Sonnet for Hebrew and auto even if the group reply model is Haiku', () => {
-    expect(resolveAutomationModel('he', { reply_model: 'claude-haiku-4-5' })).toBe('claude-sonnet-4-6');
-    expect(resolveAutomationModel('auto', { reply_model: 'claude-haiku-4-5' })).toBe('claude-sonnet-4-6');
+    expect(resolveAutomationModel('he', { reply_model: 'claude-haiku-4-5' })).toBe('claude-sonnet-5');
+    expect(resolveAutomationModel('auto', { reply_model: 'claude-haiku-4-5' })).toBe('claude-sonnet-5');
   });
 
   it('keeps the group reply model for English', () => {
     expect(resolveAutomationModel('en', { reply_model: 'claude-haiku-4-5' })).toBe('claude-haiku-4-5');
-    expect(resolveAutomationModel('en', { reply_model: 'claude-sonnet-4-6' })).toBe('claude-sonnet-4-6');
+    expect(resolveAutomationModel('en', { reply_model: 'claude-sonnet-5' })).toBe('claude-sonnet-5');
+    expect(resolveAutomationModel('en', { reply_model: 'claude-sonnet-4-6' as never })).toBe('claude-sonnet-5');
   });
 });
 

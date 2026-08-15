@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { DEFAULT_REPLY_MODEL, type ReplyModel } from '@wavi/shared';
+import { normalizeReplyModel, type ReplyModel } from '@wavi/shared';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_PATH = resolve(__dir, 'replay-fixtures.json');
@@ -113,7 +113,7 @@ async function runCase(testCase: FixtureCase) {
     return;
   }
 
-  const replyModel: ReplyModel = ctx.character_config?.reply_model ?? DEFAULT_REPLY_MODEL;
+  const replyModel: ReplyModel = normalizeReplyModel(ctx.character_config?.reply_model);
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const response = await anthropic.messages.create({

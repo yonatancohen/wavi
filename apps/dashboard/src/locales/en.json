@@ -513,7 +513,7 @@
     "replyModel": "Reply model",
     "replyModelHint": "Haiku is faster and cheaper; Sonnet may improve Hebrew quality.",
     "modelHaiku": "Haiku (fast)",
-    "modelSonnet": "Sonnet (quality)",
+    "modelSonnet": "Sonnet 5 (quality)",
     "slider": {
       "formality": "Formality",
       "humor": "Humor",

@@ -513,7 +513,7 @@
     "replyModel": "מודל תשובות",
     "replyModelHint": "Haiku מהיר וזול יותר; Sonnet עשוי לשפר עברית.",
     "modelHaiku": "Haiku (מהיר)",
-    "modelSonnet": "Sonnet (איכות)",
+    "modelSonnet": "Sonnet 5 (איכות)",
     "slider": {
       "formality": "פורמליות",
       "humor": "הומור",

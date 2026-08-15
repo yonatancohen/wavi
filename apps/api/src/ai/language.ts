@@ -1,4 +1,4 @@
-import type { LanguageMode } from '@wavi/shared';
+import { DEFAULT_REPLY_MODEL, type LanguageMode } from '@wavi/shared';
 
 /** Human-readable language name for prompts. */
 export function getLanguageName(code: LanguageMode): string {
@@ -31,7 +31,7 @@ export function synthesisLanguageInstruction(languageMode: LanguageMode): string
 
 /** Hebrew generation needs Sonnet; Haiku turns English outlines into broken Hebrew. */
 export function hebrewAwareModel(languageMode?: LanguageMode): string {
-  return languageMode === 'en' ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+  return languageMode === 'en' ? 'claude-haiku-4-5' : DEFAULT_REPLY_MODEL;
 }
 
 /**

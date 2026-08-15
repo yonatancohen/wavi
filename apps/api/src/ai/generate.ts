@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
 import { parseImageReply } from './image-reply.js';
-import { DEFAULT_REPLY_MODEL, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
+import { normalizeReplyModel, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,7 +16,7 @@ export type GeneratedReply = {
 };
 
 function resolveReplyModel(config: { reply_model?: ReplyModel } | null | undefined): ReplyModel {
-  return config?.reply_model ?? DEFAULT_REPLY_MODEL;
+  return normalizeReplyModel(config?.reply_model);
 }
 
 export async function generateReplyText(params: {

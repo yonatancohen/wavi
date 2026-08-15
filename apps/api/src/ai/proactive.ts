@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
 import {
   DEFAULT_REPLY_MODEL,
+  normalizeReplyModel,
   isGroupReplyEnabled,
   type AutomationType,
   type DigestConfig,
@@ -67,8 +68,8 @@ export function buildTriggerBody(type: AutomationType, config: TriggerConfig, op
 
 /** Hebrew/auto automations always use Sonnet — Haiku turns English outlines into broken Hebrew. */
 export function resolveAutomationModel(languageMode: LanguageMode, config?: { reply_model?: ReplyModel } | null): ReplyModel {
-  if (languageMode !== 'en') return 'claude-sonnet-4-6';
-  return config?.reply_model ?? DEFAULT_REPLY_MODEL;
+  if (languageMode !== 'en') return DEFAULT_REPLY_MODEL;
+  return normalizeReplyModel(config?.reply_model);
 }
 
 export async function generateProactiveMessage(groupId: string, type: AutomationType, config: TriggerConfig, elapsedHours?: number): Promise<ProactiveMessage> {

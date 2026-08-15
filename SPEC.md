@@ -706,7 +706,7 @@ _Estimate: 5 groups · ~30 agent replies/day · 1,000 new messages/day_
 | Task                   | Model                    | Reason                                |
 | ---------------------- | ------------------------ | ------------------------------------- |
 | Tag & Reply            | `claude-haiku-4-5`       | Fast, cheap, good enough              |
-| Character synthesis    | `claude-sonnet-4-6`      | Only on setup + periodic re-synthesis |
+| Character synthesis    | `claude-sonnet-5`        | Only on setup + periodic re-synthesis |
 | Episode summaries      | `claude-haiku-4-5`       | Background job, not latency-sensitive |
 | User profile synthesis | `claude-haiku-4-5`       | Background job                        |
 | In-character apology   | `claude-haiku-4-5`       | Needs to be fast                      |

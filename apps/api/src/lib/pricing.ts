@@ -1,7 +1,7 @@
 const HAIKU_INPUT_PER_M = 0.8;
 const HAIKU_OUTPUT_PER_M = 4;
-const SONNET_INPUT_PER_M = 3;
-const SONNET_OUTPUT_PER_M = 15;
+const SONNET_INPUT_PER_M = 2;
+const SONNET_OUTPUT_PER_M = 10;
 
 export function estimateCostUsd(inputTokens: number, outputTokens: number): number {
   const inputCost = (inputTokens / 1_000_000) * HAIKU_INPUT_PER_M;
