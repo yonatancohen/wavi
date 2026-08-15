@@ -125,8 +125,6 @@
         <WelcomeMessageModal v-if="showWelcomeModal" :group-id="group.id" @close="showWelcomeModal = false" />
 
         <div v-show="activeTab === 'character'" class="space-y-4">
-          <SharpenCharacterCard :group-id="group.id" @updated="onCharacterUpdated" />
-          <GroupSummaryCard :group-id="group.id" />
           <CharacterEditor :group="group" @updated="onCharacterUpdated" />
           <section v-if="!group.character_config" class="rounded-xl border border-dashed border-outline-variant bg-surface-variant/20 px-6 py-10 text-center">
             <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">psychology</span>
@@ -178,8 +176,6 @@ import MembersSection from '../components/MembersSection.vue';
 import DynamicsSection from '../components/DynamicsSection.vue';
 import MessagesSection from '../components/MessagesSection.vue';
 import CharacterEditor from '../components/CharacterEditor.vue';
-import SharpenCharacterCard from '../components/SharpenCharacterCard.vue';
-import GroupSummaryCard from '../components/GroupSummaryCard.vue';
 import TestChatPanel from '../components/TestChatPanel.vue';
 import GroupUsagePanel from '../components/GroupUsagePanel.vue';
 import SyncSection from '../components/SyncSection.vue';

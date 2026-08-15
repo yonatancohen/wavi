@@ -1,7 +1,9 @@
 <template>
   <div class="space-y-6">
     <!-- Full rebuild -->
-    <RebuildIntelligence :group-id="groupId" @complete="emit('complete')" />
+    <RebuildIntelligence :group-id="groupId" @complete="onOpComplete" />
+
+    <GroupSummaryCard :group-id="groupId" :revision="summaryRevision" />
 
     <!-- Individual operations -->
     <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
@@ -47,10 +49,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue';
+import { reactive, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import RebuildIntelligence from './RebuildIntelligence.vue';
+import GroupSummaryCard from './GroupSummaryCard.vue';
 
 const { t } = useI18n();
 
@@ -112,6 +115,12 @@ interface OpState {
 const states = reactive<Record<string, OpState>>(Object.fromEntries(OPS.map((op) => [op.key, { running: false, done: false, error: null }])));
 
 const anyRunning = computed(() => OPS.some((op) => states[op.key].running));
+const summaryRevision = ref(0);
+
+function onOpComplete() {
+  summaryRevision.value += 1;
+  emit('complete');
+}
 
 async function run(op: Op) {
   const s = states[op.key];
@@ -121,7 +130,7 @@ async function run(op: Op) {
   try {
     await apiFetch(`/groups/${props.groupId}/${op.endpoint}`, { method: 'POST' });
     s.done = true;
-    emit('complete');
+    onOpComplete();
   } catch (e) {
     s.error = e instanceof Error ? e.message : t('sync.failed');
   } finally {

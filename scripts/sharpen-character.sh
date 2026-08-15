@@ -13,4 +13,4 @@ echo
 echo "── 2/2 Re-synthesize character"
 bash "$ROOT/scripts/resynthesize-character.sh" "$@"
 echo
-echo "Done. Check the Character tab, then replay an opinion vs a recall question."
+echo "Done. Check voice and opinions on the Character tab, then replay an opinion vs a recall question."

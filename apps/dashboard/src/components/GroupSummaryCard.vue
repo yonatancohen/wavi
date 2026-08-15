@@ -4,34 +4,34 @@
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px] text-secondary">article</span>
-          <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('character.summaryTitle') }}</h2>
+          <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('sync.summaryTitle') }}</h2>
         </div>
         <p class="mt-1.5 text-[12px] leading-relaxed text-on-surface-variant">
-          {{ t('character.summaryHint') }}
+          {{ t('sync.summaryHint') }}
         </p>
       </div>
       <button type="button" class="btn btn-primary flex w-full shrink-0 items-center justify-center gap-2 sm:w-auto" :disabled="running" @click="run">
         <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': running }">
           {{ running ? 'sync' : 'play_arrow' }}
         </span>
-        {{ running ? t('character.summaryBuilding') : t('character.summaryBuild') }}
+        {{ running ? t('sync.summaryBuilding') : t('sync.summaryBuild') }}
       </button>
     </div>
 
     <p v-if="updatedAgo" class="mt-3 text-[11px] text-on-surface-variant">
-      {{ t('character.summaryUpdated', { ago: updatedAgo }) }}
+      {{ t('sync.summaryUpdated', { ago: updatedAgo }) }}
     </p>
 
     <p v-if="summary" class="mt-3 whitespace-pre-wrap rounded-xl border border-outline-variant/70 bg-surface-variant/20 px-4 py-3 text-[13px] leading-relaxed text-on-surface">
       {{ summary }}
     </p>
     <p v-else-if="!loading && !running" class="mt-3 text-[12px] leading-relaxed text-on-surface-variant">
-      {{ t('character.summaryEmpty') }}
+      {{ t('sync.summaryEmpty') }}
     </p>
 
     <p v-if="done" class="mt-3 flex items-center gap-1.5 text-[12px] font-medium text-secondary">
       <span class="material-symbols-outlined text-[16px]">check_circle</span>
-      {{ t('character.summaryDone') }}
+      {{ t('sync.summaryDone') }}
     </p>
     <p v-if="error" class="mt-3 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[12px] text-error">
       {{ error }}
@@ -47,7 +47,7 @@ import { formatRelativeTime } from '../lib/ui';
 import type { GroupContext } from '@wavi/shared';
 
 const { t, locale } = useI18n();
-const props = defineProps<{ groupId: string }>();
+const props = defineProps<{ groupId: string; revision?: number }>();
 
 const loading = ref(false);
 const running = ref(false);
@@ -67,7 +67,7 @@ async function load() {
     const data = await apiFetch<{ context: GroupContext | null }>(`/groups/${props.groupId}/context`);
     context.value = data?.context ?? null;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('character.summaryFailed');
+    error.value = e instanceof Error ? e.message : t('sync.summaryFailed');
   } finally {
     loading.value = false;
   }
@@ -83,7 +83,7 @@ async function run() {
     else await load();
     done.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('character.summaryFailed');
+    error.value = e instanceof Error ? e.message : t('sync.summaryFailed');
   } finally {
     running.value = false;
   }
@@ -91,7 +91,7 @@ async function run() {
 
 onMounted(load);
 watch(
-  () => props.groupId,
+  () => [props.groupId, props.revision],
   () => {
     done.value = false;
     error.value = null;
