@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { apiFetch } from '../lib/api';
 import { normalizeGroupWithStats } from '../lib/ui';
-import type { GroupWithStats, CharacterConfig, DiscoveredWaGroup, CreateGroupRequest, CreateDraftGroupRequest, LinkGroupRequest } from '@wavi/shared';
+import type { GroupWithStats, CharacterConfig, DiscoveredWaGroup, CreateGroupRequest, CreateDraftGroupRequest, LinkGroupRequest, SyncGroupNameResponse } from '@wavi/shared';
 
 export const useGroupsStore = defineStore('groups', () => {
   const groups = ref<GroupWithStats[]>([]);
@@ -139,6 +139,16 @@ export const useGroupsStore = defineStore('groups', () => {
     return updated;
   }
 
+  async function syncGroupName(groupId: string) {
+    const result = await apiFetch<SyncGroupNameResponse>(`/groups/${groupId}/sync-name`, {
+      method: 'POST',
+    });
+    const updated = normalizeGroupWithStats(result.group);
+    const idx = groups.value.findIndex((g) => g.id === groupId);
+    if (idx !== -1) groups.value[idx] = updated;
+    return { ...result, group: updated };
+  }
+
   async function rebuildGroup(groupId: string, fullReset = false) {
     return apiFetch<{ ok: boolean; message: string; total_messages: number }>(`/groups/${groupId}/rebuild`, {
       method: 'POST',
@@ -171,6 +181,7 @@ export const useGroupsStore = defineStore('groups', () => {
     updateCharacter,
     setStatus,
     patchGroup,
+    syncGroupName,
     rebuildGroup,
     deleteGroup,
   };

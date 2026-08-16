@@ -76,8 +76,25 @@ export const EMOJI_USAGE_LEVELS: EmojiUsageLevel[] = ['none', 'low', 'medium', '
 
 export const DEFAULT_EMOJI_USAGE: EmojiUsageLevel = 'medium';
 
-export function normalizeEmojiUsage(value: EmojiUsageLevel | undefined): EmojiUsageLevel {
-  return value && EMOJI_USAGE_LEVELS.includes(value) ? value : DEFAULT_EMOJI_USAGE;
+export function normalizeEmojiUsage(value: EmojiUsageLevel | number | undefined): EmojiUsageLevel {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return emojiUsageFromSliderIndex(value <= 3 ? value : Math.round((value / 100) * 3));
+  }
+  if (typeof value === 'string' && (EMOJI_USAGE_LEVELS as readonly string[]).includes(value)) {
+    return value;
+  }
+  return DEFAULT_EMOJI_USAGE;
+}
+
+export function emojiUsageToSliderIndex(level: EmojiUsageLevel | number | undefined): number {
+  const normalized = normalizeEmojiUsage(level);
+  const idx = EMOJI_USAGE_LEVELS.indexOf(normalized);
+  return idx >= 0 ? idx : EMOJI_USAGE_LEVELS.indexOf(DEFAULT_EMOJI_USAGE);
+}
+
+export function emojiUsageFromSliderIndex(index: number): EmojiUsageLevel {
+  const clamped = Math.max(0, Math.min(EMOJI_USAGE_LEVELS.length - 1, Math.round(index)));
+  return EMOJI_USAGE_LEVELS[clamped]!;
 }
 
 export function emojiUsagePromptHint(level: EmojiUsageLevel): string {
@@ -287,6 +304,32 @@ export interface UserProfile {
   last_updated: string;
 }
 
+export function normalizeUserProfileData(data: Partial<UserProfileData> | null | undefined, msgCount = 0): UserProfileData {
+  const defaultActivity: UserProfileData['activity_level'] = msgCount >= 5 ? 'low' : 'lurker';
+  return {
+    humor_type: data?.humor_type ?? 'none',
+    humor_score: data?.humor_score ?? 0,
+    formality_score: data?.formality_score ?? 50,
+    activity_level: data?.activity_level ?? defaultActivity,
+    dominant_topics: data?.dominant_topics ?? [],
+    sensitivity_flags: data?.sensitivity_flags ?? [],
+    emoji_usage: data?.emoji_usage ?? 'none',
+    avg_message_length: data?.avg_message_length ?? 'terse',
+    aliases: data?.aliases,
+    curation: data?.curation,
+  };
+}
+
+export function normalizeUserProfile(profile: UserProfile): UserProfile {
+  return {
+    ...profile,
+    display_name: profile.display_name ?? '',
+    behavioral_summary: profile.behavioral_summary ?? '',
+    msg_count: profile.msg_count ?? 0,
+    profile_data: normalizeUserProfileData(profile.profile_data, profile.msg_count ?? 0),
+  };
+}
+
 // ── Relationship Map ─────────────────────────────────────────
 
 export interface RelationshipCuration {
@@ -333,6 +376,12 @@ export type SyncLastRun = Record<SyncOpKey, string | null>;
 
 export interface SyncStatusResponse {
   last_run: SyncLastRun;
+}
+
+export interface SyncGroupNameResponse {
+  group: GroupWithStats;
+  name_updated: boolean;
+  previous_name?: string;
 }
 
 // ── Group Memory ─────────────────────────────────────────────

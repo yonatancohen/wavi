@@ -233,6 +233,7 @@ import LoadingState from './LoadingState.vue';
 import HelpTooltip from './HelpTooltip.vue';
 import { useConfirm } from '../composables/useConfirm';
 import type { MergeDuplicateMembersResponse, UserProfile } from '@wavi/shared';
+import { normalizeUserProfile } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -348,8 +349,8 @@ function activityLevelTooltipBody(level: ActivityLevel) {
   return `${t('members.activityLevelTooltip')} ${t(`members.activityLevelDesc.${level}`)}`;
 }
 
-function formatHumorType(type: string) {
-  return type.replace(/-/g, ' ');
+function formatHumorType(type: string | undefined) {
+  return (type ?? 'none').replace(/-/g, ' ');
 }
 
 function startEditName(member: UserProfile) {
@@ -373,10 +374,11 @@ function cancelEditSummary(memberId: string) {
 }
 
 async function patchMember(memberId: string, body: Record<string, unknown>): Promise<UserProfile> {
-  return apiFetch<UserProfile>(`/groups/${props.groupId}/members/${memberId}`, {
+  const updated = await apiFetch<UserProfile>(`/groups/${props.groupId}/members/${memberId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+  return normalizeUserProfile(updated);
 }
 
 async function saveDisplayName(member: UserProfile) {
@@ -602,7 +604,8 @@ async function load() {
   loading.value = true;
   error.value = null;
   try {
-    members.value = await apiFetch<UserProfile[]>(`/groups/${props.groupId}/members`);
+    const rows = await apiFetch<UserProfile[]>(`/groups/${props.groupId}/members`);
+    members.value = rows.map(normalizeUserProfile);
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('members.failedLoad');
     members.value = [];

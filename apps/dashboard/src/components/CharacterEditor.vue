@@ -153,7 +153,7 @@
             {{ t('character.slidersHint') }}
           </p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="slider in SLIDERS" :key="slider.key">
+            <div v-for="slider in NUMERIC_SLIDERS" :key="slider.key">
               <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
                 <span class="text-on-surface">{{ t(`character.slider.${slider.key}`) }}</span>
                 <span class="shrink-0 font-mono tabular-nums text-on-surface-variant">
@@ -164,6 +164,18 @@
                 {{ t(`character.sliderDesc.${slider.key}`) }}
               </p>
               <input v-model.number="localConfig.sliders[slider.key]" type="range" min="0" max="100" class="w-full accent-primary" />
+            </div>
+            <div>
+              <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
+                <span class="text-on-surface">{{ t('character.slider.emoji_usage') }}</span>
+                <span class="shrink-0 text-on-surface-variant">
+                  {{ t(`character.emojiLevel.${localConfig.sliders.emoji_usage}`) }}
+                </span>
+              </div>
+              <p class="mb-1.5 text-[10px] leading-snug text-on-surface-variant/75">
+                {{ t('character.sliderDesc.emoji_usage') }}
+              </p>
+              <input v-model.number="emojiSliderIndex" type="range" min="0" max="3" step="1" class="w-full accent-primary" />
             </div>
           </div>
         </div>
@@ -177,7 +189,7 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
 import type { GroupWithStats, CharacterConfig, PersonalitySliders, CharacterPreset, AgentGender } from '@wavi/shared';
-import { PRESET_SLIDERS, normalizePersonalitySliders, normalizeReplyModel } from '@wavi/shared';
+import { PRESET_SLIDERS, normalizePersonalitySliders, normalizeReplyModel, emojiUsageFromSliderIndex, emojiUsageToSliderIndex } from '@wavi/shared';
 
 const { t } = useI18n();
 
@@ -191,7 +203,7 @@ const MAX_OPINIONS = 3;
 
 const PRESETS: CharacterPreset[] = ['professional', 'casual', 'comedian', 'warm', 'custom'];
 
-const SLIDERS: { key: keyof PersonalitySliders }[] = [{ key: 'formality' }, { key: 'humor' }, { key: 'verbosity' }, { key: 'assertiveness' }, { key: 'empathy' }, { key: 'emoji_usage' }];
+const NUMERIC_SLIDERS: { key: Exclude<keyof PersonalitySliders, 'emoji_usage'> }[] = [{ key: 'formality' }, { key: 'humor' }, { key: 'verbosity' }, { key: 'assertiveness' }, { key: 'empathy' }];
 
 const GENDER_OPTIONS: { value: AgentGender; label: string }[] = [
   { value: 'זכר', label: 'character.genderMasc' },
@@ -220,6 +232,14 @@ const isDirty = computed(() => {
   return JSON.stringify(localConfig.value) !== JSON.stringify(saved);
 });
 
+const emojiSliderIndex = computed({
+  get: () => emojiUsageToSliderIndex(localConfig.value?.sliders.emoji_usage),
+  set: (index: number) => {
+    if (!localConfig.value) return;
+    localConfig.value.sliders.emoji_usage = emojiUsageFromSliderIndex(index);
+  },
+});
+
 function applyPreset(preset: CharacterPreset) {
   if (!localConfig.value) return;
   localConfig.value.preset = preset;
@@ -245,6 +265,7 @@ async function save() {
   const payload: CharacterConfig = {
     ...localConfig.value,
     opinions: localConfig.value.opinions.map((o) => o.trim()).filter(Boolean),
+    sliders: normalizePersonalitySliders(localConfig.value.sliders),
   };
   try {
     const updated = await store.updateCharacter(props.group.id, payload);

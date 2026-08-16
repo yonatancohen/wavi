@@ -314,6 +314,14 @@
   },
   "groupSettings": {
     "title": "הגדרות קבוצה",
+    "groupName": "שם הקבוצה",
+    "groupNameHint": "מושך את שם הקבוצה הנוכחי מוואטסאפ דרך החשבון המקושר.",
+    "groupNameDraftHint": "קשר/י את הקבוצה לוואטסאפ לפני סנכרון השם.",
+    "syncName": "סנכרן מוואטסאפ",
+    "syncingName": "מסנכרן…",
+    "nameSynced": "עודכן ל\"{name}\"",
+    "nameAlreadyCurrent": "כבר מעודכן",
+    "failedSyncName": "סנכרון שם הקבוצה נכשל",
     "language": "שפת תשובות",
     "languageHint": "קובע באיזו שפה wavi משיב ומסנכרן.",
     "languageHe": "עברית",
@@ -529,6 +537,12 @@
       "assertiveness": "זהיר וניטרלי מול ישיר ועם דעה.",
       "empathy": "ממוקד/ת במשימה מול חם/ה ורגיש/ה רגשית.",
       "emoji_usage": "כמעט ללא אימוג'ים מול עם הרבה אימוג'ים."
+    },
+    "emojiLevel": {
+      "none": "ללא",
+      "low": "מעט",
+      "medium": "בינוני",
+      "high": "הרבה"
     }
   },
   "ingest": {

@@ -314,6 +314,14 @@
   },
   "groupSettings": {
     "title": "Group settings",
+    "groupName": "Group name",
+    "groupNameHint": "Pulls the current WhatsApp group subject from the linked account.",
+    "groupNameDraftHint": "Link this group to WhatsApp before syncing the name.",
+    "syncName": "Sync from WhatsApp",
+    "syncingName": "Syncing…",
+    "nameSynced": "Updated to \"{name}\"",
+    "nameAlreadyCurrent": "Already up to date",
+    "failedSyncName": "Failed to sync group name",
     "language": "Reply language",
     "languageHint": "Controls which language Wavi uses for replies and re-sync.",
     "languageHe": "Hebrew",
@@ -529,6 +537,12 @@
       "assertiveness": "Hedged and neutral vs. direct and opinionated.",
       "empathy": "Task-focused vs. warm and emotionally attuned.",
       "emoji_usage": "Rarely or never vs. freely peppered in."
+    },
+    "emojiLevel": {
+      "none": "None",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
     }
   },
   "ingest": {

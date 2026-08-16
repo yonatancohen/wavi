@@ -5,11 +5,11 @@
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
+    "noEmit": true,
     "types": ["bun-types", "node"],
-    "outDir": "./dist",
     "paths": {
       "@wavi/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src", "scripts", "../../packages/shared/src"]
+  "include": ["src", "scripts"]
 }

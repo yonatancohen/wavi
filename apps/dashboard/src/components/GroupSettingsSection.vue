@@ -14,6 +14,23 @@
       {{ saveError }}
     </div>
 
+    <div class="mb-6">
+      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+        {{ t('groupSettings.groupName') }}
+      </label>
+      <p class="mb-2 text-[13px] font-medium text-on-surface">{{ group.name }}</p>
+      <p class="mb-3 text-[12px] leading-relaxed text-on-surface-variant">
+        {{ group.is_draft ? t('groupSettings.groupNameDraftHint') : t('groupSettings.groupNameHint') }}
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="btn btn-secondary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" :disabled="group.is_draft || syncingName" @click="syncNameFromWhatsApp">
+          <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': syncingName }">sync</span>
+          {{ syncingName ? t('groupSettings.syncingName') : t('groupSettings.syncName') }}
+        </button>
+        <span v-if="nameSyncMessage" class="text-[11px] font-medium text-secondary">{{ nameSyncMessage }}</span>
+      </div>
+    </div>
+
     <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
       {{ t('groupSettings.language') }}
     </label>
@@ -114,6 +131,8 @@ const imageGenerationEnabled = ref(props.group.image_generation_enabled ?? false
 const saving = ref(false);
 const savingWebSearch = ref(false);
 const savingImage = ref(false);
+const syncingName = ref(false);
+const nameSyncMessage = ref<string | null>(null);
 const deleting = ref(false);
 const saveError = ref<string | null>(null);
 
@@ -137,6 +156,29 @@ watch(
     imageGenerationEnabled.value = enabled ?? false;
   },
 );
+
+watch(
+  () => props.group.name,
+  () => {
+    nameSyncMessage.value = null;
+  },
+);
+
+async function syncNameFromWhatsApp() {
+  if (props.group.is_draft || syncingName.value) return;
+  syncingName.value = true;
+  saveError.value = null;
+  nameSyncMessage.value = null;
+  try {
+    const result = await store.syncGroupName(props.group.id);
+    emit('updated', result.group);
+    nameSyncMessage.value = result.name_updated ? t('groupSettings.nameSynced', { name: result.group.name }) : t('groupSettings.nameAlreadyCurrent');
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : t('groupSettings.failedSyncName');
+  } finally {
+    syncingName.value = false;
+  }
+}
 
 async function saveLanguage() {
   if (languageMode.value === props.group.language_mode) return;

@@ -21,6 +21,7 @@ import type {
   LinkGroupRequest,
   LanguageMode,
   ParsedWAMessage,
+  SyncGroupNameResponse,
 } from '@wavi/shared';
 import { isDraftGroup } from '@wavi/shared';
 import { db } from '../db/client.js';
@@ -42,7 +43,7 @@ import { generateImage } from '../ai/generate-image.js';
 import { getProfileAliases, getSourceAliases } from '../lib/alias-store.js';
 import { mergeAliases, normalizeNameForMatch } from '../lib/identity.js';
 import { mergeDuplicateNameProfiles, mergeProfileInto } from '../lib/merge-profiles.js';
-import { assertWaGroupDiscoverable, createDraftWaGroupId } from '../lib/group-draft.js';
+import { assertWaGroupDiscoverable, createDraftWaGroupId, resolveWaGroupName } from '../lib/group-draft.js';
 import { friendlyDbError } from '../lib/db-errors.js';
 import { getSyncLastRun, recordSyncRun } from '../lib/sync-status.js';
 
@@ -807,6 +808,36 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     const { data: group } = await db.from('groups').select('id').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
     if (!group) return reply.code(404).send({ error: 'Group not found' });
     return { last_run: await getSyncLastRun(id) };
+  });
+
+  fastify.post<{ Params: { id: string } }>('/:id/sync-name', async (req, reply) => {
+    const { id } = req.params;
+    const { data: group } = await db.from('groups').select('id, wa_group_id, name').eq('id', id).eq('agent_id', getAgentId()).maybeSingle();
+    if (!group) return reply.code(404).send({ error: 'Group not found' });
+    if (isDraftGroup(group.wa_group_id)) {
+      return reply.code(400).send({ error: 'Connect this group to WhatsApp before syncing the name.' });
+    }
+
+    try {
+      const waName = await resolveWaGroupName(group.wa_group_id);
+      const previousName = group.name ?? '';
+      const nameUpdated = waName !== previousName;
+
+      if (nameUpdated) {
+        const { error } = await db.from('groups').update({ name: waName }).eq('id', id).eq('agent_id', getAgentId());
+        if (error) return reply.code(500).send({ error: friendlyDbError(error) });
+      }
+
+      const updatedGroup = await fetchGroupRowWithStats(id);
+      return {
+        group: updatedGroup,
+        name_updated: nameUpdated,
+        previous_name: nameUpdated ? previousName : undefined,
+      } satisfies SyncGroupNameResponse;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WhatsApp not connected';
+      return reply.code(503).send({ error: message });
+    }
   });
 
   fastify.post<{ Params: { id: string } }>('/:id/sync-dynamics', async (req, reply) => {
