@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col bg-background">
+  <div class="flex flex-col bg-background" :class="fillViewport ? 'group-detail--fill' : 'min-h-full'">
     <template v-if="group && !loading && !error">
       <div class="border-b border-outline-variant bg-surface/95 px-margin-mobile py-3 backdrop-blur-md lg:hidden">
         <GroupDetailStatusBar :group="group" :saving="saving" @go-live="goLive" @pause="pause" />
@@ -36,7 +36,7 @@
       </nav>
     </template>
 
-    <header class="page-header page-header--group hidden lg:block">
+    <header class="page-header page-header--group hidden shrink-0 lg:block">
       <RouterLink to="/groups" class="mb-3 inline-flex items-center gap-1 text-[11px] text-on-surface-variant no-underline transition-colors hover:text-primary">
         <span class="material-symbols-outlined text-[14px] rtl:scale-x-[-1]">arrow_back</span>
         {{ t('groupDetail.back') }}
@@ -80,7 +80,7 @@
       </div>
     </header>
 
-    <div class="page-content py-5 lg:py-6">
+    <div class="page-content flex flex-col py-5 lg:py-6" :class="fillViewport ? 'page-content--fill' : 'min-h-0 flex-1'">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div v-else-if="error" class="rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
@@ -88,38 +88,21 @@
       </div>
 
       <template v-else-if="group">
-        <div v-show="activeTab === 'setup'" class="bento-grid items-stretch">
-          <div class="col-span-12">
-            <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
+        <div v-show="activeTab === 'setup'" class="flex flex-col gap-4">
+          <GroupWhatsAppLink :group="group" @updated="onGroupUpdated" />
+
+          <div class="grid gap-4 lg:grid-cols-12 lg:items-stretch">
+            <div class="flex min-h-0 flex-col lg:col-span-5">
+              <GroupSettingsSection class="min-h-0 flex-1" :group="group" @updated="onGroupUpdated" />
+            </div>
+            <div class="flex min-h-0 flex-col gap-4 lg:col-span-7">
+              <IngestUpload class="min-h-0 flex-1" :group-id="group.id" @complete="onIngestionComplete" />
+              <SetupWelcomeSection class="shrink-0" :has-character="!!group.character_config" @generate="showWelcomeModal = true" />
+              <RebuildIntelligence class="shrink-0" :group-id="group.id" @complete="onRebuildComplete" />
+            </div>
           </div>
 
-          <div class="col-span-12 h-full lg:col-span-4">
-            <GroupSettingsSection :group="group" @updated="onGroupUpdated" @rebuild-complete="onRebuildComplete" />
-          </div>
-          <div class="col-span-12 h-full lg:col-span-8">
-            <IngestUpload :group-id="group.id" @complete="onIngestionComplete" />
-          </div>
-
-          <div class="col-span-12">
-            <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-              <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[18px] text-secondary">waving_hand</span>
-                  <div>
-                    <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('welcomeMsg.sectionTitle') }}</h2>
-                    <p class="mt-0.5 text-[12px] text-on-surface-variant">{{ t('welcomeMsg.sectionDesc') }}</p>
-                  </div>
-                </div>
-                <button type="button" class="btn btn-secondary flex items-center gap-2" :disabled="!group.character_config" @click="showWelcomeModal = true">
-                  <span class="material-symbols-outlined text-[16px]">waving_hand</span>
-                  {{ t('welcomeMsg.generate') }}
-                </button>
-              </div>
-              <p v-if="!group.character_config" class="mt-3 text-[11px] text-on-surface-variant">
-                {{ t('welcomeMsg.needsCharacter') }}
-              </p>
-            </section>
-          </div>
+          <GroupDangerZone :group="group" />
         </div>
 
         <WelcomeMessageModal v-if="showWelcomeModal" :group-id="group.id" @close="showWelcomeModal = false" />
@@ -142,12 +125,12 @@
           <DynamicsSection ref="dynamicsRef" :group-id="group.id" />
         </div>
 
-        <div v-show="activeTab === 'messages'" class="group-panel">
-          <MessagesSection ref="messagesRef" :group-id="group.id" />
+        <div v-show="activeTab === 'messages'" class="group-panel group-panel--fill">
+          <MessagesSection ref="messagesRef" class="min-h-0 flex-1" :group-id="group.id" />
         </div>
 
-        <div v-show="activeTab === 'testChat'" class="group-panel">
-          <TestChatPanel :group-id="group.id" embedded />
+        <div v-show="activeTab === 'testChat'" class="group-panel group-panel--fill">
+          <TestChatPanel :group-id="group.id" embedded class="min-h-0 flex-1" />
         </div>
 
         <div v-show="activeTab === 'automations'" class="group-panel">
@@ -171,6 +154,9 @@ import GroupWhatsAppLink from '../components/GroupWhatsAppLink.vue';
 import LoadingSkeletons from '../components/LoadingSkeletons.vue';
 import IngestUpload from '../components/IngestUpload.vue';
 import GroupSettingsSection from '../components/GroupSettingsSection.vue';
+import GroupDangerZone from '../components/GroupDangerZone.vue';
+import SetupWelcomeSection from '../components/SetupWelcomeSection.vue';
+import RebuildIntelligence from '../components/RebuildIntelligence.vue';
 import AutomationsSection from '../components/AutomationsSection.vue';
 import MembersSection from '../components/MembersSection.vue';
 import DynamicsSection from '../components/DynamicsSection.vue';
@@ -208,6 +194,8 @@ const showWelcomeModal = ref(false);
 
 /** Derived from URL hash — survives refresh and is shareable. */
 const activeTab = computed(() => tabFromHash(route.hash));
+
+const fillViewport = computed(() => activeTab.value === 'messages' || activeTab.value === 'testChat');
 
 function tabRoute(tab: GroupTab) {
   return { name: 'group' as const, params: { id: route.params.id as string }, hash: `#${tab}` };

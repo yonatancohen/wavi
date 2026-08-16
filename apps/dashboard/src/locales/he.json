@@ -341,6 +341,10 @@
     "deleteConfirm": "למחוק את \"{name}\" ואת כל הנתונים שלה? לא ניתן לבטל.",
     "failedDelete": "מחיקת הקבוצה נכשלה"
   },
+  "groupDangerZone": {
+    "title": "אזור מסוכן",
+    "subtitle": "פעולות בלתי הפיכות עבור קבוצה זו."
+  },
   "rebuild": {
     "title": "בנייה מחדש של המודיעין",
     "body": "יצירה מחדש של פרופילים, קשרים, סיכומים ואישיות מהודעות שמורות — בלי העלאה חדשה.",
@@ -549,8 +553,10 @@
     "title": "העלה היסטוריית צ'אט",
     "body": "יצא את הצ'אט הקבוצתי בוואטסאפ כקובץ {ext} והעלה אותו כדי לבנות פרופילי חברים, מפות קשרים ואישיות קבוצתית.",
     "dragDrop": "גרור ושחרר ייצוא וואטסאפ כאן, או",
+    "dragDropShort": "או גרור ושחרר כאן",
     "browse": "עיין בקבצים",
     "txtOnly": "רק .txt",
+    "options": "אפשרויות העלאה",
     "starting": "מתחיל…",
     "invalidFile": "אנא העלה קובץ ייצוא וואטסאפ בפורמט .txt",
     "failedUpload": "ההעלאה נכשלה",
@@ -632,6 +638,11 @@
     "summary": "סיכום דינמיקה",
     "editSummary": "ערוך",
     "remove": "הסר",
+    "expandAll": "הרחב הכל",
+    "collapseAll": "כווץ הכל",
+    "expandPair": "הרחב {a} ו-{b}",
+    "collapsePair": "כווץ {a} ו-{b}",
+    "pairCount": "{count} דינמיקות",
     "confirmRemoveTitle": "להסיר דינמיקה?",
     "confirmRemove": "להסיר את הדינמיקה בין {a} ל-{b}?",
     "noSummaryYet": "עדיין אין סיכום דינמיקה.",
@@ -794,6 +805,11 @@
     "morningLabel": "תדריך בוקר",
     "morningTemplate": "סיכום בוקר ורשימת משימות של מה שקורה. אם אין חדש — רק הודעת בוקר פשוטה.",
     "deleteSchedule": "מחק",
+    "expandAll": "הרחב הכל",
+    "collapseAll": "כווץ הכל",
+    "expandSchedule": "הרחב {label}",
+    "collapseSchedule": "כווץ {label}",
+    "activeCount": "{count} פעילות",
     "weekdays": {
       "sun": "ראשון",
       "mon": "שני",

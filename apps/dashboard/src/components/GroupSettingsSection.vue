@@ -1,57 +1,61 @@
 <template>
-  <section class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container p-4">
-    <div class="mb-3 flex items-center gap-2">
+  <section class="flex h-full min-h-0 flex-col rounded-xl border border-outline-variant bg-surface-container p-4">
+    <div class="mb-4 flex items-center gap-2">
       <span class="material-symbols-outlined text-[18px] text-tertiary">tune</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">
-        {{ t('groupSettings.title') }}
-      </h2>
+      <div>
+        <h2 class="font-sora text-[15px] font-semibold text-on-surface">
+          {{ t('groupSettings.title') }}
+        </h2>
+        <p class="mt-0.5 text-[12px] text-on-surface-variant">{{ t('groupSettings.languageHint') }}</p>
+      </div>
     </div>
-    <p class="mb-4 text-[13px] leading-relaxed text-on-surface-variant">
-      {{ t('groupSettings.languageHint') }}
-    </p>
 
     <div v-if="saveError" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
       {{ saveError }}
     </div>
 
-    <div class="mb-6">
-      <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('groupSettings.groupName') }}
-      </label>
-      <p class="mb-2 text-[13px] font-medium text-on-surface">{{ group.name }}</p>
-      <p class="mb-3 text-[12px] leading-relaxed text-on-surface-variant">
-        {{ group.is_draft ? t('groupSettings.groupNameDraftHint') : t('groupSettings.groupNameHint') }}
-      </p>
-      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <button type="button" class="btn btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="group.is_draft || syncingName" @click="syncNameFromWhatsApp">
-          <span class="material-symbols-outlined text-[18px]" :class="{ 'animate-spin': syncingName }">sync</span>
-          {{ syncingName ? t('groupSettings.syncingName') : t('groupSettings.syncName') }}
-        </button>
-        <span v-if="nameSyncMessage" class="text-[12px] font-medium text-secondary">{{ nameSyncMessage }}</span>
+    <div class="flex flex-1 flex-col divide-y divide-outline-variant/60 rounded-xl border border-outline-variant/60 bg-surface-variant/10">
+      <!-- Group name -->
+      <div class="p-3.5">
+        <label class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+          {{ t('groupSettings.groupName') }}
+        </label>
+        <p class="text-[14px] font-semibold text-on-surface">{{ group.name }}</p>
+        <p class="mt-1 text-[11px] leading-relaxed text-on-surface-variant">
+          {{ group.is_draft ? t('groupSettings.groupNameDraftHint') : t('groupSettings.groupNameHint') }}
+        </p>
+        <div class="mt-2.5 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px]" :disabled="group.is_draft || syncingName" @click="syncNameFromWhatsApp">
+            <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': syncingName }">sync</span>
+            {{ syncingName ? t('groupSettings.syncingName') : t('groupSettings.syncName') }}
+          </button>
+          <span v-if="nameSyncMessage" class="text-[11px] font-medium text-secondary">{{ nameSyncMessage }}</span>
+        </div>
       </div>
-    </div>
 
-    <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-      {{ t('groupSettings.language') }}
-    </label>
-    <select
-      v-model="languageMode"
-      class="mb-6 w-full max-w-xs rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-      :disabled="saving"
-      @change="saveLanguage"
-    >
-      <option value="he">{{ t('groupSettings.languageHe') }}</option>
-      <option value="en">{{ t('groupSettings.languageEn') }}</option>
-      <option value="auto">{{ t('groupSettings.languageAuto') }}</option>
-    </select>
+      <!-- Reply language -->
+      <div class="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <label class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.language') }}</label>
+        <select
+          v-model="languageMode"
+          class="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50 sm:max-w-[11rem]"
+          :disabled="saving"
+          @change="saveLanguage"
+        >
+          <option value="he">{{ t('groupSettings.languageHe') }}</option>
+          <option value="en">{{ t('groupSettings.languageEn') }}</option>
+          <option value="auto">{{ t('groupSettings.languageAuto') }}</option>
+        </select>
+      </div>
 
-    <div class="mb-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
+      <!-- Web search -->
+      <div class="flex items-start justify-between gap-4 p-3.5">
+        <div class="min-w-0">
           <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.webSearch') }}</p>
-          <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+          <p class="mt-0.5 text-[11px] leading-relaxed text-on-surface-variant">
             {{ t('groupSettings.webSearchHint') }}
           </p>
+          <p v-if="savingWebSearch" class="mt-1 text-[10px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
         </div>
         <button
           type="button"
@@ -65,16 +69,15 @@
           <span class="absolute left-0 top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="webSearchEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
         </button>
       </div>
-      <p v-if="savingWebSearch" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
-    </div>
 
-    <div class="mb-6 border-t border-outline-variant pt-5">
-      <div class="flex items-start justify-between gap-4">
-        <div>
+      <!-- Image generation -->
+      <div class="flex items-start justify-between gap-4 p-3.5">
+        <div class="min-w-0">
           <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.imageGeneration') }}</p>
-          <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+          <p class="mt-0.5 text-[11px] leading-relaxed text-on-surface-variant">
             {{ t('groupSettings.imageGenerationHint') }}
           </p>
+          <p v-if="savingImage" class="mt-1 text-[10px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
         </div>
         <button
           type="button"
@@ -88,43 +91,22 @@
           <span class="absolute left-0 top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="imageGenerationEnabled ? 'translate-x-5' : 'translate-x-0.5'" />
         </button>
       </div>
-      <p v-if="savingImage" class="mt-2 text-[11px] text-on-surface-variant">{{ t('groupSettings.saving') }}</p>
-    </div>
-
-    <div class="mt-auto border-t border-outline-variant pt-5">
-      <RebuildIntelligence embedded :group-id="group.id" @complete="emit('rebuildComplete')" />
-    </div>
-
-    <div class="mt-6 border-t border-error/20 pt-5">
-      <p class="text-[13px] font-medium text-on-surface">{{ t('groupSettings.deleteTitle') }}</p>
-      <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-        {{ t('groupSettings.deleteHint') }}
-      </p>
-      <button type="button" class="btn btn-danger mt-3 flex items-center gap-2" :disabled="deleting" @click="onDeleteClick">
-        <span class="material-symbols-outlined text-[16px]">delete</span>
-        {{ deleting ? t('groupSettings.deleting') : t('groupSettings.delete') }}
-      </button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
-import { useConfirm } from '../composables/useConfirm';
-import RebuildIntelligence from './RebuildIntelligence.vue';
 import type { GroupWithStats, LanguageMode } from '@wavi/shared';
 
 const { t } = useI18n();
 
 const props = defineProps<{ group: GroupWithStats }>();
-const emit = defineEmits<{ updated: [group: GroupWithStats]; rebuildComplete: [] }>();
+const emit = defineEmits<{ updated: [group: GroupWithStats] }>();
 
-const router = useRouter();
 const store = useGroupsStore();
-const { confirm } = useConfirm();
 const languageMode = ref<LanguageMode>(props.group.language_mode ?? 'he');
 const webSearchEnabled = ref(props.group.web_search_enabled ?? false);
 const imageGenerationEnabled = ref(props.group.image_generation_enabled ?? false);
@@ -133,7 +115,6 @@ const savingWebSearch = ref(false);
 const savingImage = ref(false);
 const syncingName = ref(false);
 const nameSyncMessage = ref<string | null>(null);
-const deleting = ref(false);
 const saveError = ref<string | null>(null);
 
 watch(
@@ -224,27 +205,6 @@ async function toggleImageGeneration() {
     imageGenerationEnabled.value = props.group.image_generation_enabled ?? false;
   } finally {
     savingImage.value = false;
-  }
-}
-
-async function onDeleteClick() {
-  const ok = await confirm({
-    title: t('groupSettings.deleteConfirmTitle'),
-    message: t('groupSettings.deleteConfirm', { name: props.group.name }),
-    confirmLabel: t('groupSettings.delete'),
-    variant: 'destructive',
-  });
-  if (!ok) return;
-
-  deleting.value = true;
-  saveError.value = null;
-  try {
-    await store.deleteGroup(props.group.id);
-    await router.push('/groups');
-  } catch (e) {
-    saveError.value = e instanceof Error ? e.message : t('groupSettings.failedDelete');
-  } finally {
-    deleting.value = false;
   }
 }
 </script>

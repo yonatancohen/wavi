@@ -341,6 +341,10 @@
     "deleteConfirm": "Delete \"{name}\" and all its data? This cannot be undone.",
     "failedDelete": "Failed to delete group"
   },
+  "groupDangerZone": {
+    "title": "Danger zone",
+    "subtitle": "Permanent, irreversible actions for this group."
+  },
   "rebuild": {
     "title": "Rebuild intelligence",
     "body": "Regenerate member profiles, relationships, summaries, and character from stored messages — no new upload needed.",
@@ -549,8 +553,10 @@
     "title": "Upload chat history",
     "body": "Export your WhatsApp group chat as a {ext} file and upload it to build member profiles, relationship maps, and Wavi's group character.",
     "dragDrop": "Drag & drop a WhatsApp export here, or",
+    "dragDropShort": "or drag & drop here",
     "browse": "browse files",
     "txtOnly": ".txt only",
+    "options": "Upload options",
     "starting": "Starting…",
     "invalidFile": "Please upload a WhatsApp .txt export",
     "failedUpload": "Upload failed",
@@ -632,6 +638,11 @@
     "summary": "Dynamic summary",
     "editSummary": "Edit",
     "remove": "Remove",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "expandPair": "Expand {a} & {b}",
+    "collapsePair": "Collapse {a} & {b}",
+    "pairCount": "{count} dynamics",
     "confirmRemoveTitle": "Remove dynamic?",
     "confirmRemove": "Remove the dynamic between {a} and {b}?",
     "noSummaryYet": "No dynamic summary yet.",
@@ -794,6 +805,11 @@
     "morningLabel": "Morning briefing",
     "morningTemplate": "Morning summary and todo list of what's going on. If nothing new, just a simple good morning.",
     "deleteSchedule": "Delete",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "expandSchedule": "Expand {label}",
+    "collapseSchedule": "Collapse {label}",
+    "activeCount": "{count} active",
     "weekdays": {
       "sun": "Sunday",
       "mon": "Monday",

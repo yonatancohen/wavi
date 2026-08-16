@@ -446,6 +446,31 @@
     @apply pe-0.5;
   }
 
+  .group-panel--fill {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  /* Messages / test chat: lock to viewport and scroll inside the panel */
+  .group-detail--fill {
+    @apply h-full min-h-0 overflow-hidden;
+  }
+
+  .page-content--fill {
+    @apply min-h-0 flex-1 overflow-hidden !pb-0;
+  }
+
+  .page-content--fill::after {
+    content: none;
+    display: none;
+    height: 0;
+  }
+
+  @media (max-width: 1023px) {
+    .group-panel--fill {
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
   /* ── Skeleton ────────────────────────────────── */
   .skeleton {
     @apply relative overflow-hidden rounded-md;

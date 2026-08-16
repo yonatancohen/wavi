@@ -1,17 +1,17 @@
 <template>
-  <div class="flex flex-col" :class="embedded ? '' : 'min-h-0 flex-1'">
-    <div class="mb-4 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
+  <div class="flex min-h-0 flex-1 flex-col">
+    <div class="mb-3 flex shrink-0 items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-2.5">
       <span class="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-primary">science</span>
       <p class="text-[12px] leading-relaxed text-on-surface-variant">
         {{ t('testChat.previewBanner') }}
       </p>
     </div>
 
-    <div v-if="loadError" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
+    <div v-if="loadError" class="mb-3 shrink-0 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
       {{ loadError }}
     </div>
 
-    <div class="mb-4 grid gap-4 rounded-xl border border-outline-variant bg-surface-container p-4 sm:grid-cols-2">
+    <div class="mb-3 shrink-0 grid gap-3 rounded-xl border border-outline-variant bg-surface-container p-3 sm:grid-cols-2">
       <label v-if="!groupId" class="flex flex-col gap-2">
         <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.group') }}</span>
         <div class="relative">
@@ -48,8 +48,8 @@
       </label>
     </div>
 
-    <section class="flex flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container" :class="embedded ? 'min-h-[min(560px,55vh)]' : 'min-h-[min(560px,55vh)] flex-1'">
-      <div class="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+    <section class="flex h-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container">
+      <div class="flex shrink-0 items-center justify-between border-b border-outline-variant px-4 py-3">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary">forum</span>
           <h2 class="font-sora text-[15px] font-semibold text-on-surface">
@@ -61,7 +61,7 @@
         </button>
       </div>
 
-      <div ref="scrollEl" class="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+      <div ref="scrollEl" class="flex h-0 min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-4 py-3">
         <div v-if="!selectedGroupId" class="flex flex-1 items-center justify-center px-6 py-10 text-center">
           <div>
             <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">chat_bubble_outline</span>
@@ -140,7 +140,7 @@
         </div>
       </div>
 
-      <form class="border-t border-outline-variant bg-surface-container-low p-4" @submit.prevent="sendMessage">
+      <form class="shrink-0 border-t border-outline-variant bg-surface-container-low p-4" @submit.prevent="sendMessage">
         <div v-if="sendError" class="mb-3 text-[12px] text-error">{{ sendError }}</div>
         <div class="flex items-end gap-2 rounded-xl border border-outline-variant bg-surface-variant/20 p-2 transition-colors focus-within:border-primary/50">
           <textarea

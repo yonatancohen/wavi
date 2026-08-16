@@ -1,42 +1,43 @@
 <template>
-  <section class="rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
-    <div class="mb-2 flex items-center gap-2">
-      <span class="material-symbols-outlined text-[18px] text-primary">link</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">
-        {{ t('groupLink.title') }}
-      </h2>
+  <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="flex min-w-0 items-start gap-2">
+        <span class="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-primary">link</span>
+        <div class="min-w-0">
+          <h2 class="font-sora text-[15px] font-semibold text-on-surface">
+            {{ t('groupLink.title') }}
+          </h2>
+          <p class="mt-0.5 text-[12px] leading-snug text-on-surface-variant">
+            {{ group.is_draft ? t('groupLink.draftBody') : t('groupLink.linkedBody') }}
+          </p>
+        </div>
+      </div>
+
+      <div class="shrink-0 sm:pt-0.5">
+        <button v-if="group.is_draft" class="btn btn-primary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="discovering" @click="openLinkPicker">
+          <span class="material-symbols-outlined text-[16px]">group_add</span>
+          {{ discovering ? t('groupLink.loadingChats') : t('groupLink.connect') }}
+        </button>
+
+        <button v-else-if="group.status === 'pending_setup'" class="btn btn-secondary flex w-full items-center gap-2 sm:w-auto" :disabled="unlinking" @click="unlink">
+          <span class="material-symbols-outlined text-[16px]">link_off</span>
+          {{ unlinking ? t('groupLink.unlinking') : t('groupLink.unlink') }}
+        </button>
+
+        <p v-else class="text-[11px] text-on-surface-variant sm:text-end">
+          {{ t('groupLink.unlinkBlocked') }}
+        </p>
+      </div>
     </div>
 
-    <p class="mb-3 text-[13px] leading-snug text-on-surface-variant">
-      {{ group.is_draft ? t('groupLink.draftBody') : t('groupLink.linkedBody') }}
-    </p>
-
-    <div v-if="actionError" class="mb-3 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-2.5 text-[13px] text-error">
+    <div v-if="actionError" class="mt-3 rounded-xl border border-error/25 bg-error/[0.07] px-3 py-2.5 text-[12px] text-error">
       {{ actionError }}
     </div>
 
-    <div v-if="!group.is_draft" class="mb-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
-      <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-        {{ t('groupLink.linkedChat') }}
-      </div>
-      <div class="mt-0.5 break-all font-mono text-[12px] text-on-surface">{{ group.wa_group_id }}</div>
+    <div v-if="!group.is_draft" class="mt-3 flex items-center gap-2 rounded-lg border border-primary/15 bg-primary/[0.04] px-3 py-2">
+      <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('groupLink.linkedChat') }}</span>
+      <span class="min-w-0 truncate font-mono text-[11px] text-on-surface">{{ group.wa_group_id }}</span>
     </div>
-
-    <div v-if="group.is_draft" class="space-y-3">
-      <button class="btn btn-primary flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="discovering" @click="openLinkPicker">
-        <span class="material-symbols-outlined text-[16px]">group_add</span>
-        {{ discovering ? t('groupLink.loadingChats') : t('groupLink.connect') }}
-      </button>
-    </div>
-
-    <button v-else-if="group.status === 'pending_setup'" class="btn btn-secondary flex items-center gap-2" :disabled="unlinking" @click="unlink">
-      <span class="material-symbols-outlined text-[16px]">link_off</span>
-      {{ unlinking ? t('groupLink.unlinking') : t('groupLink.unlink') }}
-    </button>
-
-    <p v-else class="text-[12px] text-on-surface-variant">
-      {{ t('groupLink.unlinkBlocked') }}
-    </p>
 
     <!-- Link picker modal -->
     <div v-if="showPicker" class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6" @click.self="closePicker">

@@ -1,82 +1,189 @@
 <template>
   <section class="rounded-xl border border-outline-variant bg-surface-container p-4">
-    <div class="mb-4 flex items-center gap-2">
-      <span class="material-symbols-outlined text-[18px] text-tertiary">bolt</span>
-      <h2 class="font-sora text-[15px] font-semibold text-on-surface">
-        {{ t('automations.title') }}
-      </h2>
+    <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
+      <div class="flex min-w-0 items-start gap-2">
+        <span class="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-tertiary">bolt</span>
+        <div>
+          <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('automations.title') }}</h2>
+          <p class="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{{ t('automations.hint') }}</p>
+        </div>
+      </div>
+      <span v-if="!loading && !loadError" class="font-mono text-[11px] text-on-surface-variant">
+        {{ t('automations.activeCount', { count: activeCount }) }}
+      </span>
     </div>
-    <p class="mb-5 text-[13px] leading-relaxed text-on-surface-variant">
-      {{ t('automations.hint') }}
-    </p>
 
     <div v-if="loadError" class="mb-4 rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
       {{ loadError }}
     </div>
 
-    <div v-if="loading" class="flex items-center gap-2 text-[13px] text-on-surface-variant">
-      <span class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-      {{ t('automations.loading') }}
-    </div>
+    <LoadingState v-if="loading" variant="compact" :message="t('automations.loading')" />
 
-    <div v-else class="space-y-4">
-      <!-- Scheduled Posts first so the add form is visible on mobile -->
-      <div class="rounded-xl border border-outline-variant bg-surface p-4">
-        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div v-else class="divide-y divide-outline-variant/60 rounded-xl border border-outline-variant/60 bg-surface-variant/10">
+      <!-- Scheduled posts -->
+      <div class="p-3.5">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div class="min-w-0">
             <p class="text-[13px] font-medium text-on-surface">{{ t('automations.scheduledTitle') }}</p>
-            <p class="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.scheduledHint') }}</p>
+            <p class="mt-0.5 text-[11px] text-on-surface-variant">{{ t('automations.scheduledHint') }}</p>
           </div>
-          <button v-if="!addingPost" type="button" class="btn btn-primary flex w-full shrink-0 items-center justify-center gap-1 text-[12px] sm:w-auto" @click="openAddPost">
-            <span class="material-symbols-outlined text-[14px]">add</span>
-            {{ t('automations.addSchedule') }}
-          </button>
+          <div class="flex shrink-0 flex-wrap items-center gap-2">
+            <button v-if="scheduledPosts.length > 0" type="button" class="btn btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-[11px]" @click="toggleExpandAllPosts">
+              <span class="material-symbols-outlined text-[16px]">{{ allPostsExpanded ? 'unfold_less' : 'unfold_more' }}</span>
+              {{ allPostsExpanded ? t('automations.collapseAll') : t('automations.expandAll') }}
+            </button>
+            <button v-if="!addingPost" type="button" class="btn btn-primary flex items-center gap-1 px-3 py-1.5 text-[11px]" @click="openAddPost">
+              <span class="material-symbols-outlined text-[14px]">add</span>
+              {{ t('automations.addSchedule') }}
+            </button>
+          </div>
         </div>
 
-        <div v-if="scheduledPosts.length" class="mb-3 space-y-3">
-          <div v-for="post in scheduledPosts" :key="post.id" class="rounded-xl border border-outline-variant/60 bg-surface-variant/10 p-3">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-[13px] font-medium text-on-surface">{{ post.label }}</p>
-                <p class="text-[11px] text-on-surface-variant">
-                  {{ post.frequency === 'weekly' ? weekdays[post.weekday] : t('automations.daily') }} · {{ post.time }}
-                  <span v-if="post.last_fired_at"> · {{ t('automations.lastSent', { time: formatTime(post.last_fired_at) }) }}</span>
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-2">
+        <div v-if="addingPost" class="mb-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-[12px] font-medium text-on-surface">{{ t('automations.newSchedule') }}</p>
+            <button type="button" class="btn btn-secondary px-2.5 py-1 text-[10px]" @click="applyMorningPreset">
+              {{ t('automations.morningPreset') }}
+            </button>
+          </div>
+          <div class="space-y-2">
+            <input
+              v-model="newPost.label"
+              type="text"
+              class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              :placeholder="t('automations.labelPlaceholder')"
+            />
+            <div class="flex flex-wrap gap-2">
+              <input v-model="newPost.time" type="time" class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50" />
+              <select v-model="newPost.frequency" class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50">
+                <option value="daily">{{ t('automations.daily') }}</option>
+                <option value="weekly">{{ t('automations.weekly') }}</option>
+              </select>
+              <select
+                v-if="newPost.frequency === 'weekly'"
+                v-model="newPost.weekday"
+                class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              >
+                <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
+              </select>
+            </div>
+            <textarea
+              v-model="newPost.template"
+              rows="2"
+              class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+              :placeholder="t('automations.templatePlaceholder')"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-primary flex items-center gap-1.5 px-3 py-1.5 text-[11px]" :disabled="savingNew" @click="addScheduledPost">
+                <span v-if="savingNew" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                {{ t('automations.saveSchedule') }}
+              </button>
+              <button type="button" class="btn btn-secondary px-3 py-1.5 text-[11px]" :disabled="savingNew" @click="cancelAddPost">
+                {{ t('common.cancel') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="scheduledPosts.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="post in scheduledPosts" :key="post.id" class="rounded-xl border border-outline-variant/70 bg-surface/50 p-3">
+            <div v-if="!isPostExpanded(post.id)" class="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start transition-colors hover:opacity-90"
+                :aria-expanded="false"
+                :aria-label="t('automations.expandSchedule', { label: post.label })"
+                @click="togglePostExpand(post.id)"
+              >
+                <p class="truncate text-[13px] font-semibold text-on-surface">{{ post.label }}</p>
+                <p class="font-mono text-[10px] text-on-surface-variant/60">{{ scheduleLine(post) }}</p>
+              </button>
+              <div class="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
-                  class="btn btn-secondary flex items-center gap-1 text-[11px]"
+                  class="icon-btn !min-h-0 !min-w-0 p-1.5 text-on-surface-variant hover:text-primary disabled:opacity-40"
+                  :aria-label="t('automations.triggerNow')"
                   :disabled="post.triggering || !group?.status?.startsWith('active')"
                   @click="triggerScheduledPost(post)"
                 >
-                  <span v-if="post.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
-                  <span v-else class="material-symbols-outlined text-[13px]">send</span>
+                  <span class="material-symbols-outlined text-[18px]" :class="{ 'animate-spin': post.triggering }">{{ post.triggering ? 'progress_activity' : 'send' }}</span>
                 </button>
                 <button
                   type="button"
                   role="switch"
                   :aria-checked="post.enabled"
-                  class="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+                  class="relative mx-0.5 h-5 w-9 shrink-0 rounded-full transition-colors"
                   :class="post.enabled ? 'bg-primary' : 'bg-outline-variant'"
                   :disabled="post.saving"
                   @click="toggleScheduledPost(post)"
                 >
                   <span class="absolute left-0 top-0.5 block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="post.enabled ? 'translate-x-4' : 'translate-x-0.5'" />
                 </button>
-                <button type="button" class="text-on-surface-variant transition-colors hover:text-error" :disabled="post.deleting" @click="deleteScheduledPost(post)">
-                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                <button
+                  type="button"
+                  class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 disabled:opacity-40"
+                  :aria-label="t('automations.deleteSchedule')"
+                  :disabled="post.deleting"
+                  @click="deleteScheduledPost(post)"
+                >
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
                 </button>
               </div>
             </div>
 
-            <details class="mt-2">
-              <summary class="cursor-pointer text-[11px] text-on-surface-variant hover:text-on-surface">{{ t('automations.editSchedule') }}</summary>
-              <div class="mt-2 space-y-2">
+            <div v-else>
+              <div class="mb-3 flex items-start justify-between gap-2">
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-start gap-1 text-start transition-colors hover:opacity-90"
+                  :aria-expanded="true"
+                  :aria-label="t('automations.collapseSchedule', { label: post.label })"
+                  @click="togglePostExpand(post.id)"
+                >
+                  <p class="truncate text-[13px] font-semibold text-on-surface">{{ post.label }}</p>
+                  <span class="material-symbols-outlined shrink-0 text-[18px] text-on-surface-variant/60">expand_less</span>
+                </button>
+                <div class="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    class="icon-btn !min-h-0 !min-w-0 p-1.5 text-on-surface-variant hover:text-primary disabled:opacity-40"
+                    :aria-label="t('automations.triggerNow')"
+                    :disabled="post.triggering || !group?.status?.startsWith('active')"
+                    @click="triggerScheduledPost(post)"
+                  >
+                    <span class="material-symbols-outlined text-[18px]" :class="{ 'animate-spin': post.triggering }">{{ post.triggering ? 'progress_activity' : 'send' }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="post.enabled"
+                    class="relative mx-0.5 h-5 w-9 shrink-0 rounded-full transition-colors"
+                    :class="post.enabled ? 'bg-primary' : 'bg-outline-variant'"
+                    :disabled="post.saving"
+                    @click="toggleScheduledPost(post)"
+                  >
+                    <span class="absolute left-0 top-0.5 block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="post.enabled ? 'translate-x-4' : 'translate-x-0.5'" />
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 disabled:opacity-40"
+                    :aria-label="t('automations.deleteSchedule')"
+                    :disabled="post.deleting"
+                    @click="deleteScheduledPost(post)"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+              </div>
+              <p class="mb-2 font-mono text-[10px] text-on-surface-variant/60">
+                {{ scheduleLine(post) }}
+                <span v-if="post.last_fired_at"> · {{ t('automations.lastSent', { time: formatTime(post.last_fired_at) }) }}</span>
+              </p>
+              <div class="space-y-2">
                 <input
                   v-model="post.label"
                   type="text"
-                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                  class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
                   :placeholder="t('automations.labelPlaceholder')"
                   @blur="saveScheduledPost(post)"
                 />
@@ -84,12 +191,12 @@
                   <input
                     v-model="post.time"
                     type="time"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
                     @change="saveScheduledPost(post)"
                   />
                   <select
                     v-model="post.frequency"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
                     @change="saveScheduledPost(post)"
                   >
                     <option value="daily">{{ t('automations.daily') }}</option>
@@ -98,7 +205,7 @@
                   <select
                     v-if="post.frequency === 'weekly'"
                     v-model="post.weekday"
-                    class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                    class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
                     @change="saveScheduledPost(post)"
                   >
                     <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
@@ -107,70 +214,26 @@
                 <textarea
                   v-model="post.template"
                   rows="2"
-                  class="w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+                  class="w-full rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
                   :placeholder="t('automations.templatePlaceholder')"
                   @blur="saveScheduledPost(post)"
                 />
               </div>
-            </details>
-          </div>
+            </div>
+          </article>
         </div>
 
-        <div v-if="addingPost" class="rounded-xl border border-primary/30 bg-primary/5 p-3">
-          <p class="mb-2 text-[12px] font-medium text-on-surface">{{ t('automations.newSchedule') }}</p>
-          <button type="button" class="btn btn-secondary mb-2 w-full justify-center px-3 py-1.5 text-[11px] sm:w-auto" @click="applyMorningPreset">
-            {{ t('automations.morningPreset') }}
-          </button>
-          <div class="space-y-2">
-            <input
-              v-model="newPost.label"
-              type="text"
-              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              :placeholder="t('automations.labelPlaceholder')"
-            />
-            <div class="flex flex-wrap gap-2">
-              <input v-model="newPost.time" type="time" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50" />
-              <select v-model="newPost.frequency" class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50">
-                <option value="daily">{{ t('automations.daily') }}</option>
-                <option value="weekly">{{ t('automations.weekly') }}</option>
-              </select>
-              <select
-                v-if="newPost.frequency === 'weekly'"
-                v-model="newPost.weekday"
-                class="rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              >
-                <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
-              </select>
-            </div>
-            <textarea
-              v-model="newPost.template"
-              rows="3"
-              class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
-              :placeholder="t('automations.templatePlaceholder')"
-            />
-            <div class="flex items-center gap-2">
-              <button type="button" class="btn btn-primary flex items-center gap-1.5 text-[12px]" :disabled="savingNew" @click="addScheduledPost">
-                <span v-if="savingNew" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-                {{ t('automations.saveSchedule') }}
-              </button>
-              <button type="button" class="btn btn-secondary text-[12px]" :disabled="savingNew" @click="cancelAddPost">
-                {{ t('common.cancel') }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <p v-if="!scheduledPosts.length && !addingPost" class="text-[12px] text-on-surface-variant">
+        <p v-else-if="!addingPost" class="text-[11px] text-on-surface-variant">
           {{ t('automations.noSchedules') }}
         </p>
       </div>
 
-      <!-- Silence Nudge -->
-      <div class="rounded-xl border border-outline-variant bg-surface p-4">
+      <!-- Silence nudge -->
+      <div class="p-3.5">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <p class="text-[13px] font-medium text-on-surface">{{ t('automations.silenceTitle') }}</p>
-            <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.silenceHint') }}</p>
+            <p class="mt-0.5 text-[11px] leading-relaxed text-on-surface-variant">{{ t('automations.silenceHint') }}</p>
           </div>
           <button
             type="button"
@@ -185,69 +248,60 @@
           </button>
         </div>
 
-        <div v-if="silenceNudge.enabled" class="mt-3 space-y-3">
-          <div>
-            <label class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-              {{ t('automations.silenceThreshold') }}
-            </label>
-            <select
-              v-model="silenceNudge.threshold_hours"
-              class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-              :disabled="silenceNudge.saving"
-              @change="saveSingletonAutomation('silence_nudge')"
-            >
-              <option v-for="h in [4, 8, 12, 24, 48, 72]" :key="h" :value="h">{{ t('automations.hours', { n: h }) }}</option>
-            </select>
-          </div>
+        <div v-if="silenceNudge.enabled" class="mt-2.5 flex flex-wrap items-center gap-2">
+          <select
+            v-model="silenceNudge.threshold_hours"
+            class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+            :disabled="silenceNudge.saving"
+            @change="saveSingletonAutomation('silence_nudge')"
+          >
+            <option v-for="h in [4, 8, 12, 24, 48, 72]" :key="h" :value="h">{{ t('automations.hours', { n: h }) }}</option>
+          </select>
+          <button
+            type="button"
+            class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
+            :disabled="silenceNudge.previewing || !group?.status?.startsWith('active')"
+            @click="previewSilenceNudge"
+          >
+            <span v-if="silenceNudge.previewing" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+            <span v-else class="material-symbols-outlined text-[13px]">visibility</span>
+            {{ silenceNudge.draft ? t('automations.regeneratePreview') : t('automations.previewNudge') }}
+          </button>
+          <span v-if="silenceNudge.last_fired_at" class="text-[10px] text-on-surface-variant">
+            {{ t('automations.lastSent', { time: formatTime(silenceNudge.last_fired_at) }) }}
+          </span>
+        </div>
 
-          <div class="flex flex-wrap items-center gap-3">
+        <div v-if="silenceNudge.draft !== null" class="mt-2 space-y-2 rounded-lg border border-outline-variant/60 bg-surface/60 p-2.5">
+          <textarea
+            v-model="silenceNudge.draft"
+            rows="3"
+            class="w-full resize-y rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] leading-relaxed text-on-surface outline-none focus:border-primary/50"
+          />
+          <div class="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
-              :disabled="silenceNudge.previewing || !group?.status?.startsWith('active')"
-              @click="previewSilenceNudge"
+              class="btn btn-primary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
+              :disabled="silenceNudge.sending || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
+              @click="sendSilenceNudge"
             >
-              <span v-if="silenceNudge.previewing" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-              <span v-else class="material-symbols-outlined text-[14px]">visibility</span>
-              {{ silenceNudge.draft ? t('automations.regeneratePreview') : t('automations.previewNudge') }}
+              <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+              <span v-else class="material-symbols-outlined text-[13px]">send</span>
+              {{ t('automations.sendNudge') }}
             </button>
-            <span v-if="silenceNudge.last_fired_at" class="text-[11px] text-on-surface-variant">
-              {{ t('automations.lastSent', { time: formatTime(silenceNudge.last_fired_at) }) }}
-            </span>
-          </div>
-
-          <div v-if="silenceNudge.draft !== null" class="space-y-3 rounded-xl border border-outline-variant/70 bg-surface-variant/15 p-3">
-            <p class="text-[11px] text-on-surface-variant">{{ t('automations.previewHint') }}</p>
-            <textarea
-              v-model="silenceNudge.draft"
-              rows="4"
-              class="w-full resize-y rounded-xl border border-outline-variant bg-surface px-3 py-2 text-[13px] leading-relaxed text-on-surface outline-none focus:border-primary/50"
-            />
-            <div class="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                class="btn btn-primary flex items-center gap-1.5 text-[12px]"
-                :disabled="silenceNudge.sending || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
-                @click="sendSilenceNudge"
-              >
-                <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-                <span v-else class="material-symbols-outlined text-[14px]">send</span>
-                {{ t('automations.sendNudge') }}
-              </button>
-              <button type="button" class="btn btn-secondary text-[12px]" :disabled="silenceNudge.sending" @click="cancelSilencePreview">
-                {{ t('common.cancel') }}
-              </button>
-            </div>
+            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="silenceNudge.sending" @click="cancelSilencePreview">
+              {{ t('common.cancel') }}
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Daily Digest -->
-      <div class="rounded-xl border border-outline-variant bg-surface p-4">
+      <!-- Daily digest -->
+      <div class="p-3.5">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <p class="text-[13px] font-medium text-on-surface">{{ t('automations.digestTitle') }}</p>
-            <p class="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{{ t('automations.digestHint') }}</p>
+            <p class="mt-0.5 text-[11px] leading-relaxed text-on-surface-variant">{{ t('automations.digestHint') }}</p>
           </div>
           <button
             type="button"
@@ -262,69 +316,49 @@
           </button>
         </div>
 
-        <div v-if="dailyDigest.enabled" class="mt-3 space-y-3">
-          <div class="flex flex-wrap gap-3">
-            <div>
-              <label class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                {{ t('automations.time') }}
-              </label>
-              <input
-                v-model="dailyDigest.time"
-                type="time"
-                class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-                :disabled="dailyDigest.saving"
-                @change="saveSingletonAutomation('daily_digest')"
-              />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                {{ t('automations.frequency') }}
-              </label>
-              <select
-                v-model="dailyDigest.frequency"
-                class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-                :disabled="dailyDigest.saving"
-                @change="saveSingletonAutomation('daily_digest')"
-              >
-                <option value="daily">{{ t('automations.daily') }}</option>
-                <option value="weekly">{{ t('automations.weekly') }}</option>
-              </select>
-            </div>
-            <div v-if="dailyDigest.frequency === 'weekly'">
-              <label class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                {{ t('automations.weekday') }}
-              </label>
-              <select
-                v-model="dailyDigest.weekday"
-                class="rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50"
-                :disabled="dailyDigest.saving"
-                @change="saveSingletonAutomation('daily_digest')"
-              >
-                <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <button
-              type="button"
-              class="btn btn-secondary flex items-center gap-1.5 text-[12px]"
-              :disabled="dailyDigest.triggering || !group?.status?.startsWith('active')"
-              @click="triggerDailyDigest"
-            >
-              <span v-if="dailyDigest.triggering" class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-              <span v-else class="material-symbols-outlined text-[14px]">send</span>
-              {{ t('automations.triggerNow') }}
-            </button>
-            <span v-if="dailyDigest.last_fired_at" class="text-[11px] text-on-surface-variant">
-              {{ t('automations.lastSent', { time: formatTime(dailyDigest.last_fired_at) }) }}
-            </span>
-          </div>
+        <div v-if="dailyDigest.enabled" class="mt-2.5 flex flex-wrap items-center gap-2">
+          <input
+            v-model="dailyDigest.time"
+            type="time"
+            class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+            :disabled="dailyDigest.saving"
+            @change="saveSingletonAutomation('daily_digest')"
+          />
+          <select
+            v-model="dailyDigest.frequency"
+            class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+            :disabled="dailyDigest.saving"
+            @change="saveSingletonAutomation('daily_digest')"
+          >
+            <option value="daily">{{ t('automations.daily') }}</option>
+            <option value="weekly">{{ t('automations.weekly') }}</option>
+          </select>
+          <select
+            v-if="dailyDigest.frequency === 'weekly'"
+            v-model="dailyDigest.weekday"
+            class="rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface outline-none focus:border-primary/50"
+            :disabled="dailyDigest.saving"
+            @change="saveSingletonAutomation('daily_digest')"
+          >
+            <option v-for="(day, idx) in weekdays" :key="idx" :value="idx">{{ day }}</option>
+          </select>
+          <button
+            type="button"
+            class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
+            :disabled="dailyDigest.triggering || !group?.status?.startsWith('active')"
+            @click="triggerDailyDigest"
+          >
+            <span v-if="dailyDigest.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+            <span v-else class="material-symbols-outlined text-[13px]">send</span>
+            {{ t('automations.triggerNow') }}
+          </button>
+          <span v-if="dailyDigest.last_fired_at" class="text-[10px] text-on-surface-variant">
+            {{ t('automations.lastSent', { time: formatTime(dailyDigest.last_fired_at) }) }}
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Toast -->
     <transition name="fade">
       <div
         v-if="toast"
@@ -338,9 +372,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
+import LoadingState from './LoadingState.vue';
 import type { GroupAutomation, GroupWithStats } from '@wavi/shared';
 
 const { t } = useI18n();
@@ -349,6 +384,7 @@ const props = defineProps<{ group: GroupWithStats }>();
 
 const loading = ref(true);
 const loadError = ref<string | null>(null);
+const expandedPostIds = ref<Set<string>>(new Set());
 
 interface SilenceState {
   id: string | null;
@@ -422,6 +458,45 @@ const weekdays = [
   t('automations.weekdays.sat'),
 ];
 
+const activeCount = computed(() => {
+  let count = 0;
+  if (silenceNudge.enabled) count += 1;
+  if (dailyDigest.enabled) count += 1;
+  count += scheduledPosts.value.filter((p) => p.enabled).length;
+  return count;
+});
+
+const allPostsExpanded = computed(() => scheduledPosts.value.length > 0 && scheduledPosts.value.every((p) => expandedPostIds.value.has(p.id)));
+
+function isPostExpanded(postId: string) {
+  return expandedPostIds.value.has(postId);
+}
+
+function togglePostExpand(postId: string) {
+  const next = new Set(expandedPostIds.value);
+  if (next.has(postId)) next.delete(postId);
+  else next.add(postId);
+  expandedPostIds.value = next;
+}
+
+function expandAllPosts() {
+  expandedPostIds.value = new Set(scheduledPosts.value.map((p) => p.id));
+}
+
+function collapseAllPosts() {
+  expandedPostIds.value = new Set();
+}
+
+function toggleExpandAllPosts() {
+  if (allPostsExpanded.value) collapseAllPosts();
+  else expandAllPosts();
+}
+
+function scheduleLine(post: ScheduledPostItem) {
+  const when = post.frequency === 'weekly' ? weekdays[post.weekday] : t('automations.daily');
+  return `${when} · ${post.time}`;
+}
+
 function applyAutomation(a: GroupAutomation) {
   const cfg = a.config && typeof a.config === 'object' ? a.config : {};
   if (a.type === 'silence_nudge') {
@@ -465,6 +540,7 @@ async function load() {
   loading.value = true;
   loadError.value = null;
   scheduledPosts.value = [];
+  expandedPostIds.value = new Set();
   try {
     const raw = await apiFetch<GroupAutomation[] | null>(`/automations?group_id=${props.group.id}`);
     const data = Array.isArray(raw) ? raw : [];
@@ -475,7 +551,6 @@ async function load() {
         // skip malformed rows
       }
     }
-    addingPost.value = scheduledPosts.value.length === 0;
   } catch (e) {
     console.error('[AutomationsSection] load failed:', e);
     loadError.value = e instanceof Error ? e.message : t('automations.failedLoad');
@@ -629,6 +704,7 @@ async function deleteScheduledPost(post: ScheduledPostItem) {
   try {
     await apiFetch(`/automations/${post.id}`, { method: 'DELETE' });
     scheduledPosts.value = scheduledPosts.value.filter((p) => p.id !== post.id);
+    expandedPostIds.value = new Set([...expandedPostIds.value].filter((id) => id !== post.id));
   } catch (e) {
     showToast(e instanceof Error ? e.message : t('automations.failedSave'), 'error');
     post.deleting = false;

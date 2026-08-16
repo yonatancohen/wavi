@@ -1,6 +1,6 @@
 <template>
-  <section class="flex flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container">
-    <div class="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+  <section class="flex h-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container">
+    <div class="flex shrink-0 items-center justify-between border-b border-outline-variant px-4 py-3">
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-[18px] text-primary">forum</span>
         <h2 class="font-sora text-[15px] font-semibold text-on-surface">
@@ -12,18 +12,18 @@
       </span>
     </div>
 
-    <LoadingState v-if="loading" variant="compact" :message="t('loading.messages')" />
+    <LoadingState v-if="loading" class="min-h-0 flex-1" variant="compact" :message="t('loading.messages')" />
 
-    <div v-else-if="error" class="px-4 py-3 text-[13px] text-error">
+    <div v-else-if="error" class="flex flex-1 items-start px-4 py-3 text-[13px] text-error">
       {{ error }}
     </div>
 
-    <div v-else-if="messages.length === 0" class="px-6 py-10 text-center">
+    <div v-else-if="messages.length === 0" class="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
       <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">chat_bubble_outline</span>
       <p class="text-[13px] text-on-surface-variant">{{ t('messages.empty') }}</p>
     </div>
 
-    <div v-else ref="scrollEl" class="flex max-h-[min(560px,60vh)] flex-col overflow-y-auto px-4 py-3" @scroll="onScroll">
+    <div v-else ref="scrollEl" class="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-3" @scroll="onScroll">
       <div class="flex shrink-0 items-center justify-center py-2">
         <LoadingState v-if="loadingMore" variant="inline" :message="t('messages.loadingMore')" />
         <span v-else-if="hasMore" class="text-[11px] text-on-surface-variant/60">
