@@ -428,10 +428,41 @@ describe('buildSystemPrompt', () => {
     });
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('תיבול בלבד');
-    expect(prompt).toContain('רק אם הם מתאימים לבקשה');
-    expect(prompt).toContain('קאלבקים רק אם הבקשה עליהם');
+    expect(prompt).toContain('ביטים שמורים');
+    expect(prompt).toContain('קאלבקים — רק אם הבקשה עליהם');
+    expect(prompt).toContain('אל תמחזר');
     expect(prompt).not.toContain('callbacks to reference');
     expect(prompt).not.toContain('draw on these patterns');
     expect(prompt).toContain('חצוף');
+  });
+
+  it('retires a repeated gag and stays serious on verdict asks', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: '@wavi מי צודק בכל מה שהלך פה ומה הלך פה?',
+      recent_messages: [makeMessage('רגע הציפורניים של אוהד שוב?', true), makeMessage('lol', false, 'Yoni'), makeMessage('לא שוכחים את הציפורניים של אוהד', true)],
+      group_memories: [{ id: '1', group_id: 'g1', memory_text: 'הציפורניים של אוהד זה רץ', created_at: '2026-01-01' } as never],
+      rag_chunks: ['קטע על הציפורניים של אוהד', 'ויכוח נתצ מול חינוך'],
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 90, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+        humor_dna: {
+          style: 'dry',
+          recurring_bits: ['הציפורניים של אוהד', 'מגזינו זה מהלך'],
+          inside_references: [],
+          example: 'הציפורניים של אוהד',
+        },
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('הומור — כבוי');
+    expect(prompt).not.toContain('<humor_dna>');
+    expect(prompt).not.toContain('הציפורניים של אוהד זה רץ');
+    expect(prompt).not.toContain('קטע על הציפורניים של אוהד');
+    expect(prompt).toContain('ויכוח נתצ מול חינוך');
   });
 });

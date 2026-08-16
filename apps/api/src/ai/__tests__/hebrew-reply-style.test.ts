@@ -38,6 +38,17 @@ describe('hebrewHumorCraftRules', () => {
     expect(rules).toContain('חצוף');
     expect(rules).toContain('לא סטאנדאפ');
     expect(rules).toContain('רק אם זה על הנושא');
+    expect(rules).toContain('אל תמחזר');
+  });
+
+  it('turns humor off on serious asks and lists retired bits', () => {
+    const serious = hebrewHumorCraftRules(90, { serious: true });
+    expect(serious).toContain('כבוי');
+    expect(serious).toContain('בלי בדיחות');
+
+    const retired = hebrewHumorCraftRules(70, { retiredBits: ['הציפורניים של אוהד'] });
+    expect(retired).toContain('הציפורניים של אוהד');
+    expect(retired).toContain('אסורים עכשיו');
   });
 });
 

@@ -52,11 +52,33 @@ import {
   hebrewWhatsAppFormatRules,
 } from './hebrew-reply-style.js';
 import { effectiveReplyLanguage, getLanguageName } from './language.js';
+import {
+  askMentionsHumorBit,
+  filterMemoriesAgainstRetiredBits,
+  filterRagAgainstRetiredBits,
+  filterStaleHumorDna,
+  isSeriousAsk,
+  recentlyUsedHumorBits,
+  textIncludesHumorBit,
+} from './humor-freshness.js';
 
 const GROUP_TIMEZONE = process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem';
 
 function promptIsHebrew(ctx: PromptContext): boolean {
   return effectiveReplyLanguage(ctx.language_mode, ctx.current_message, ctx.recent_messages) === 'he';
+}
+
+function recentAgentBodies(ctx: PromptContext): string[] {
+  return ctx.recent_messages
+    .filter((m) => m.is_agent_reply)
+    .map((m) => m.body)
+    .filter(Boolean)
+    .slice(-20);
+}
+
+function activeRetiredHumorBits(ctx: PromptContext): string[] {
+  const dna = ctx.character_config?.humor_dna;
+  return recentlyUsedHumorBits(dna, recentAgentBodies(ctx)).filter((bit) => !askMentionsHumorBit(ctx.current_message, bit));
 }
 
 // ── Assemble system prompt from context ───────────────────────
@@ -73,23 +95,27 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const emojiUsage = normalizeEmojiUsage(sliders.emoji_usage);
   const gender = c.agent_gender;
   const recentMessages = ctx.recent_messages;
+  const seriousAsk = isSeriousAsk(ctx.current_message);
+  const retiredBits = activeRetiredHumorBits(ctx);
   const languageRules = he ? hebrewGrammarFirstRules(gender) : buildLanguageRules(language_mode, ctx.current_message, recentMessages, gender);
   const formatRules = he ? hebrewWhatsAppFormatRules() : englishWhatsAppFormatRules();
-  const humorCraft = he ? hebrewHumorCraftRules(sliders.humor) : '';
+  const humorCraft = he ? hebrewHumorCraftRules(sliders.humor, { serious: seriousAsk, retiredBits }) : englishHumorCraftRules(sliders.humor, { serious: seriousAsk, retiredBits });
   const roleBoundary = he ? hebrewRoleBoundary(gender) : buildRoleBoundary(language_mode, ctx.current_message, recentMessages, gender);
   const datetimeBlock = buildDatetimeBlock(he);
   const sensitivityBlock = buildSensitivityBlock(ctx, he);
   const mentionedBlock = buildMentionedPeopleBlock(ctx, he);
   const invokedBlock = buildInvokedPeopleBlock(ctx, he);
   const quotedBlock = buildQuotedReplyBlock(ctx, he);
-  const memoriesBlock = buildMemoriesBlock(ctx, he);
+  const memoriesBlock = buildMemoriesBlock(ctx, he, retiredBits);
   const eventsBlock = buildGroupEventsBlock(ctx, he);
   const webSearchBlock = buildWebSearchBlock(ctx, he);
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled, he);
-  const examplesBlock = buildVoiceExamplesBlock(ctx, he);
-  const humorDnaBlock = buildHumorDnaBlock(ctx);
+  const examplesBlock = buildVoiceExamplesBlock(ctx, he, retiredBits);
+  const humorDnaBlock = buildHumorDnaBlock(ctx, { serious: seriousAsk, retiredBits });
   const upcomingEventsBlock = buildUpcomingEventsBlock(ctx, he);
   const agentName = process.env.WA_AGENT_NAME ?? 'wavi';
+  const ragChunks = filterRagAgainstRetiredBits(ctx.rag_chunks, retiredBits, ctx.current_message);
+  const ragEpisodes = filterRagAgainstRetiredBits(ctx.rag_episode_summaries, retiredBits, ctx.current_message);
 
   if (he) {
     return `
@@ -150,8 +176,8 @@ ${memoriesBlock ? `<memories>\n${memoriesBlock}\n</memories>` : ''}
 
 <relevant_history>
 ${hebrewHistoryTitle()}
-${ctx.rag_chunks.length > 0 ? ctx.rag_chunks.map((chunk, i) => `${hebrewPastContextLabel(i + 1)}: ${chunk}`).join('\n') : hebrewNoPastContext()}
-${ctx.rag_episode_summaries.length > 0 ? ctx.rag_episode_summaries.map((s, i) => `${hebrewEpisodeLabel(i + 1)}: ${s}`).join('\n') : ''}
+${ragChunks.length > 0 ? ragChunks.map((chunk, i) => `${hebrewPastContextLabel(i + 1)}: ${chunk}`).join('\n') : hebrewNoPastContext()}
+${ragEpisodes.length > 0 ? ragEpisodes.map((s, i) => `${hebrewEpisodeLabel(i + 1)}: ${s}`).join('\n') : ''}
 </relevant_history>
 
 ${sensitivityBlock ? `<sensitivity>\n${sensitivityBlock}\n</sensitivity>` : ''}
@@ -246,8 +272,8 @@ ${memoriesBlock ? `<memories>\n${memoriesBlock}\n</memories>` : ''}
 <relevant_history>
 BLOCK 8 — RELEVANT HISTORY (retrieved by semantic search)
 Background only — ignore if unrelated to the tagged message.
-${ctx.rag_chunks.length > 0 ? ctx.rag_chunks.map((chunk, i) => `[Past context ${i + 1}]: ${chunk}`).join('\n') : 'No relevant past context found.'}
-${ctx.rag_episode_summaries.length > 0 ? ctx.rag_episode_summaries.map((s, i) => `[Episode ${i + 1}]: ${s}`).join('\n') : ''}
+${ragChunks.length > 0 ? ragChunks.map((chunk, i) => `[Past context ${i + 1}]: ${chunk}`).join('\n') : 'No relevant past context found.'}
+${ragEpisodes.length > 0 ? ragEpisodes.map((s, i) => `[Episode ${i + 1}]: ${s}`).join('\n') : ''}
 </relevant_history>
 
 ${sensitivityBlock ? `<sensitivity>\n${sensitivityBlock}\n</sensitivity>` : ''}
@@ -315,6 +341,29 @@ Only go longer when explicitly asked for a summary, list, or explanation.
 No markdown, bullet points, headers, lists, or "Here's the thing:" preambles.
 Do not open with "Nah," / "Nope," / "No," unless the tagged message made a claim or asked a yes/no you are rejecting. "Who is right" and "what happened" are not yes/no — answer straight.
 Verbosity slider = personality density, not message length.`;
+}
+
+function englishHumorCraftRules(humorSlider: number, opts?: { serious?: boolean; retiredBits?: string[] }): string {
+  if (opts?.serious) {
+    return `Humor — off for this ask.
+This is a serious ask (summary / who is right / what happened / verdict). Answer straight.
+No jokes, no callbacks, no recycling an old gag.`;
+  }
+
+  const intensity =
+    humorSlider < 30
+      ? 'Humor slider is low — stay straight.'
+      : humorSlider > 70
+        ? 'You can be sharper, still inside the same grammatical sentence — not a separate standup bit.'
+        : 'A half-smile inside the sentence that answers the ask. Not a second joke.';
+
+  const retired = opts?.retiredBits?.length ? `\nBits you already used in your recent replies — banned for now (do not mention or laugh at them again): ${opts.retiredBits.join(' · ')}.` : '';
+
+  return `Humor — only after a real answer to the tagged ask:
+${intensity}
+Callback / inside bit / emoji — only if it is about the tagged topic. Otherwise skip.
+Do not recycle the same gag. If you already joked about it in your recent replies, let it rest. Know when to stop laughing and answer seriously.
+If you cannot joke about the ask itself without changing topic — no joke.${retired}`;
 }
 
 function buildLanguageRules(languageMode: LanguageMode, currentMessage: string, recentMessages: Array<{ body: string }>, agentGender?: 'זכר' | 'נקבה'): string {
@@ -449,30 +498,34 @@ Use these for what/when/who questions. Do not turn them into opinions or recite 
 ${lines.join('\n')}`;
 }
 
-function buildMemoriesBlock(ctx: PromptContext, he: boolean): string {
+function buildMemoriesBlock(ctx: PromptContext, he: boolean, retiredBits: string[] = []): string {
   if (!ctx.group_memories?.length) return '';
-  const lines = ctx.group_memories.slice(0, 10).map((m) => `- ${m.memory_text}`);
+  const kept = filterMemoriesAgainstRetiredBits(ctx.group_memories, retiredBits, ctx.current_message);
+  if (!kept.length) return '';
+  const lines = kept.slice(0, 10).map((m) => `- ${m.memory_text}`);
   if (he) return `${hebrewMemoriesTitle()}\n${lines.join('\n')}`;
   return `BLOCK — GROUP MEMORIES
 ${lines.join('\n')}`;
 }
 
-function buildVoiceExamplesBlock(ctx: PromptContext, he: boolean): string {
+function buildVoiceExamplesBlock(ctx: PromptContext, he: boolean, retiredBits: string[] = []): string {
   const examples = ctx.character_config?.examples;
   if (!examples?.length) return '';
   const labels = he ? hebrewVoiceTurnLabels() : { user: 'User', agent: 'You' };
   const lines = examples
+    .filter((e) => !retiredBits.some((bit) => textIncludesHumorBit(e.agent, bit) || textIncludesHumorBit(e.user, bit)))
     .slice(0, 3)
     .map((e) => `${labels.user}: ${e.user}\n${labels.agent}: ${e.agent}`)
     .join('\n\n');
+  if (!lines) return '';
   if (he) return `${hebrewVoiceExamplesTitle()}\n${lines}`;
   return `BLOCK — HOW YOU SOUND (match this style exactly)
 ${lines}`;
 }
 
-function buildHumorDnaBlock(ctx: PromptContext): string {
-  if (ctx.live_social_ask) return '';
-  const dna = ctx.character_config?.humor_dna;
+function buildHumorDnaBlock(ctx: PromptContext, opts?: { serious?: boolean; retiredBits?: string[] }): string {
+  if (ctx.live_social_ask || opts?.serious) return '';
+  const dna = filterStaleHumorDna(ctx.character_config?.humor_dna, recentAgentBodies(ctx));
   if (!dna) return '';
 
   const bits = dna.recurring_bits?.length ? dna.recurring_bits.join(', ') : null;
@@ -483,9 +536,12 @@ function buildHumorDnaBlock(ctx: PromptContext): string {
   if (promptIsHebrew(ctx)) {
     const lines = [hebrewHumorDnaPreamble()];
     if (dna.style && dna.style !== 'none') lines.push(`הסגנון שנוחת כאן: ${hebrewHumorStyleLabel(dna.style)}`);
-    if (bits) lines.push(`ביטים שאפשר להדהד רק אם הם מתאימים לבקשה: ${bits}`);
-    if (refs) lines.push(`קאלבקים רק אם הבקשה עליהם: ${refs}`);
-    if (dna.example) lines.push(`דוגמה לצחוק שעבד: "${dna.example}"`);
+    if (bits) lines.push(`ביטים שמורים — רק אם הבקשה עצמה עליהם ועדיין לא יצאו לאחרונה: ${bits}`);
+    if (refs) lines.push(`קאלבקים — רק אם הבקשה עליהם: ${refs}`);
+    if (dna.example) lines.push(`דוגמה לצחוק שעבד פעם (לא לחזור עליה סתם): "${dna.example}"`);
+    if (opts?.retiredBits?.length) {
+      lines.push(`כבר יצאו לאחרונה — אסורים עכשיו: ${opts.retiredBits.join(' · ')}`);
+    }
     lines.push(hebrewHumorDnaFooter());
     return lines.join('\n');
   }
@@ -493,12 +549,16 @@ function buildHumorDnaBlock(ctx: PromptContext): string {
   const lines: string[] = [
     'BLOCK — HOW THIS GROUP IS FUNNY (seasoning only — not a second topic)',
     'Write a grammatical answer to the tagged ask first. Joke only if it fits that same sentence and topic.',
+    'Bits below are an archive — not something to echo every reply.',
   ];
   if (dna.style && dna.style !== 'none') lines.push(`This group's humor runs on: ${dna.style}`);
-  if (bits) lines.push(`Bits you may echo only if they fit this ask: ${bits}`);
+  if (bits) lines.push(`Reserved bits — only if this ask is about them and you have not used them recently: ${bits}`);
   if (refs) lines.push(`Callbacks only if this ask is about them: ${refs}`);
-  if (dna.example) lines.push(`Example of a laugh that worked: "${dna.example}"`);
-  lines.push(`Don't invent generic jokes. Don't open with a callback. Don't bolt a second topic on with "and regarding…".`);
+  if (dna.example) lines.push(`Example of a laugh that worked once (do not reuse by default): "${dna.example}"`);
+  if (opts?.retiredBits?.length) {
+    lines.push(`Already used recently — banned for now: ${opts.retiredBits.join(' · ')}`);
+  }
+  lines.push(`Don't invent generic jokes. Don't open with a callback. Don't recycle the same gag. Don't bolt a second topic on with "and regarding…".`);
 
   return lines.join('\n');
 }
