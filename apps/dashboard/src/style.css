@@ -247,15 +247,7 @@
     @apply w-full flex-1 px-margin-mobile lg:px-margin-desktop;
   }
 
-  /* On mobile/tablet the bottom nav is position:fixed (≥3.25rem + safe area).
-     Two-pronged approach:
-     1. page-content::after — a block spacer appended after the tab content so
-        the last element scrolls clear of the fixed nav. Works for setup/character
-        tabs that are regular block flow inside main-content.
-     2. group-panel padding-bottom — desktop group-panel is an inner scroller
-        (overflow-y:auto), so it doesn't inherit the ::after spacer. On <lg we
-        turn that scroller off (see .group-panel below) and pad the panel so
-        the last card clears the fixed nav. */
+  /* On mobile/tablet the bottom nav is fixed — pad content so the last card clears it. */
   @media (max-width: 1023px) {
     .page-content {
       padding-bottom: 0;
@@ -267,6 +259,12 @@
     }
     .group-panel {
       padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-content {
+      @apply pb-10;
     }
   }
 
@@ -445,17 +443,7 @@
   }
 
   .group-panel {
-    @apply max-h-[calc(100vh-12.5rem)] overflow-y-auto overscroll-y-contain pe-0.5;
-  }
-
-  /* <lg: GroupDetailView is height:auto inside the page scroller. A flex-1
-     page-content + overflow-y:auto panel with no max-height collapses to 0
-     (min-height:auto treats overflow:auto as 0). Let main-content scroll. */
-  @media (max-width: 1023px) {
-    .group-panel {
-      max-height: none;
-      overflow: visible;
-    }
+    @apply pe-0.5;
   }
 
   /* ── Skeleton ────────────────────────────────── */

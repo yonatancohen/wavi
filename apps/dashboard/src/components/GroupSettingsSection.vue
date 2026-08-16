@@ -22,12 +22,12 @@
       <p class="mb-3 text-[12px] leading-relaxed text-on-surface-variant">
         {{ group.is_draft ? t('groupSettings.groupNameDraftHint') : t('groupSettings.groupNameHint') }}
       </p>
-      <div class="flex flex-wrap items-center gap-2">
-        <button type="button" class="btn btn-secondary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" :disabled="group.is_draft || syncingName" @click="syncNameFromWhatsApp">
-          <span class="material-symbols-outlined text-[16px]" :class="{ 'animate-spin': syncingName }">sync</span>
+      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <button type="button" class="btn btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto" :disabled="group.is_draft || syncingName" @click="syncNameFromWhatsApp">
+          <span class="material-symbols-outlined text-[18px]" :class="{ 'animate-spin': syncingName }">sync</span>
           {{ syncingName ? t('groupSettings.syncingName') : t('groupSettings.syncName') }}
         </button>
-        <span v-if="nameSyncMessage" class="text-[11px] font-medium text-secondary">{{ nameSyncMessage }}</span>
+        <span v-if="nameSyncMessage" class="text-[12px] font-medium text-secondary">{{ nameSyncMessage }}</span>
       </div>
     </div>
 
