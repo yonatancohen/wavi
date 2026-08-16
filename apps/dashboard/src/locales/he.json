@@ -564,6 +564,10 @@
   "members": {
     "title": "פרופילי חברים",
     "profileCount": "{count} פרופילים נוצרו",
+    "expandAll": "פתח הכל",
+    "collapseAll": "סגור הכל",
+    "expandMember": "פתח {name}",
+    "collapseMember": "סגור {name}",
     "empty": "פרופילי חברים יופיעו לאחר העלאת היסטוריית הצ'אט",
     "failedLoad": "טעינת החברים נכשלה",
     "failedSave": "שמירת החבר נכשלה",

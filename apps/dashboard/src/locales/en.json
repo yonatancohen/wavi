@@ -564,6 +564,10 @@
   "members": {
     "title": "Member profiles",
     "profileCount": "{count} profiles created",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "expandMember": "Expand {name}",
+    "collapseMember": "Collapse {name}",
     "empty": "Member profiles will appear after uploading chat history",
     "failedLoad": "Failed to load members",
     "failedSave": "Failed to save member",

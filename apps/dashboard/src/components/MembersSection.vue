@@ -6,6 +6,10 @@
         <h2 class="font-sora text-[15px] font-semibold text-on-surface">{{ t('members.title') }}</h2>
       </div>
       <div class="flex flex-wrap items-center gap-2">
+        <button v-if="!loading && !error && members.length > 0" type="button" class="btn btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-[11px]" @click="toggleExpandAll">
+          <span class="material-symbols-outlined text-[16px]">{{ allExpanded ? 'unfold_less' : 'unfold_more' }}</span>
+          {{ allExpanded ? t('members.collapseAll') : t('members.expandAll') }}
+        </button>
         <button
           v-if="!loading && !error && members.length > 1"
           type="button"
@@ -40,26 +44,17 @@
     </div>
 
     <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <article v-for="member in members" :key="member.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-4">
-        <!-- Display name -->
-        <div class="mb-4">
-          <div v-if="editingNameId === member.id" class="flex flex-wrap items-center gap-2">
-            <input
-              v-model="nameDraft[member.id]"
-              type="text"
-              class="min-w-[12rem] flex-1 rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[14px] font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-              @keydown.enter="saveDisplayName(member)"
-              @keydown.escape="cancelEditName(member.id)"
-            />
-            <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveDisplayName(member)">
-              {{ t('members.save') }}
-            </button>
-            <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditName(member.id)">
-              {{ t('members.cancel') }}
-            </button>
-          </div>
-          <div v-else class="flex items-start justify-between gap-2">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
+      <article v-for="member in members" :key="member.id" class="rounded-xl border border-outline-variant bg-surface-variant/20 p-3">
+        <!-- Collapsed row -->
+        <div v-if="!isExpanded(member.id)" class="flex items-start justify-between gap-2">
+          <button
+            type="button"
+            class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start transition-colors hover:opacity-90"
+            :aria-expanded="false"
+            :aria-label="t('members.expandMember', { name: member.display_name })"
+            @click="toggleExpand(member.id)"
+          >
+            <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
               <h3 class="font-sora text-[15px] font-semibold text-on-surface">
                 {{ member.display_name }}
               </h3>
@@ -69,164 +64,223 @@
                 </span>
               </HelpTooltip>
             </div>
-            <div class="flex shrink-0 items-center">
-              <button type="button" class="icon-btn !min-h-0 !min-w-0 p-1.5 text-primary hover:bg-primary/10 hover:text-primary" :aria-label="t('members.editName')" @click="startEditName(member)">
-                <span class="material-symbols-outlined text-[18px]">edit</span>
-              </button>
-              <button
-                type="button"
-                class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 hover:text-error disabled:opacity-40"
-                :aria-label="t('members.remove')"
-                :disabled="deletingId === member.id || savingId === member.id"
-                @click="deleteMember(member)"
-              >
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-              </button>
-            </div>
-          </div>
-          <p class="mt-1 font-mono text-[10px] text-on-surface-variant/50">
-            {{ member.wa_user_id }}
-            ·
-            {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
-          </p>
-        </div>
-
-        <!-- Names Wavi recognizes -->
-        <div class="mb-4 rounded-lg border border-outline-variant/60 bg-surface/40 p-3">
-          <div class="mb-0.5 flex flex-wrap items-center justify-between gap-2">
-            <p class="text-[11px] font-semibold text-on-surface">
-              {{ t('members.recognizedNames') }}
+            <p class="font-mono text-[10px] text-on-surface-variant/50">
+              {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
             </p>
-            <div v-if="canResetAliases(member) || memberAliases(member).length" class="flex flex-wrap items-center gap-3">
-              <button
-                v-if="canResetAliases(member)"
-                type="button"
-                class="text-[10px] font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
-                :disabled="resettingId === member.id"
-                @click="resetAliases(member)"
-              >
-                {{ resettingId === member.id ? t('members.resettingAliases') : t('members.resetAliases') }}
-              </button>
-              <button v-if="memberAliases(member).length" type="button" class="text-[10px] font-medium text-error/80 transition-colors hover:text-error" @click="clearAllAliases(member)">
-                {{ t('members.clearAllAliases') }}
-              </button>
-            </div>
-          </div>
-          <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
-            {{ t('members.recognizedNamesHint') }}
-          </p>
-
-          <div v-if="memberAliases(member).length" class="mb-2 flex flex-wrap gap-1.5">
-            <span
-              v-for="alias in memberAliases(member)"
-              :key="alias"
-              class="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-0.5 text-[11px] text-secondary"
+          </button>
+          <div class="flex shrink-0 items-center">
+            <button type="button" class="icon-btn !min-h-0 !min-w-0 p-1.5 text-primary hover:bg-primary/10 hover:text-primary" :aria-label="t('members.editName')" @click="startEditName(member)">
+              <span class="material-symbols-outlined text-[18px]">edit</span>
+            </button>
+            <button
+              type="button"
+              class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 hover:text-error disabled:opacity-40"
+              :aria-label="t('members.remove')"
+              :disabled="deletingId === member.id || savingId === member.id"
+              @click="deleteMember(member)"
             >
-              {{ alias }}
-              <button type="button" class="opacity-50 transition-opacity hover:opacity-100" :title="t('members.removeAlias')" @click.stop="removeAlias(member, alias)">×</button>
-            </span>
-          </div>
-          <p v-else class="mb-2 text-[11px] italic text-on-surface-variant/50">
-            {{ t('members.noAliasesYet') }}
-          </p>
-
-          <div>
-            <div class="flex items-center gap-2">
-              <input
-                v-model="aliasDraft[member.id]"
-                type="text"
-                class="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface"
-                :placeholder="t('members.addAliasPlaceholder')"
-                @keydown.enter="addAliases(member)"
-              />
-              <button type="button" class="btn btn-secondary shrink-0 px-3 py-1.5 text-[11px]" :disabled="!aliasDraft[member.id]?.trim()" @click="addAliases(member)">
-                {{ t('members.addNames') }}
-              </button>
-            </div>
-            <p class="mt-1 text-[10px] text-on-surface-variant/60">
-              {{ t('members.addAliasBulkHint') }}
-            </p>
-            <p v-if="aliasErrors[member.id]" class="mt-1 text-[10px] text-error">
-              {{ aliasErrors[member.id] }}
-            </p>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/70">
-              {{ t('members.profileAnalysis') }}
-            </span>
-            <button v-if="editingSummaryId !== member.id" type="button" class="btn btn-primary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" @click="startEditSummary(member)">
-              <span class="material-symbols-outlined text-[16px]">edit</span>
-              {{ t('members.editSummary') }}
+              <span class="material-symbols-outlined text-[18px]">delete</span>
             </button>
           </div>
-          <div v-if="editingSummaryId === member.id" class="flex flex-col gap-2">
-            <textarea
-              v-model="summaryDraft[member.id]"
-              rows="3"
-              class="w-full resize-y rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[13px] leading-relaxed text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-              @keydown.escape="cancelEditSummary(member.id)"
-            />
-            <div class="flex flex-wrap items-center gap-2">
-              <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveSummary(member)">
+        </div>
+
+        <!-- Expanded card -->
+        <div v-else>
+          <div class="mb-4">
+            <div v-if="editingNameId === member.id" class="flex flex-wrap items-center gap-2">
+              <input
+                v-model="nameDraft[member.id]"
+                type="text"
+                class="min-w-[12rem] flex-1 rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[14px] font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                @keydown.enter="saveDisplayName(member)"
+                @keydown.escape="cancelEditName(member.id)"
+              />
+              <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveDisplayName(member)">
                 {{ t('members.save') }}
               </button>
-              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditSummary(member.id)">
+              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditName(member.id)">
                 {{ t('members.cancel') }}
               </button>
             </div>
+            <div v-else class="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start transition-colors hover:opacity-90"
+                :aria-expanded="true"
+                :aria-label="t('members.collapseMember', { name: member.display_name })"
+                @click="toggleExpand(member.id)"
+              >
+                <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
+                  <h3 class="font-sora text-[15px] font-semibold text-on-surface">
+                    {{ member.display_name }}
+                  </h3>
+                  <HelpTooltip :title="activityLevelTooltipTitle(member.profile_data.activity_level)" :body="activityLevelTooltipBody(member.profile_data.activity_level)">
+                    <span class="badge shrink-0 px-2 py-0.5" :class="activityBadgeClass(member.profile_data.activity_level)">
+                      {{ activityLevelLabel(member.profile_data.activity_level) }}
+                    </span>
+                  </HelpTooltip>
+                  <span class="material-symbols-outlined text-[18px] text-on-surface-variant/60">expand_less</span>
+                </div>
+                <p class="font-mono text-[10px] text-on-surface-variant/50">
+                  {{ member.wa_user_id }}
+                  ·
+                  {{ t('members.messages', { count: member.msg_count.toLocaleString() }) }}
+                </p>
+              </button>
+              <div class="flex shrink-0 items-center">
+                <button type="button" class="icon-btn !min-h-0 !min-w-0 p-1.5 text-primary hover:bg-primary/10 hover:text-primary" :aria-label="t('members.editName')" @click="startEditName(member)">
+                  <span class="material-symbols-outlined text-[18px]">edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn !min-h-0 !min-w-0 p-1.5 text-error hover:bg-error/10 hover:text-error disabled:opacity-40"
+                  :aria-label="t('members.remove')"
+                  :disabled="deletingId === member.id || savingId === member.id"
+                  @click="deleteMember(member)"
+                >
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <p v-else class="text-[13px] leading-relaxed text-on-surface-variant">
-            {{ member.behavioral_summary || t('members.noSummaryYet') }}
-          </p>
-        </div>
 
-        <div class="mb-3 flex flex-wrap gap-2">
-          <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
-            {{ formatHumorType(member.profile_data.humor_type) }}
-          </span>
-          <span class="rounded-full bg-secondary/10 px-2.5 py-1 text-[10px] font-semibold text-secondary"> {{ member.profile_data.emoji_usage }} emoji </span>
-          <span
-            v-for="topic in member.profile_data.dominant_topics.slice(0, 2)"
-            :key="topic"
-            class="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-medium text-on-surface-variant"
-          >
-            {{ topic }}
-          </span>
-        </div>
+          <!-- Names Wavi recognizes -->
+          <div class="mb-4 rounded-lg border border-outline-variant/60 bg-surface/40 p-3">
+            <div class="mb-0.5 flex flex-wrap items-center justify-between gap-2">
+              <p class="text-[11px] font-semibold text-on-surface">
+                {{ t('members.recognizedNames') }}
+              </p>
+              <div v-if="canResetAliases(member) || memberAliases(member).length" class="flex flex-wrap items-center gap-3">
+                <button
+                  v-if="canResetAliases(member)"
+                  type="button"
+                  class="text-[10px] font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+                  :disabled="resettingId === member.id"
+                  @click="resetAliases(member)"
+                >
+                  {{ resettingId === member.id ? t('members.resettingAliases') : t('members.resetAliases') }}
+                </button>
+                <button v-if="memberAliases(member).length" type="button" class="text-[10px] font-medium text-error/80 transition-colors hover:text-error" @click="clearAllAliases(member)">
+                  {{ t('members.clearAllAliases') }}
+                </button>
+              </div>
+            </div>
+            <p class="mb-2 text-[11px] leading-relaxed text-on-surface-variant/80">
+              {{ t('members.recognizedNamesHint') }}
+            </p>
 
-        <div v-if="member.profile_data.sensitivity_flags.length > 0" class="mb-3 flex flex-wrap gap-1.5">
-          <span v-for="flag in member.profile_data.sensitivity_flags" :key="flag" class="rounded-md bg-error/[0.06] px-2 py-0.5 text-[10px] text-on-surface-variant/60">
-            {{ flag }}
-          </span>
-        </div>
+            <div v-if="memberAliases(member).length" class="mb-2 flex flex-wrap gap-1.5">
+              <span
+                v-for="alias in memberAliases(member)"
+                :key="alias"
+                class="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-0.5 text-[11px] text-secondary"
+              >
+                {{ alias }}
+                <button type="button" class="opacity-50 transition-opacity hover:opacity-100" :title="t('members.removeAlias')" @click.stop="removeAlias(member, alias)">×</button>
+              </span>
+            </div>
+            <p v-else class="mb-2 text-[11px] italic text-on-surface-variant/50">
+              {{ t('members.noAliasesYet') }}
+            </p>
 
-        <!-- Merge duplicates (advanced) -->
-        <details class="border-t border-outline-variant/50 pt-3">
-          <summary class="cursor-pointer text-[11px] font-medium text-on-surface-variant/70 hover:text-on-surface-variant">
-            {{ t('members.advancedMerge') }}
-          </summary>
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <select v-model="mergeTarget[member.id]" class="rounded-lg border border-outline-variant bg-surface px-2 py-1.5 text-[11px] text-on-surface-variant">
-              <option value="">{{ t('members.mergeWith') }}</option>
-              <option v-for="other in members.filter((m) => m.id !== member.id)" :key="other.id" :value="other.id">
-                {{ other.display_name }}
-              </option>
-            </select>
-            <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" :disabled="!mergeTarget[member.id] || savingId === member.id" @click="mergeMember(member)">
-              {{ t('members.merge') }}
-            </button>
+            <div>
+              <div class="flex items-center gap-2">
+                <input
+                  v-model="aliasDraft[member.id]"
+                  type="text"
+                  class="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] text-on-surface"
+                  :placeholder="t('members.addAliasPlaceholder')"
+                  @keydown.enter="addAliases(member)"
+                />
+                <button type="button" class="btn btn-secondary shrink-0 px-3 py-1.5 text-[11px]" :disabled="!aliasDraft[member.id]?.trim()" @click="addAliases(member)">
+                  {{ t('members.addNames') }}
+                </button>
+              </div>
+              <p class="mt-1 text-[10px] text-on-surface-variant/60">
+                {{ t('members.addAliasBulkHint') }}
+              </p>
+              <p v-if="aliasErrors[member.id]" class="mt-1 text-[10px] text-error">
+                {{ aliasErrors[member.id] }}
+              </p>
+            </div>
           </div>
-        </details>
+
+          <div class="mb-3">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant/70">
+                {{ t('members.profileAnalysis') }}
+              </span>
+              <button v-if="editingSummaryId !== member.id" type="button" class="btn btn-primary inline-flex items-center gap-1.5 !min-h-0 px-3 py-1.5 text-[12px]" @click="startEditSummary(member)">
+                <span class="material-symbols-outlined text-[16px]">edit</span>
+                {{ t('members.editSummary') }}
+              </button>
+            </div>
+            <div v-if="editingSummaryId === member.id" class="flex flex-col gap-2">
+              <textarea
+                v-model="summaryDraft[member.id]"
+                rows="3"
+                class="w-full resize-y rounded-lg border border-primary/40 bg-surface px-2.5 py-1.5 text-[13px] leading-relaxed text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                @keydown.escape="cancelEditSummary(member.id)"
+              />
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" class="btn btn-primary px-2.5 py-1 text-[11px]" :disabled="savingId === member.id" @click="saveSummary(member)">
+                  {{ t('members.save') }}
+                </button>
+                <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" @click="cancelEditSummary(member.id)">
+                  {{ t('members.cancel') }}
+                </button>
+              </div>
+            </div>
+            <p v-else class="text-[13px] leading-relaxed text-on-surface-variant">
+              {{ member.behavioral_summary || t('members.noSummaryYet') }}
+            </p>
+          </div>
+
+          <div class="mb-3 flex flex-wrap gap-2">
+            <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
+              {{ formatHumorType(member.profile_data.humor_type) }}
+            </span>
+            <span class="rounded-full bg-secondary/10 px-2.5 py-1 text-[10px] font-semibold text-secondary"> {{ member.profile_data.emoji_usage }} emoji </span>
+            <span
+              v-for="topic in member.profile_data.dominant_topics.slice(0, 2)"
+              :key="topic"
+              class="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-medium text-on-surface-variant"
+            >
+              {{ topic }}
+            </span>
+          </div>
+
+          <div v-if="member.profile_data.sensitivity_flags.length > 0" class="mb-3 flex flex-wrap gap-1.5">
+            <span v-for="flag in member.profile_data.sensitivity_flags" :key="flag" class="rounded-md bg-error/[0.06] px-2 py-0.5 text-[10px] text-on-surface-variant/60">
+              {{ flag }}
+            </span>
+          </div>
+
+          <!-- Merge duplicates (advanced) -->
+          <details class="border-t border-outline-variant/50 pt-3">
+            <summary class="cursor-pointer text-[11px] font-medium text-on-surface-variant/70 hover:text-on-surface-variant">
+              {{ t('members.advancedMerge') }}
+            </summary>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <select v-model="mergeTarget[member.id]" class="rounded-lg border border-outline-variant bg-surface px-2 py-1.5 text-[11px] text-on-surface-variant">
+                <option value="">{{ t('members.mergeWith') }}</option>
+                <option v-for="other in members.filter((m) => m.id !== member.id)" :key="other.id" :value="other.id">
+                  {{ other.display_name }}
+                </option>
+              </select>
+              <button type="button" class="btn btn-secondary px-2.5 py-1 text-[11px]" :disabled="!mergeTarget[member.id] || savingId === member.id" @click="mergeMember(member)">
+                {{ t('members.merge') }}
+              </button>
+            </div>
+          </details>
+        </div>
       </article>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, reactive } from 'vue';
+import { ref, watch, onMounted, reactive, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { apiFetch } from '../lib/api';
 import LoadingState from './LoadingState.vue';
@@ -254,7 +308,41 @@ const aliasErrors = reactive<Record<string, string>>({});
 const nameDraft = reactive<Record<string, string>>({});
 const summaryDraft = reactive<Record<string, string>>({});
 const mergeTarget = reactive<Record<string, string>>({});
+const expandedIds = ref<Set<string>>(new Set());
 const { confirm } = useConfirm();
+
+const allExpanded = computed(() => members.value.length > 0 && members.value.every((m) => expandedIds.value.has(m.id)));
+
+function isExpanded(memberId: string) {
+  return expandedIds.value.has(memberId);
+}
+
+function toggleExpand(memberId: string) {
+  const next = new Set(expandedIds.value);
+  if (next.has(memberId)) next.delete(memberId);
+  else next.add(memberId);
+  expandedIds.value = next;
+}
+
+function expandAll() {
+  expandedIds.value = new Set(members.value.map((m) => m.id));
+}
+
+function collapseAll() {
+  if (editingNameId.value) cancelEditName(editingNameId.value);
+  if (editingSummaryId.value) cancelEditSummary(editingSummaryId.value);
+  expandedIds.value = new Set();
+}
+
+function toggleExpandAll() {
+  if (allExpanded.value) collapseAll();
+  else expandAll();
+}
+
+function expandMember(memberId: string) {
+  if (expandedIds.value.has(memberId)) return;
+  expandedIds.value = new Set([...expandedIds.value, memberId]);
+}
 
 function memberAliases(member: UserProfile): string[] {
   return member.profile_data?.aliases ?? [];
@@ -354,6 +442,7 @@ function formatHumorType(type: string | undefined) {
 }
 
 function startEditName(member: UserProfile) {
+  expandMember(member.id);
   editingNameId.value = member.id;
   nameDraft[member.id] = member.display_name;
 }
@@ -364,6 +453,7 @@ function cancelEditName(memberId: string) {
 }
 
 function startEditSummary(member: UserProfile) {
+  expandMember(member.id);
   editingSummaryId.value = member.id;
   summaryDraft[member.id] = member.behavioral_summary ?? '';
 }
@@ -606,6 +696,7 @@ async function load() {
   try {
     const rows = await apiFetch<UserProfile[]>(`/groups/${props.groupId}/members`);
     members.value = rows.map(normalizeUserProfile);
+    expandedIds.value = new Set();
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('members.failedLoad');
     members.value = [];
