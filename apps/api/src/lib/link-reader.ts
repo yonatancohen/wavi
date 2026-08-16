@@ -43,6 +43,69 @@ function truncateContent(text: string, maxChars = 6000): string {
 }
 
 /**
+ * True when extracted "content" is a bot/paywall shell rather than article text.
+ * ScienceDirect often returns Cloudflare HTML that looks like a successful extract.
+ */
+export function isUnusableLinkContent(content: string): boolean {
+  const t = content.replace(/\s+/g, ' ').trim();
+  if (t.length < 80) return true;
+  const lower = t.toLowerCase();
+  if (/cloudflare|cf-error|just a moment|attention required|enable javascript and cookies/i.test(lower)) {
+    return true;
+  }
+  if (/access denied|captcha|please verify you are a human|security check/i.test(lower)) {
+    return true;
+  }
+  // Thin paywall shells without abstract/body
+  if (/sciencedirect|elsevier/i.test(lower) && t.length < 400 && !/\babstract\b/i.test(lower)) {
+    return true;
+  }
+  return false;
+}
+
+export function linkContentsAreUsable(links: LinkContent[] | null | undefined): boolean {
+  if (!links?.length) return false;
+  return links.some((l) => !l.failed && l.content.trim() && !isUnusableLinkContent(l.content));
+}
+
+/**
+ * Search queries when direct extract fails (paywalled / Cloudflare hosts).
+ * Prefer DOI/PII lookups that often surface open abstracts via Crossref/Unpaywall mirrors.
+ */
+export function linkFallbackSearchQueries(urls: string[]): string[] {
+  const queries: string[] = [];
+  const seen = new Set<string>();
+  const push = (q: string) => {
+    const t = q.replace(/\s+/g, ' ').trim();
+    if (t.length < 8) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    queries.push(t.slice(0, 300));
+  };
+
+  for (const url of urls) {
+    try {
+      const u = new URL(url);
+      // Strip tracking params for cleaner search / extract fallback
+      u.search = '';
+      u.hash = '';
+      push(u.toString());
+      const pii = u.pathname.match(/\/pii\/([A-Z0-9]+)/i)?.[1];
+      if (pii) {
+        push(`ScienceDirect ${pii} abstract`);
+        push(`Elsevier article ${pii}`);
+      }
+      const doi = u.pathname.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i)?.[0];
+      if (doi) push(`${doi} abstract`);
+    } catch {
+      push(url);
+    }
+  }
+  return queries.slice(0, 4);
+}
+
+/**
  * Fetch readable page text for shared links via Tavily Extract.
  * Triggered whenever a tagged/quoted message carries a URL — ask wording does not matter.
  */
@@ -87,11 +150,12 @@ export async function fetchLinkContents(urls: string[], query?: string): Promise
     const byUrl = new Map<string, LinkContent>();
     for (const row of data.results ?? []) {
       const content = truncateContent(row.raw_content ?? '');
+      const unusable = !content || isUnusableLinkContent(content);
       byUrl.set(row.url, {
         url: row.url,
-        title: row.title,
-        content,
-        failed: !content,
+        title: unusable ? undefined : row.title,
+        content: unusable ? '' : content,
+        failed: unusable,
       });
     }
     for (const fail of data.failed_results ?? []) {

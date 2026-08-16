@@ -1,8 +1,8 @@
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
 import { normalizeWebSearchQuery, searchWeb, shouldUseWebSearch } from '../lib/web-search.js';
-import { collectMessageUrls, fetchLinkContents } from '../lib/link-reader.js';
-import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData, RelationshipPair } from '@wavi/shared';
+import { collectMessageUrls, fetchLinkContents, linkContentsAreUsable, linkFallbackSearchQueries } from '../lib/link-reader.js';
+import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData, RelationshipPair, WebSearchContext } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName, namesLikelyMatch } from '../lib/identity.js';
 import { getProfileAliases } from '../lib/alias-store.js';
@@ -62,15 +62,20 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   );
 
   let link_contents = null;
+  let web_search: WebSearchContext | null = null;
   // Any http(s) URL in the tagged message or the quoted link/document — text of the ask does not matter.
   const linkUrls = collectMessageUrls(normalizedMessage, quotedMessage?.body);
   if (structured.web_search_enabled && linkUrls.length > 0) {
     link_contents = await fetchLinkContents(linkUrls);
-  }
-
-  let web_search = null;
-  // Prefer reading shared links over a generic search when a URL is in play.
-  if (structured.web_search_enabled && !linkUrls.length && shouldUseWebSearch(normalizedMessage)) {
+    // ScienceDirect and similar hosts often Cloudflare-block extract. Fall back to web search
+    // so we still get abstract/snippets instead of inventing "blocked / security token" stories.
+    if (!linkContentsAreUsable(link_contents)) {
+      for (const q of linkFallbackSearchQueries(linkUrls)) {
+        web_search = await searchWeb(q);
+        if (web_search?.results?.length || web_search?.answer) break;
+      }
+    }
+  } else if (structured.web_search_enabled && shouldUseWebSearch(normalizedMessage)) {
     web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
   }
 

@@ -310,7 +310,7 @@ Facts — no invention:
 - About what happened in the group: only from recent messages, events, memories, or retrieved past context you were given. Do not invent who said what, message counts, decisions, or details that are not written there.
 - If asked for a summary / who is right / what happened — ground on the conversation you received. If something is missing, say you're not sure / didn't see it, like a person. Do not fill gaps with a story.
 - External facts (news, scores, weather, prices): if a web-search block is present, answer from it. If there are no results, do not guess numbers or "facts" — say you couldn't find anything specific / you're not sure.
-- Shared links: if a link-contents block is present, read and rely on it. Do not invent what an article says if the content failed or is incomplete.
+- Shared links: if a link-contents block is present, read and rely on it. If fetch failed but web-search results are present, rely on those. Do not invent what an article says, and do not invent access stories (Cloudflare, security tokens, paywall timers).
 - Guesses and opinions are fine when clearly framed as opinion ("I think", "seems like"). Never present a guess as a fact.
 
 Only treat people on the roster (and anyone you were asked to involve) as group members. Greetings and slang are not people — do not invent activity about them.
@@ -649,7 +649,9 @@ function buildLinkContentsBlock(ctx: PromptContext, he: boolean): string {
   ];
   for (const link of links) {
     if (link.failed || !link.content.trim()) {
-      parts.push(`Could not fetch content from: ${link.url}\nDo not invent what it says — say you couldn't read the link.`);
+      parts.push(
+        `Could not fetch content from: ${link.url}\nSay briefly that you couldn't read the link.\nDo not invent technical blockers (Cloudflare, security tokens, ScienceDirect locks, "everyone is blocked", timers).\nDo not invent an article summary. Group chat about a similar topic is not a summary of this URL unless someone explicitly wrote about this same link.`,
+      );
     } else {
       const heading = link.title?.trim() ? `Title: ${link.title.trim()}\n` : '';
       parts.push(`URL: ${link.url}\n${heading}Content:\n${link.content}`);

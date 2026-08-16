@@ -258,6 +258,33 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('SHARED LINK (fetched content)');
   });
 
+  it('bans inventing Cloudflare/token excuses when link fetch failed', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'סכם לי https://www.sciencedirect.com/science/article/pii/S0738059325001683',
+      web_search_enabled: true,
+      link_contents: [
+        {
+          url: 'https://www.sciencedirect.com/science/article/pii/S0738059325001683',
+          content: '',
+          failed: true,
+        },
+      ],
+      character_config: {
+        voice: 'Curious.',
+        opinions: ['Facts matter'],
+        signature_behavior: 'Reads sources.',
+        sliders: { formality: 50, humor: 40, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('אסור להמציא סיבות טכניות');
+    expect(prompt).toContain('Cloudflare');
+    expect(prompt).toContain('אל תמציא חסימות/טוקנים/Cloudflare');
+  });
+
   it('does not encourage guessing when web search returns nothing', () => {
     const ctx = makeContext({
       language_mode: 'he',
