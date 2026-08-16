@@ -1,6 +1,7 @@
 import { db } from '../db/client.js';
 import { embed } from '../lib/embeddings.js';
 import { normalizeWebSearchQuery, searchWeb, shouldUseWebSearch } from '../lib/web-search.js';
+import { collectMessageUrls, fetchLinkContents } from '../lib/link-reader.js';
 import type { PromptContext, LanguageMode, MentionedPerson, QuotedMessageContext, UserProfileData, RelationshipPair } from '@wavi/shared';
 export { buildSystemPrompt, buildConversationTurns } from './prompt-build.js';
 import { messageReferencesName, namesLikelyMatch } from '../lib/identity.js';
@@ -60,8 +61,18 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     queryClass,
   );
 
+  let link_contents = null;
+  const linkUrls = collectMessageUrls(normalizedMessage, quotedMessage?.body);
+  if (structured.web_search_enabled && linkUrls.length > 0) {
+    const linkQuery = normalizeWebSearchQuery(normalizedMessage)
+      .replace(/https?:\/\/\S+/gi, '')
+      .trim();
+    link_contents = await fetchLinkContents(linkUrls, linkQuery || undefined);
+  }
+
   let web_search = null;
-  if (structured.web_search_enabled && shouldUseWebSearch(normalizedMessage)) {
+  // Prefer reading shared links over a generic search when a URL is in play.
+  if (structured.web_search_enabled && !linkUrls.length && shouldUseWebSearch(normalizedMessage)) {
     web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
   }
 
@@ -80,6 +91,7 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     quoted_message: quotedMessage ?? null,
     current_message: normalizedMessage,
     web_search,
+    link_contents,
   };
 }
 

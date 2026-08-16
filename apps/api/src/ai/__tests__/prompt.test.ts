@@ -224,6 +224,40 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('casual best-guess');
   });
 
+  it('includes fetched shared-link contents for Hebrew asks', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'תשלח ל @wavi',
+      quoted_message: {
+        body: 'הנה https://www.sciencedirect.com/science/article/pii/S0738059325001683',
+        sender_wa_id: '1',
+        sender_name: 'Caduri',
+      },
+      web_search_enabled: true,
+      link_contents: [
+        {
+          url: 'https://www.sciencedirect.com/science/article/pii/S0738059325001683',
+          title: 'Education study',
+          content: 'Abstract: teachers used AI tools in classrooms…',
+        },
+      ],
+      character_config: {
+        voice: 'Curious.',
+        opinions: ['Facts matter'],
+        signature_behavior: 'Reads sources.',
+        sliders: { formality: 50, humor: 40, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('קישור שנשלח');
+    expect(prompt).toContain('Abstract: teachers used AI tools');
+    expect(prompt).toContain('sciencedirect.com');
+    expect(prompt).toContain('אל תמציא ממה שאין כאן');
+    expect(prompt).not.toContain('SHARED LINK (fetched content)');
+  });
+
   it('does not encourage guessing when web search returns nothing', () => {
     const ctx = makeContext({
       language_mode: 'he',

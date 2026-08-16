@@ -62,10 +62,10 @@ RAG results that overlap the last 20 messages (by content) are filtered out as d
 
 ### 7. Web search is a different system
 
-If **web search** is enabled for the group (`web_search_enabled` + `TAVILY_API_KEY`), factual questions can trigger **Tavily (the internet)** via `apps/api/src/lib/web-search.ts`. Group history still goes through RAG in parallel, but:
+If **web search** is enabled for the group (`web_search_enabled` + `TAVILY_API_KEY`), factual questions can trigger **Tavily (the internet)** via `apps/api/src/lib/web-search.ts`. When a tagged or quoted message includes an **http(s) link**, Wavi **extracts the page** via Tavily Extract (`apps/api/src/lib/link-reader.ts`) and puts the content in the prompt — so “תשלח ל @wavi” on a study link can actually be read. Group history still goes through RAG in parallel, but:
 
-- Web search does not scan chat history.
-- When web results are empty, the prompt tells Wavi **not** to say it will “check” or “search” — it should answer from knowledge or admit it does not have current data.
+- Web search / link extract do not scan chat history.
+- When web or link results are empty, the prompt tells Wavi **not** to invent facts — say it could not find / read them.
 
 Do not confuse internet lookup with group recall.
 

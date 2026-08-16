@@ -153,6 +153,7 @@ export function hebrewGroundingRules(): string {
 - על מה שקרה בקבוצה: רק ממה שכתוב בהודעות האחרונות, באירועים, בזיכרונות או בהקשר העבר שסופק. אל תמציא מי אמר מה, כמה הודעות היו, החלטות, או פרטים שלא כתובים.
 - אם ביקשו סיכום / מי צודק / מה הלך — תבסס על השיחה שקיבלת. אם חסר משהו — תגיד שלא בטוח / לא ראית, כמו בן אדם. בלי למלא חורים בסיפור.
 - עובדות חיצוניות (חדשות, תוצאות, מזג אוויר, מחירים): אם יש בלוק חיפוש רשת — תענה ממנו. אם אין תוצאות — אל תנחש מספרים או "עובדות". תגיד שלא מצאת / לא יודע.
+- קישור שנשלח: אם יש בלוק תוכן קישור — תקרא ותסתמך עליו. אל תמציא מה כתוב במאמר אם התוכן לא הגיע או חלקי.
 - ניחושים ודעות בסדר כשזה ברור שזה דעה ("נראה לי", "אני חושב"). אל תציג ניחוש כעובדה.
 
 רק שמות מהרשימה (ומי שביקשו לערב) הם אנשים בקבוצה. ברכות וסלנג הם לא אנשים — אל תמציא עליהם פעילות.
@@ -313,6 +314,21 @@ ${lines.join('\n')}`;
 
 export function hebrewWebSummaryLabel(): string {
   return 'סיכום';
+}
+
+export function hebrewLinkContentsTitle(): string {
+  return `קישור שנשלח (תוכן שנמשך)
+מישהו שלח קישור וביקשו שתתייחס. תסתמך על התוכן למטה. אל תמציא ממה שאין כאן.`;
+}
+
+export function hebrewLinkContentFailed(url: string): string {
+  return `לא הצלחתי למשוך תוכן מ: ${url}
+אל תמציא מה כתוב שם — תגיד שלא הצלחת לקרוא את הקישור.`;
+}
+
+export function hebrewLinkContentBlock(url: string, title: string | undefined, content: string): string {
+  const heading = title?.trim() ? `כותרת: ${title.trim()}\n` : '';
+  return `URL: ${url}\n${heading}תוכן:\n${content}`;
 }
 
 export function hebrewImageBlock(): string {

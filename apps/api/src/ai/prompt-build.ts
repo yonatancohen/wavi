@@ -49,6 +49,9 @@ import {
   hebrewWebSearchEmpty,
   hebrewWebSearchResults,
   hebrewWebSummaryLabel,
+  hebrewLinkContentsTitle,
+  hebrewLinkContentFailed,
+  hebrewLinkContentBlock,
   hebrewWhatsAppFormatRules,
 } from './hebrew-reply-style.js';
 import { effectiveReplyLanguage, getLanguageName } from './language.js';
@@ -109,6 +112,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const memoriesBlock = buildMemoriesBlock(ctx, he, retiredBits);
   const eventsBlock = buildGroupEventsBlock(ctx, he);
   const webSearchBlock = buildWebSearchBlock(ctx, he);
+  const linkContentsBlock = buildLinkContentsBlock(ctx, he);
   const imageBlock = buildImageGenerationBlock(ctx.image_generation_enabled, he);
   const examplesBlock = buildVoiceExamplesBlock(ctx, he, retiredBits);
   const humorDnaBlock = buildHumorDnaBlock(ctx, { serious: seriousAsk, retiredBits });
@@ -187,6 +191,8 @@ ${imageBlock ? `<image_generation>\n${imageBlock}\n</image_generation>` : ''}
 ${datetimeBlock ? `<datetime>\n${datetimeBlock}\n</datetime>` : ''}
 
 ${webSearchBlock ? `<web_search>\n${webSearchBlock}\n</web_search>` : ''}
+
+${linkContentsBlock ? `<link_contents>\n${linkContentsBlock}\n</link_contents>` : ''}
 
 ${quotedBlock ? `<quoted_reply>\n${quotedBlock}\n</quoted_reply>` : ''}
 
@@ -284,6 +290,8 @@ ${datetimeBlock ? `<datetime>\n${datetimeBlock}\n</datetime>` : ''}
 
 ${webSearchBlock ? `<web_search>\n${webSearchBlock}\n</web_search>` : ''}
 
+${linkContentsBlock ? `<link_contents>\n${linkContentsBlock}\n</link_contents>` : ''}
+
 ${quotedBlock ? `<quoted_reply>\n${quotedBlock}\n</quoted_reply>` : ''}
 
 <format_rules>
@@ -302,6 +310,7 @@ Facts — no invention:
 - About what happened in the group: only from recent messages, events, memories, or retrieved past context you were given. Do not invent who said what, message counts, decisions, or details that are not written there.
 - If asked for a summary / who is right / what happened — ground on the conversation you received. If something is missing, say you're not sure / didn't see it, like a person. Do not fill gaps with a story.
 - External facts (news, scores, weather, prices): if a web-search block is present, answer from it. If there are no results, do not guess numbers or "facts" — say you couldn't find anything specific / you're not sure.
+- Shared links: if a link-contents block is present, read and rely on it. Do not invent what an article says if the content failed or is incomplete.
 - Guesses and opinions are fine when clearly framed as opinion ("I think", "seems like"). Never present a guess as a fact.
 
 Only treat people on the roster (and anyone you were asked to involve) as group members. Greetings and slang are not people — do not invent activity about them.
@@ -616,6 +625,34 @@ Stick to the results below. Do not add facts that are not here.
 Weave the answer into a casual reply — don't list sources or sound like a search engine.
 Query: "${search.query}"
 ${lines.join('\n')}`;
+}
+
+function buildLinkContentsBlock(ctx: PromptContext, he: boolean): string {
+  const links = ctx.link_contents;
+  if (!links?.length) return '';
+
+  if (he) {
+    const parts = [hebrewLinkContentsTitle()];
+    for (const link of links) {
+      if (link.failed || !link.content.trim()) {
+        parts.push(hebrewLinkContentFailed(link.url));
+      } else {
+        parts.push(hebrewLinkContentBlock(link.url, link.title, link.content));
+      }
+    }
+    return parts.join('\n\n');
+  }
+
+  const parts = ['BLOCK — SHARED LINK (fetched content)', 'Someone shared a link and asked you to engage with it. Rely on the content below. Do not invent what is not here.'];
+  for (const link of links) {
+    if (link.failed || !link.content.trim()) {
+      parts.push(`Could not fetch content from: ${link.url}\nDo not invent what it says — say you couldn't read the link.`);
+    } else {
+      const heading = link.title?.trim() ? `Title: ${link.title.trim()}\n` : '';
+      parts.push(`URL: ${link.url}\n${heading}Content:\n${link.content}`);
+    }
+  }
+  return parts.join('\n\n');
 }
 
 function buildSenderToneHints(profileData: UserProfileData | undefined | null, he: boolean): string {

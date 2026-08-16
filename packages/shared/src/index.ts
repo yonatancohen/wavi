@@ -622,6 +622,14 @@ export interface WebSearchContext {
   results: WebSearchSnippet[];
 }
 
+/** Page text pulled for a URL shared in chat (quoted or in the tagged message). */
+export interface LinkContent {
+  url: string;
+  title?: string;
+  content: string;
+  failed?: boolean;
+}
+
 export interface PromptContext {
   character_config: CharacterConfig;
   group_name: string;
@@ -647,6 +655,8 @@ export interface PromptContext {
   current_message: string;
   web_search_enabled: boolean;
   web_search?: WebSearchContext | null;
+  /** Fetched contents for URLs in the tagged / quoted message. */
+  link_contents?: LinkContent[] | null;
   image_generation_enabled: boolean;
   /** Upcoming scheduled events/posts for this group — used for natural event awareness. */
   upcoming_events?: UpcomingEvent[];
