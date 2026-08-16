@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { hebrewGrammarFirstRules, hebrewHumorCraftRules, hebrewHumorStyleLabel, hebrewWhatsAppFormatRules } from '../hebrew-reply-style.js';
+import { hebrewGrammarFirstRules, hebrewGroundingRules, hebrewHumorCraftRules, hebrewHumorStyleLabel, hebrewWebSearchEmpty, hebrewWhatsAppFormatRules } from '../hebrew-reply-style.js';
 
 describe('hebrewGrammarFirstRules', () => {
   it('orders grammar before format and humor', () => {
@@ -49,6 +49,17 @@ describe('hebrewHumorCraftRules', () => {
     const retired = hebrewHumorCraftRules(70, { retiredBits: ['הציפורניים של אוהד'] });
     expect(retired).toContain('הציפורניים של אוהד');
     expect(retired).toContain('אסורים עכשיו');
+  });
+});
+
+describe('hebrewGroundingRules', () => {
+  it('bans inventing chat facts and external guesses', () => {
+    const rules = hebrewGroundingRules();
+    expect(rules).toContain('עובדות — בלי המצאות');
+    expect(rules).toContain('אל תמציא מי אמר מה');
+    expect(rules).toContain('אל תנחש מספרים');
+    expect(hebrewWebSearchEmpty()).toContain('אל תמציא עובדות');
+    expect(hebrewWebSearchEmpty()).not.toContain('בניחוש');
   });
 });
 

@@ -9,6 +9,9 @@ const SKIP_PATTERNS = [
   /^(?:summarize|סכם|תסכם)\b/i,
   /^(?:settle|תפתור)\b/i,
   /^(?:thanks|thank you|תודה|תודה רבה)\b/i,
+  // Group-chat recap / verdict — answer from conversation context, not the open web.
+  /(?:מי צודק|מה הלך(?:\s+פה)?|מה קרה(?:\s+פה)?|תסכם|סיכום)/u,
+  /\b(?:who(?:'s| is) right|what happened(?:\s+here)?|what went on|summarize|summary)\b/i,
 ];
 
 const QUESTION_PATTERNS = [
@@ -19,11 +22,13 @@ const QUESTION_PATTERNS = [
   /\b(?:היום|עכשיו|מזג|תוצאה|חדשות|מחיר|שער)\b/u,
 ];
 
-// Explicit requests to search — match even without question marks or factual keywords.
+// Explicit requests to search / verify — match even without question marks or factual keywords.
 // Note: \b is ASCII-only so Hebrew patterns use (?:^|[\s,]) or bare substring matches instead.
 const EXPLICIT_SEARCH_PATTERNS = [
-  /\b(?:search|google|look.?up|check.?(?:the\s+)?(?:web|internet|online)|browse)\b/i,
-  /(?:^|[\s,])(?:תחפש|חפש|תגגל|גגל|תחפשי|חפשי)(?:[\s,]|$)/u,
+  /\b(?:search|google|look.?up|check.?(?:the\s+)?(?:web|internet|online)|browse|fact.?check|verify)\b/i,
+  /\b(?:is it true|are they right about)\b/i,
+  /(?:^|[\s,])(?:תחפש|חפש|תגגל|גגל|תחפשי|חפשי|תבדוק|תבדקי)(?:[\s,]|$)/u,
+  /(?:האם זה נכון|זה נכון ש)/u,
   // "אינטרנט" anywhere in the message (covers "תבדוק באינטרנט", "יש לך אינטרנט?" etc.)
   /אינטרנט/u,
   /\b(?:internet|online|web)\b/i,

@@ -20,6 +20,11 @@ describe('shouldUseWebSearch', () => {
     expect(shouldUseWebSearch('thanks!')).toBe(false);
   });
 
+  it('skips group-chat recap / verdict asks — those use conversation context', () => {
+    expect(shouldUseWebSearch('@wavi מי צודק בכל מה שהלך פה ומה הלך פה?')).toBe(false);
+    expect(shouldUseWebSearch('@wavi who is right and what happened here?')).toBe(false);
+  });
+
   it('returns false for very short messages', () => {
     expect(shouldUseWebSearch('lol ok')).toBe(false);
   });
@@ -30,5 +35,7 @@ describe('shouldUseWebSearch', () => {
     expect(shouldUseWebSearch('search for the latest news')).toBe(true);
     expect(shouldUseWebSearch('check the internet for me')).toBe(true);
     expect(shouldUseWebSearch('תגגל את זה')).toBe(true);
+    expect(shouldUseWebSearch('האם זה נכון שגשם מחר?')).toBe(true);
+    expect(shouldUseWebSearch('is it true that the store is closed today?')).toBe(true);
   });
 });

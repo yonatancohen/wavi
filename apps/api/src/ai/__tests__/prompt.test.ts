@@ -220,6 +220,27 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('BLOCK — WEB SEARCH');
     expect(prompt).toContain('Sunny and warm.');
     expect(prompt).toContain('https://example.com');
+    expect(prompt).toContain('Stick to the results below');
+    expect(prompt).not.toContain('casual best-guess');
+  });
+
+  it('does not encourage guessing when web search returns nothing', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      character_config: {
+        voice: 'Curious.',
+        opinions: ['Facts matter'],
+        signature_behavior: 'Cites sources.',
+        sliders: { formality: 50, humor: 50, verbosity: 50, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+      web_search_enabled: true,
+      web_search: null,
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('אל תמציא עובדות');
+    expect(prompt).not.toContain('בניחוש');
   });
 
   it('includes emoji usage guidance in the personality block', () => {
@@ -346,6 +367,8 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('ולגבי');
     expect(prompt).toContain('תשובה תקינה לאותה בקשה');
     expect(prompt).toContain('אל תפתח ב"לא,"');
+    expect(prompt).toContain('עובדות — בלי המצאות');
+    expect(prompt).toContain('אל תמציא מי אמר מה');
     expect(prompt).not.toContain('Answer the tagged message first');
     expect(prompt).not.toContain('Humor — off for this ask');
     expect(prompt).not.toContain('Do not open with "Nah,"');
@@ -374,6 +397,8 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(ctx);
     expect(prompt).toContain('Humor — off for this ask');
     expect(prompt).toContain('Answer the tagged message first');
+    expect(prompt).toContain('Facts — no invention');
+    expect(prompt).toContain('Do not invent who said what');
     expect(prompt).not.toContain('הומור — כבוי');
     expect(prompt).not.toContain('בלוק 10');
     expect(prompt).not.toContain('<humor_dna>');
