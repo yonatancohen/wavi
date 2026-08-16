@@ -44,7 +44,7 @@ function truncateContent(text: string, maxChars = 6000): string {
 
 /**
  * Fetch readable page text for shared links via Tavily Extract.
- * Used when someone tags Wavi with / on a message that contains a URL.
+ * Triggered whenever a tagged/quoted message carries a URL — ask wording does not matter.
  */
 export async function fetchLinkContents(urls: string[], query?: string): Promise<LinkContent[]> {
   if (!urls.length) return [];

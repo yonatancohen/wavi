@@ -254,7 +254,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('קישור שנשלח');
     expect(prompt).toContain('Abstract: teachers used AI tools');
     expect(prompt).toContain('sciencedirect.com');
-    expect(prompt).toContain('אל תמציא ממה שאין כאן');
+    expect(prompt).toContain('לא משנה ניסוח התיוג');
     expect(prompt).not.toContain('SHARED LINK (fetched content)');
   });
 

@@ -318,7 +318,7 @@ export function hebrewWebSummaryLabel(): string {
 
 export function hebrewLinkContentsTitle(): string {
   return `קישור שנשלח (תוכן שנמשך)
-מישהו שלח קישור וביקשו שתתייחס. תסתמך על התוכן למטה. אל תמציא ממה שאין כאן.`;
+יש קישור או מסמך בהודעה שתייגו / בהודעה המצוטטת. תקרא את התוכן למטה ותסתמך עליו — לא משנה ניסוח התיוג. אל תמציא ממה שאין כאן.`;
 }
 
 export function hebrewLinkContentFailed(url: string): string {

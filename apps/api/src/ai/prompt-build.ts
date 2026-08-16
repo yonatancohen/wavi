@@ -643,7 +643,10 @@ function buildLinkContentsBlock(ctx: PromptContext, he: boolean): string {
     return parts.join('\n\n');
   }
 
-  const parts = ['BLOCK — SHARED LINK (fetched content)', 'Someone shared a link and asked you to engage with it. Rely on the content below. Do not invent what is not here.'];
+  const parts = [
+    'BLOCK — SHARED LINK (fetched content)',
+    'A link or document is in the tagged or quoted message. Read the content below and rely on it — the wording of the tag does not matter. Do not invent what is not here.',
+  ];
   for (const link of links) {
     if (link.failed || !link.content.trim()) {
       parts.push(`Could not fetch content from: ${link.url}\nDo not invent what it says — say you couldn't read the link.`);

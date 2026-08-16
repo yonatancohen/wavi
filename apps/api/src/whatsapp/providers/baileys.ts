@@ -9,14 +9,15 @@ import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedM
 // Baileys uses @hapi/boom to encode disconnect reasons in lastDisconnect.error.
 // We read the status code to decide whether to reconnect.
 import { Boom } from '@hapi/boom';
+import { textFromBaileysMessageContent } from '../baileys-message-text.js';
 
 function resolveBaileysQuoted(contextInfo: unknown): QuotedMessage | undefined {
   const ctx = contextInfo as {
-    quotedMessage?: { conversation?: string; extendedTextMessage?: { text?: string } } | null;
+    quotedMessage?: Record<string, unknown> | null;
     participant?: string;
   } | null;
   if (!ctx?.quotedMessage) return undefined;
-  const body = ctx.quotedMessage.conversation ?? ctx.quotedMessage.extendedTextMessage?.text ?? '';
+  const body = textFromBaileysMessageContent(ctx.quotedMessage);
   if (!body) return undefined;
   const senderWaId = ctx.participant ?? '';
   return {
@@ -263,7 +264,7 @@ export function createBaileysProvider(): WhatsAppProvider {
         if (!msg.key.remoteJid?.endsWith('@g.us')) continue;
         if (msg.key.fromMe) continue;
 
-        const body = msg.message?.conversation ?? msg.message?.extendedTextMessage?.text ?? null;
+        const body = textFromBaileysMessageContent(msg.message) || null;
 
         if (!body) continue;
 

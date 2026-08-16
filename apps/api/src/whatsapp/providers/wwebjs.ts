@@ -10,6 +10,7 @@ import { handleIncomingMessage, handleReaction } from '../handlers.js';
 import { bindAgentIdentity, clearAgentIdentity, loadStoredAgentIdentity, persistBoundAgentIdentity } from '../agent-identity.js';
 import type { WhatsAppProvider, SSEClient, GroupSummary, InboundMessage, QuotedMessage, ReplyMedia } from '../provider.js';
 import { participantCountFromWa } from '../../lib/participant-count.js';
+import { enrichWwebjsMessageBody } from '../wwebjs-message-text.js';
 
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WA_DATA_PATH = process.env.WA_SESSION_PATH ?? path.join(API_ROOT, '.wwebjs_auth');
@@ -19,7 +20,19 @@ const GET_CONTACT_TIMEOUT_MS = 15_000;
 
 async function resolveQuotedMessage(msg: {
   hasQuotedMsg?: boolean;
-  getQuotedMessage?: () => Promise<{ body?: string; author?: string; from?: string; fromMe?: boolean }>;
+  getQuotedMessage?: () => Promise<{
+    body?: string;
+    author?: string;
+    from?: string;
+    fromMe?: boolean;
+    links?: Array<{ link?: string } | string> | null;
+    _data?: {
+      canonicalUrl?: string | null;
+      matchedText?: string | null;
+      links?: Array<{ link?: string } | string> | null;
+    } | null;
+    getContact?: () => Promise<{ pushname?: string }>;
+  }>;
 }): Promise<QuotedMessage | undefined> {
   if (!msg.hasQuotedMsg || !msg.getQuotedMessage) return undefined;
   try {
@@ -28,13 +41,13 @@ async function resolveQuotedMessage(msg: {
     const senderWaId = quoted.author ?? quoted.from ?? '';
     let senderName = senderWaId;
     try {
-      const contact = await (quoted as { getContact?: () => Promise<{ pushname?: string }> }).getContact?.();
+      const contact = await quoted.getContact?.();
       senderName = contact?.pushname ?? senderWaId;
     } catch {
       // use JID fallback
     }
     return {
-      body: quoted.body ?? '',
+      body: enrichWwebjsMessageBody(quoted.body, quoted),
       senderWaId,
       senderName,
       fromMe,
@@ -528,7 +541,10 @@ export function createWwebjsProvider(): WhatsAppProvider {
       isGroup: chat.isGroup,
       chatName: chat.name ?? '',
       senderWaId: msg.author ?? msg.from,
-      body: msg.body,
+      body: enrichWwebjsMessageBody(
+        msg.body,
+        msg as { links?: Array<{ link?: string } | string> | null; _data?: { canonicalUrl?: string | null; matchedText?: string | null; links?: Array<{ link?: string } | string> | null } | null },
+      ),
       timestampMs: msg.timestamp * 1000,
       waMsgId: msg.id._serialized,
       mentionedIds: (msg as { mentionedIds?: string[] }).mentionedIds ?? [],

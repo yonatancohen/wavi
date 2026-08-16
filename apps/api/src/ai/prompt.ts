@@ -62,12 +62,10 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
   );
 
   let link_contents = null;
+  // Any http(s) URL in the tagged message or the quoted link/document — text of the ask does not matter.
   const linkUrls = collectMessageUrls(normalizedMessage, quotedMessage?.body);
   if (structured.web_search_enabled && linkUrls.length > 0) {
-    const linkQuery = normalizeWebSearchQuery(normalizedMessage)
-      .replace(/https?:\/\/\S+/gi, '')
-      .trim();
-    link_contents = await fetchLinkContents(linkUrls, linkQuery || undefined);
+    link_contents = await fetchLinkContents(linkUrls);
   }
 
   let web_search = null;
