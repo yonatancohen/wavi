@@ -5,6 +5,7 @@ import { anthropicContentTypes, textFromAnthropicContent } from './anthropic-tex
 import { normalizeReplyModel, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
 import { invokedRewriteInstruction, replyMissesInvokedPeople } from './reply-grounding.js';
 import { stripEmptyDisagreementOpener } from './reply-opener.js';
+import { effectiveReplyLanguage } from './language.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -72,6 +73,7 @@ export async function generateReplyText(params: {
 
   const invoked = ctx.invoked_people ?? [];
   if (rawReply && invoked.length > 0 && replyMissesInvokedPeople(rawReply, invoked)) {
+    const he = effectiveReplyLanguage(ctx.language_mode, ctx.current_message, ctx.recent_messages) === 'he';
     const retry = await anthropic.messages.create({
       model: replyModel,
       max_tokens: replyModel === 'claude-haiku-4-5' ? MAX_TOKENS : 1024,
@@ -81,7 +83,7 @@ export async function generateReplyText(params: {
         ...(params.extraTurns ?? []),
         { role: 'user', content: `${params.senderName}: ${ctx.current_message}` },
         { role: 'assistant', content: rawReply },
-        { role: 'user', content: invokedRewriteInstruction(invoked) },
+        { role: 'user', content: invokedRewriteInstruction(invoked, he) },
       ],
     });
     const retryText = textFromAnthropicContent(retry.content);

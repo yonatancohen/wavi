@@ -40,7 +40,10 @@ export function replyMissesInvokedPeople(reply: string, people: InvokedPersonRef
   });
 }
 
-export function invokedRewriteInstruction(people: InvokedPersonRef[]): string {
+export function invokedRewriteInstruction(people: InvokedPersonRef[], he = false): string {
   const labels = people.map((person) => person.invoked_as || person.display_name).join(', ');
+  if (he) {
+    return `התשובה הקודמת שלך לא שילבה את ${labels}, שביקשו שתערב. תענה שוב רק להודעה שתייגו. תקרא להם בשם ותכניס אותם לשיחה. בלי למשוך נושאים לא קשורים מהעבר.`;
+  }
   return `Your last reply did not involve ${labels}, who you were asked to bring in. Reply again to the tagged message only. Name them and pull them into the conversation. Do not bring in unrelated past topics.`;
 }

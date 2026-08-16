@@ -1,0 +1,14 @@
+---
+description: Keep Hebrew and English system prompts fully separate
+alwaysApply: true
+---
+
+# Separate Hebrew / English prompts
+
+When the effective reply language is **Hebrew**, all instructional system-prompt copy must be Hebrew — block titles, craft rules, grounding, humor DNA, rewrite nudges, automations, recovery. Do not mix English scaffolding into a Hebrew reply prompt.
+
+When the effective reply language is **English**, use English instructional copy.
+
+- Hebrew strings live in `apps/api/src/ai/hebrew-reply-style.ts` (or a clear Hebrew sibling helper).
+- Prefer `promptIsHebrew(ctx)` / `effectiveReplyLanguage(...)` branches over one bilingual blob.
+- Tests should assert Hebrew prompts do not contain English rule phrases (and English prompts do not contain Hebrew rule phrases) for any new prompt surface.

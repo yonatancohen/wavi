@@ -347,6 +347,36 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('תשובה תקינה לאותה בקשה');
     expect(prompt).toContain('אל תפתח ב"לא,"');
     expect(prompt).not.toContain('Answer the tagged message first');
+    expect(prompt).not.toContain('Humor — off for this ask');
+    expect(prompt).not.toContain('Do not open with "Nah,"');
+  });
+
+  it('keeps English instructional copy on English serious asks', () => {
+    const ctx = makeContext({
+      language_mode: 'en',
+      current_message: '@wavi who is right and what happened here?',
+      recent_messages: [makeMessage('remember Ohad nails gag again', true), makeMessage('lol', false, 'Yoni'), makeMessage('still on the Ohad nails bit', true)],
+      character_config: {
+        voice: 'Casual.',
+        opinions: ['Pizza is fine'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 90, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+        humor_dna: {
+          style: 'dry',
+          recurring_bits: ['Ohad nails'],
+          inside_references: [],
+          example: 'Ohad nails again',
+        },
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('Humor — off for this ask');
+    expect(prompt).toContain('Answer the tagged message first');
+    expect(prompt).not.toContain('הומור — כבוי');
+    expect(prompt).not.toContain('בלוק 10');
+    expect(prompt).not.toContain('<humor_dna>');
   });
 
   it('labels briefing as background and drops humor DNA on a live social ask', () => {
@@ -464,5 +494,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('הציפורניים של אוהד זה רץ');
     expect(prompt).not.toContain('קטע על הציפורניים של אוהד');
     expect(prompt).toContain('ויכוח נתצ מול חינוך');
+    expect(prompt).not.toContain('Humor — off for this ask');
+    expect(prompt).not.toContain('Answer the tagged message first');
   });
 });

@@ -1,6 +1,8 @@
 /**
  * Hebrew reply craft and Hebrew-only system-prompt copy.
  * When the reply is Hebrew, instructional text is Hebrew — no English scaffolding.
+ * English instructional copy lives in `prompt-build.ts` (and other non-Hebrew helpers).
+ * Keep the two languages on separate branches; do not mix.
  */
 
 import type { EmojiUsageLevel, HumorType, PersonalitySliders } from '@wavi/shared';

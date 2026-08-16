@@ -35,7 +35,16 @@ describe('replyMissesInvokedPeople', () => {
 });
 
 describe('invokedRewriteInstruction', () => {
-  it('names the people who were skipped', () => {
-    expect(invokedRewriteInstruction([{ display_name: 'Alon Arroyo', invoked_as: 'אלון' }])).toContain('אלון');
+  it('names the people who were skipped in English by default', () => {
+    const text = invokedRewriteInstruction([{ display_name: 'Alon Arroyo', invoked_as: 'אלון' }]);
+    expect(text).toContain('אלון');
+    expect(text).toContain('Your last reply did not involve');
+  });
+
+  it('uses Hebrew instructional copy when he=true', () => {
+    const text = invokedRewriteInstruction([{ display_name: 'Alon Arroyo', invoked_as: 'אלון' }], true);
+    expect(text).toContain('אלון');
+    expect(text).toContain('התשובה הקודמת שלך לא שילבה');
+    expect(text).not.toContain('Your last reply');
   });
 });
