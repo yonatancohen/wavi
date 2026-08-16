@@ -4,6 +4,7 @@ import { parseImageReply } from './image-reply.js';
 import { anthropicContentTypes, textFromAnthropicContent } from './anthropic-text.js';
 import { normalizeReplyModel, type QuotedMessageContext, type ReplyModel } from '@wavi/shared';
 import { invokedRewriteInstruction, replyMissesInvokedPeople } from './reply-grounding.js';
+import { stripEmptyDisagreementOpener } from './reply-opener.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -87,6 +88,12 @@ export async function generateReplyText(params: {
     if (retryText) rawReply = retryText;
     inputTokens += retry.usage.input_tokens;
     outputTokens += retry.usage.output_tokens;
+  }
+
+  // Strip dry-humor "לא," / "Nah," when the tagged ask was not yes/no — stops the
+  // tic from landing in chat and from seeding the next voice-example capture.
+  if (rawReply) {
+    rawReply = stripEmptyDisagreementOpener(rawReply, ctx.current_message);
   }
 
   return {

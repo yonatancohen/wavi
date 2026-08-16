@@ -422,9 +422,10 @@ export function createBaileysProvider(): WhatsAppProvider {
 
       await sock.sendPresenceUpdate('composing', jid);
 
+      // ~45ms/char feels closer to phone typing; floor/cap keep short and long replies human.
       const typingLen = media ? (media.caption?.length ?? 0) : body.length;
-      const typingMs = Math.min(Math.max(typingLen * 25, 1500), 5000);
-      await jitteredDelay(typingMs, 800);
+      const typingMs = Math.min(Math.max(typingLen * 45, 2800), 12_000);
+      await jitteredDelay(typingMs, 1200);
 
       await sock.sendPresenceUpdate('paused', jid);
 

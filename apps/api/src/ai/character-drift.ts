@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../db/client.js';
 import { redis } from '../lib/redis.js';
 import type { CharacterConfig, VoiceExample } from '@wavi/shared';
+import { hasEmptyDisagreementOpener } from './reply-opener.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -143,6 +144,8 @@ export async function maybeCaptureExamples(groupId: string): Promise<void> {
     .map((r) => {
       const trigger = r.message_id ? triggerMap[r.message_id] : null;
       if (!trigger?.body || !r.body) return null;
+      // Empty "לא," openers teach the model to start every reply that way.
+      if (hasEmptyDisagreementOpener(r.body)) return null;
       return {
         user: `${trigger.sender_name ?? 'User'}: ${trigger.body}`,
         agent: r.body,

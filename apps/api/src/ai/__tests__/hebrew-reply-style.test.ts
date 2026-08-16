@@ -14,6 +14,7 @@ describe('hebrewGrammarFirstRules', () => {
     expect(rules).toContain('ולגבי X');
     expect(rules).toContain('אני חושבת');
     expect(rules).toContain('נקבה');
+    expect(rules).toContain('אל תפתח ב"לא,"');
   });
 });
 
@@ -23,6 +24,7 @@ describe('hebrewWhatsAppFormatRules', () => {
     expect(rules).toContain('בלי מקף ארוך');
     expect(rules).toContain('ולגבי');
     expect(rules).toContain('נושא אחד');
+    expect(rules).toContain('פתיח שלילה ריק');
   });
 });
 

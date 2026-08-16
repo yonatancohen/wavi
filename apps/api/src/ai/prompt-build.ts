@@ -313,6 +313,7 @@ function englishWhatsAppFormatRules(): string {
   return `WhatsApp group chat on a phone. ONE short message — 1–3 sentences, ~280 chars max. Single line for banter.
 Only go longer when explicitly asked for a summary, list, or explanation.
 No markdown, bullet points, headers, lists, or "Here's the thing:" preambles.
+Do not open with "Nah," / "Nope," / "No," unless the tagged message made a claim or asked a yes/no you are rejecting. "Who is right" and "what happened" are not yes/no — answer straight.
 Verbosity slider = personality density, not message length.`;
 }
 

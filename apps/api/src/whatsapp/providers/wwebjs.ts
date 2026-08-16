@@ -626,8 +626,9 @@ export function createWwebjsProvider(): WhatsAppProvider {
     const chat = await waClient.getChatById(waGroupId);
     if (!chat) throw new Error(`WhatsApp chat not found: ${waGroupId}`);
 
-    const typingMs = Math.min(Math.max((media ? (media.caption?.length ?? 0) : replyBody.length) * 25, 1500), 5000);
-    const jitter = Math.floor(Math.random() * 800);
+    // ~45ms/char feels closer to phone typing; floor/cap keep short and long replies human.
+    const typingMs = Math.min(Math.max((media ? (media.caption?.length ?? 0) : replyBody.length) * 45, 2800), 12_000);
+    const jitter = Math.floor(Math.random() * 1200);
     await chat.sendStateTyping();
     await sleep(typingMs + jitter);
     await chat.clearState();

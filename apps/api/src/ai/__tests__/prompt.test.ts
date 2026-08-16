@@ -345,6 +345,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('דקדוק קודם');
     expect(prompt).toContain('ולגבי');
     expect(prompt).toContain('תשובה תקינה לאותה בקשה');
+    expect(prompt).toContain('אל תפתח ב"לא,"');
     expect(prompt).not.toContain('Answer the tagged message first');
   });
 
