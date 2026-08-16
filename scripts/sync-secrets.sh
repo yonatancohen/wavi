@@ -87,6 +87,7 @@ sync_railway() {
   set_railway_var SUPABASE_SERVICE_ROLE_KEY
   set_railway_var ANTHROPIC_API_KEY
   set_railway_var OPENAI_API_KEY
+  set_railway_var TAVILY_API_KEY
   set_railway_var UPSTASH_REDIS_REST_URL
   set_railway_var UPSTASH_REDIS_REST_TOKEN
   set_railway_var WA_AGENT_NAME
