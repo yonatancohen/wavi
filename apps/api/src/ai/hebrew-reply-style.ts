@@ -288,7 +288,12 @@ ${sender} אמר: "${body}"`;
 
 export function hebrewDatetime(formatted: string, tz: string): string {
   return `הזמן עכשיו
-עכשיו ${formatted} (${tz}). להשתמש בשאלות על זמן.`;
+עכשיו ${formatted} (${tz}). להשתמש בשאלות על זמן, בסיכומים ובתשובות.
+הודעות בשיחה מסומנות בזמן השליחה באזור הזמן הזה — לנסח יחסית לעכשיו (היום, אתמול, הבוקר, אמש). אל תעתיק את תוויות הזמן.`;
+}
+
+export function hebrewDigestTrigger(nowFormatted: string, tz: string): string {
+  return `[system: כתוב סיכום קצר באופי הקבוצה של מה שקרה לאחרונה. עכשיו: ${nowFormatted} (${tz}). לכל הודעה יש חותמת זמן באזור הזמן הזה — לנסח יחסית לעכשיו (היום / אתמול / הבוקר / אמש), בלי לערבב ימים. עברית מדוברת ישראלית, משפטים תקינים, בלי כותרות ובלי תרגום מאנגלית.]`;
 }
 
 export function hebrewUpcomingTitle(): string {

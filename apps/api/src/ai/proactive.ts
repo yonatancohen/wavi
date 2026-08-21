@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildPromptContext, buildSystemPrompt, buildConversationTurns } from './prompt.js';
+import { hebrewDigestTrigger } from './hebrew-reply-style.js';
 import {
   DEFAULT_REPLY_MODEL,
   normalizeReplyModel,
@@ -15,6 +16,7 @@ import {
 import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { db } from '../db/client.js';
 import { textFromAnthropicContent } from './anthropic-text.js';
+import { DEFAULT_GROUP_TIMEZONE, formatNowInZone } from '../lib/zoned-time.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -32,7 +34,11 @@ function useHebrewTrigger(languageMode: LanguageMode): boolean {
   return languageMode !== 'en';
 }
 
-export function buildTriggerBody(type: AutomationType, config: TriggerConfig, opts?: { elapsedHours?: number; languageMode?: LanguageMode }): string {
+function automationTimeZone(config: TriggerConfig): string {
+  return 'timezone' in config && config.timezone ? config.timezone : DEFAULT_GROUP_TIMEZONE;
+}
+
+export function buildTriggerBody(type: AutomationType, config: TriggerConfig, opts?: { elapsedHours?: number; languageMode?: LanguageMode; now?: Date; timeZone?: string }): string {
   const he = useHebrewTrigger(opts?.languageMode ?? 'auto');
 
   switch (type) {
@@ -42,10 +48,13 @@ export function buildTriggerBody(type: AutomationType, config: TriggerConfig, op
         ? `[system: הקבוצה שקטה כבר ${hours} שעות — תפתח שיחה טבעית לפי מה שקורה בקבוצה, האופי שלך, וחוטים פתוחים. עברית מדוברת ישראלית, משפטים תקינים, בלי תרגום מאנגלית.]`
         : `[system: the group has been quiet for ${hours} hours — start a natural conversation based on recent group activity, your character, and open threads]`;
     }
-    case 'daily_digest':
-      return he
-        ? '[system: כתוב סיכום קצר באופי הקבוצה של מה שקרה לאחרונה. עברית מדוברת ישראלית, משפטים תקינים, בלי כותרות ובלי תרגום מאנגלית.]'
-        : "[system: generate a short in-character daily summary of what's been happening in the group]";
+    case 'daily_digest': {
+      const timeZone = opts?.timeZone ?? automationTimeZone(config);
+      const now = opts?.now ?? new Date();
+      const formatted = formatNowInZone(now, timeZone, he ? 'he' : 'en');
+      if (he) return hebrewDigestTrigger(formatted, timeZone);
+      return `[system: generate a short in-character daily summary of what's been happening in the group. Right now: ${formatted} (${timeZone}). Each message is timestamped in this timezone — phrase relative to now (today / yesterday / this morning / last night), without mixing days.]`;
+    }
     case 'scheduled_post': {
       const tpl = (config as ScheduledPostConfig).template;
       const isMeetingTemplate = tpl && /(?:מפגש|פגישה|יציאה|ביחד|meeting|meetup|hangout|gathering|dinner|lunch)/i.test(tpl);
@@ -87,7 +96,9 @@ export async function generateProactiveMessage(groupId: string, type: Automation
 
   const languageMode = (group.language_mode ?? 'he') as LanguageMode;
   const agentName = process.env.WA_AGENT_NAME ?? 'wavi';
-  const triggerBody = buildTriggerBody(type, config, { elapsedHours, languageMode });
+  const now = new Date();
+  const timeZone = automationTimeZone(config);
+  const triggerBody = buildTriggerBody(type, config, { elapsedHours, languageMode, now, timeZone });
 
   const ctx = await buildPromptContext({
     groupId,
@@ -97,8 +108,9 @@ export async function generateProactiveMessage(groupId: string, type: Automation
   });
 
   const replyModel = resolveAutomationModel(languageMode, ctx.character_config);
-  const systemPrompt = buildSystemPrompt(ctx);
-  const conversationTurns = buildConversationTurns(ctx);
+  const clock = { now, timeZone };
+  const systemPrompt = buildSystemPrompt(ctx, clock);
+  const conversationTurns = buildConversationTurns(ctx, clock);
 
   const response = await anthropic.messages.create({
     model: replyModel,

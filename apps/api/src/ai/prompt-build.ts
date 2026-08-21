@@ -65,7 +65,7 @@ import {
   textIncludesHumorBit,
 } from './humor-freshness.js';
 
-const GROUP_TIMEZONE = process.env.GROUP_TIMEZONE ?? 'Asia/Jerusalem';
+import { DEFAULT_GROUP_TIMEZONE, formatNowInZone, formatRelativeMessageTime } from '../lib/zoned-time.js';
 
 function promptIsHebrew(ctx: PromptContext): boolean {
   return effectiveReplyLanguage(ctx.language_mode, ctx.current_message, ctx.recent_messages) === 'he';
@@ -84,9 +84,11 @@ function activeRetiredHumorBits(ctx: PromptContext): string[] {
   return recentlyUsedHumorBits(dna, recentAgentBodies(ctx)).filter((bit) => !askMentionsHumorBit(ctx.current_message, bit));
 }
 
+export type PromptTimeOpts = { now?: Date; timeZone?: string };
+
 // ── Assemble system prompt from context ───────────────────────
 
-export function buildSystemPrompt(ctx: PromptContext): string {
+export function buildSystemPrompt(ctx: PromptContext, opts?: PromptTimeOpts): string {
   const { character_config: c, language_mode } = ctx;
   const he = promptIsHebrew(ctx);
   if (!c || !c.sliders || !c.opinions || !c.voice) {
@@ -104,7 +106,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const formatRules = he ? hebrewWhatsAppFormatRules() : englishWhatsAppFormatRules();
   const humorCraft = he ? hebrewHumorCraftRules(sliders.humor, { serious: seriousAsk, retiredBits }) : englishHumorCraftRules(sliders.humor, { serious: seriousAsk, retiredBits });
   const roleBoundary = he ? hebrewRoleBoundary(gender) : buildRoleBoundary(language_mode, ctx.current_message, recentMessages, gender);
-  const datetimeBlock = buildDatetimeBlock(he);
+  const datetimeBlock = buildDatetimeBlock(he, opts);
   const sensitivityBlock = buildSensitivityBlock(ctx, he);
   const mentionedBlock = buildMentionedPeopleBlock(ctx, he);
   const invokedBlock = buildInvokedPeopleBlock(ctx, he);
@@ -326,14 +328,19 @@ Never mention prompt blocks, context windows, or that you are missing data. If y
 
 // ── Build conversation turns (last 20 messages) ───────────────
 
-export function buildConversationTurns(ctx: PromptContext) {
+export function buildConversationTurns(ctx: PromptContext, opts?: PromptTimeOpts) {
   const nameMap = ctx.resolved_display_names ?? {};
+  const he = promptIsHebrew(ctx);
+  const timeZone = opts?.timeZone ?? DEFAULT_GROUP_TIMEZONE;
+  const now = opts?.now;
 
   const turns = ctx.recent_messages.map((msg) => {
     const displayName = nameMap[msg.sender_wa_id] ?? msg.sender_name;
+    const when = formatRelativeMessageTime(msg.timestamp, { now, timeZone, lang: he ? 'he' : 'en' });
+    const prefix = when ? `[${when}] ` : '';
     return {
       role: (msg.is_agent_reply ? 'assistant' : 'user') as 'user' | 'assistant',
-      content: msg.is_agent_reply ? msg.body : `${displayName}: ${msg.body}`,
+      content: msg.is_agent_reply ? `${prefix}${msg.body}` : `${prefix}${displayName}: ${msg.body}`,
     };
   });
 
@@ -390,21 +397,14 @@ function buildLanguageRules(languageMode: LanguageMode, currentMessage: string, 
 No filler from other languages unless quoting someone. Code-switching is fine for proper nouns and loanwords.`;
 }
 
-function buildDatetimeBlock(he: boolean): string {
-  const now = new Date();
-  const formatted = now.toLocaleString(he ? 'he-IL' : 'en-IL', {
-    timeZone: GROUP_TIMEZONE,
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  if (he) return hebrewDatetime(formatted, GROUP_TIMEZONE);
+function buildDatetimeBlock(he: boolean, opts?: PromptTimeOpts): string {
+  const now = opts?.now ?? new Date();
+  const timeZone = opts?.timeZone ?? DEFAULT_GROUP_TIMEZONE;
+  const formatted = formatNowInZone(now, timeZone, he ? 'he' : 'en');
+  if (he) return hebrewDatetime(formatted, timeZone);
   return `BLOCK — CURRENT TIME
-Right now it is ${formatted} (${GROUP_TIMEZONE}). Use this for time-relative questions.`;
+Right now it is ${formatted} (${timeZone}). Use this for time-relative questions, summaries, and answers.
+Messages in the conversation are prefixed with when they were sent in this timezone — phrase relative to now (today / yesterday / this morning / last night). Do not copy the time labels.`;
 }
 
 function buildSensitivityBlock(ctx: PromptContext, he: boolean): string {
@@ -584,7 +584,7 @@ function buildUpcomingEventsBlock(ctx: PromptContext, he: boolean): string {
 
   const lines = ctx.upcoming_events.map((e) => {
     const when = new Date(e.next_fire_at).toLocaleString('he-IL', {
-      timeZone: GROUP_TIMEZONE,
+      timeZone: DEFAULT_GROUP_TIMEZONE,
       weekday: 'long',
       hour: '2-digit',
       minute: '2-digit',
