@@ -17,6 +17,7 @@ import { maybeAutoPauseOnBudget } from '../lib/cost.js';
 import { db } from '../db/client.js';
 import { textFromAnthropicContent } from './anthropic-text.js';
 import { DEFAULT_GROUP_TIMEZONE, formatNowInZone } from '../lib/zoned-time.js';
+import { DIGEST_MESSAGE_LIMIT, digestSince } from '../lib/digest-window.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -52,8 +53,10 @@ export function buildTriggerBody(type: AutomationType, config: TriggerConfig, op
       const timeZone = opts?.timeZone ?? automationTimeZone(config);
       const now = opts?.now ?? new Date();
       const formatted = formatNowInZone(now, timeZone, he ? 'he' : 'en');
-      if (he) return hebrewDigestTrigger(formatted, timeZone);
-      return `[system: generate a short in-character daily summary of what's been happening in the group. Right now: ${formatted} (${timeZone}). Each message is timestamped in this timezone — phrase relative to now (today / yesterday / this morning / last night), without mixing days.]`;
+      const frequency = (config as DigestConfig).frequency ?? 'daily';
+      if (he) return hebrewDigestTrigger(formatted, timeZone, frequency);
+      const window = frequency === 'weekly' ? 'last 7 days' : 'last 24 hours';
+      return `[system: write a short in-character recap of the ${window} in this group. Right now: ${formatted} (${timeZone}). Summarize only the conversation messages (they are timestamped). Use only what is in those messages. Do not pull in old trips, places, or birthdays from memory, and do not stitch unrelated threads into one itinerary.]`;
     }
     case 'scheduled_post': {
       const tpl = (config as ScheduledPostConfig).template;
@@ -99,12 +102,15 @@ export async function generateProactiveMessage(groupId: string, type: Automation
   const now = new Date();
   const timeZone = automationTimeZone(config);
   const triggerBody = buildTriggerBody(type, config, { elapsedHours, languageMode, now, timeZone });
+  const digest = type === 'daily_digest';
+  const digestFrequency = digest ? ((config as DigestConfig).frequency ?? 'daily') : 'daily';
 
   const ctx = await buildPromptContext({
     groupId,
     senderWaId: 'system',
     currentMessage: triggerBody,
     quotedMessage: null,
+    retrieval: digest ? { kind: 'digest', since: digestSince(now, digestFrequency), limit: DIGEST_MESSAGE_LIMIT } : undefined,
   });
 
   const replyModel = resolveAutomationModel(languageMode, ctx.character_config);

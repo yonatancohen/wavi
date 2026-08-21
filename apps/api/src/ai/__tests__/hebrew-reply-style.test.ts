@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import {
   hebrewDatetime,
+  hebrewDigestFormatRules,
+  hebrewDigestGrounding,
   hebrewDigestTrigger,
   hebrewGrammarFirstRules,
   hebrewGroundingRules,
@@ -91,13 +93,44 @@ describe('hebrewDatetime', () => {
 });
 
 describe('hebrewDigestTrigger', () => {
-  it('anchors the digest in Hebrew to now and message timestamps', () => {
-    const body = hebrewDigestTrigger('יום שישי, 21 באוגוסט 2026, 10:00', 'Asia/Jerusalem');
-    expect(body).toContain('סיכום קצר');
+  it('anchors a daily digest in Hebrew to the last 24 hours of messages', () => {
+    const body = hebrewDigestTrigger('יום שישי, 21 באוגוסט 2026, 10:00', 'Asia/Jerusalem', 'daily');
+    expect(body).toContain('סיכום');
+    expect(body).toContain('24');
     expect(body).toContain('10:00');
     expect(body).toContain('Asia/Jerusalem');
-    expect(body).toContain('היום / אתמול');
+    expect(body).toContain('רק מה שכתוב');
     expect(body).not.toContain('Right now');
     expect(body).not.toContain('this morning');
+    expect(body).not.toContain('7 הימים');
+  });
+
+  it('anchors a weekly digest in Hebrew to the last 7 days', () => {
+    const body = hebrewDigestTrigger('יום שישי, 21 באוגוסט 2026, 10:00', 'Asia/Jerusalem', 'weekly');
+    expect(body).toContain('7');
+    expect(body).toContain('רק מה שכתוב');
+    expect(body).not.toContain('24 שעות');
+    expect(body).not.toContain('Right now');
+  });
+});
+
+describe('hebrewDigestFormatRules', () => {
+  it('asks for a real recap of the window, not a mashup of old trips', () => {
+    const rules = hebrewDigestFormatRules();
+    expect(rules).toContain('2–5 משפטים');
+    expect(rules).toContain('חלון');
+    expect(rules).toContain('לא קשורים');
+    expect(rules).not.toContain('נושא אחד להודעה');
+    expect(rules).not.toContain('ONE short message');
+  });
+});
+
+describe('hebrewDigestGrounding', () => {
+  it('forbids old RAG, events, and invented itineraries', () => {
+    const rules = hebrewDigestGrounding();
+    expect(rules).toContain('רק על ההודעות');
+    expect(rules).toContain('אל תמציא');
+    expect(rules).not.toContain('retrieved past context');
+    expect(rules).not.toContain('events, memories');
   });
 });

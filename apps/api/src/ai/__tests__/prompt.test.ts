@@ -623,4 +623,89 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('Humor — off for this ask');
     expect(prompt).not.toContain('Answer the tagged message first');
   });
+
+  it('grounds a Hebrew digest on the window, not old RAG trips or events', () => {
+    const ctx = makeContext({
+      language_mode: 'he',
+      prompt_kind: 'digest',
+      current_message: 'כתוב סיכום של 24 השעות האחרונות',
+      group_context_summary: 'חבורת אדירים שטסה לכרתים בחודש שעבר',
+      rag_chunks: ['[01/08/2026]\nטיול לכרתים עם יום הולדת על החוף'],
+      rag_episode_summaries: ['חופשה בכרתים'],
+      group_memories: [{ id: '1', group_id: 'g1', memory_text: 'גרים בהוד השרון', created_at: '2026-01-01' } as never],
+      group_events: [
+        {
+          id: 'e1',
+          group_id: 'g1',
+          who: ['גל', 'חן'],
+          what: 'Trip to Crete',
+          occurred_on: '2026-08-01T00:00:00.000Z',
+          why_it_matters: 'Vacation',
+          source_episode_id: null,
+          created_at: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+      character_config: {
+        voice: 'קזואלי.',
+        opinions: ['פיצה זה בסדר'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 70, verbosity: 40, assertiveness: 50, empathy: 50, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('2–5 משפטים');
+    expect(prompt).toContain('רק על ההודעות');
+    expect(prompt).toContain('רקע בלבד');
+    expect(prompt).toContain('חבורת אדירים');
+    expect(prompt).not.toContain('טיול לכרתים עם יום הולדת');
+    expect(prompt).not.toContain('חופשה בכרתים');
+    expect(prompt).not.toContain('גרים בהוד השרון');
+    expect(prompt).not.toContain('Trip to Crete');
+    expect(prompt).not.toContain('הקשר עבר');
+    expect(prompt).not.toContain('נושא אחד להודעה');
+    expect(prompt).not.toContain('Past context');
+    expect(prompt).not.toContain('THINGS THAT HAPPENED');
+    expect(prompt).not.toContain('ONE short message');
+    expect(prompt).not.toContain('retrieved past context');
+  });
+
+  it('grounds an English digest on the window, not old RAG trips or events', () => {
+    const ctx = makeContext({
+      language_mode: 'en',
+      prompt_kind: 'digest',
+      current_message: 'generate a short summary of the last 24 hours',
+      group_context_summary: 'Friends who flew to Crete last month',
+      rag_chunks: ['[01/08/2026]\nCrete birthday beach dinner'],
+      group_events: [
+        {
+          id: 'e1',
+          group_id: 'g1',
+          who: ['Gal'],
+          what: 'Trip to Crete',
+          occurred_on: '2026-08-01T00:00:00.000Z',
+          why_it_matters: 'Vacation',
+          source_episode_id: null,
+          created_at: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+      character_config: {
+        voice: 'Dry.',
+        opinions: ['Coffee > tea'],
+        signature_behavior: 'quirk',
+        sliders: { formality: 20, humor: 80, verbosity: 50, assertiveness: 60, empathy: 40, emoji_usage: 'medium' },
+        preset: 'custom',
+        version: 1,
+      },
+    });
+    const prompt = buildSystemPrompt(ctx);
+    expect(prompt).toContain('2–5 sentences');
+    expect(prompt).toContain('only from the conversation messages');
+    expect(prompt).toContain('Background only');
+    expect(prompt).not.toContain('Crete birthday beach dinner');
+    expect(prompt).not.toContain('Trip to Crete');
+    expect(prompt).not.toContain('2–5 משפטים');
+    expect(prompt).not.toContain('רק על ההודעות');
+  });
 });

@@ -709,6 +709,8 @@ export interface PromptContext {
   image_generation_enabled: boolean;
   /** Upcoming scheduled events/posts for this group — used for natural event awareness. */
   upcoming_events?: UpcomingEvent[];
+  /** Scheduled recap — window messages only, no semantic history. */
+  prompt_kind?: 'reply' | 'digest';
 }
 
 // ── Reminders ────────────────────────────────────────────────

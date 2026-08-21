@@ -21,10 +21,21 @@ export { normalizeRagQuery } from './rag-query.js';
 
 // ── Main context assembler ────────────────────────────────────
 
-export async function buildPromptContext(params: { groupId: string; senderWaId: string; currentMessage: string; quotedMessage?: QuotedMessageContext | null }): Promise<PromptContext> {
+export async function buildPromptContext(params: {
+  groupId: string;
+  senderWaId: string;
+  currentMessage: string;
+  quotedMessage?: QuotedMessageContext | null;
+  retrieval?: { kind?: 'reply' | 'digest'; since?: Date; limit?: number };
+}): Promise<PromptContext> {
   const { groupId, senderWaId, currentMessage, quotedMessage } = params;
+  const digest = params.retrieval?.kind === 'digest';
 
-  const structured = await fetchStructuredContext(groupId, senderWaId);
+  const structured = await fetchStructuredContext(groupId, senderWaId, {
+    since: params.retrieval?.since,
+    limit: params.retrieval?.limit,
+    digest,
+  });
 
   // Resolve @digits mention tokens in the body to display names so Claude
   // sees "@שלומי" instead of "@193209254826011".
@@ -53,30 +64,34 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
 
   const queryClass = classifyRagQuery(normalizedMessage);
   const liveSocialAsk = queryClass === 'live_social';
-  const ragQuery = normalizeRagQuery(normalizedMessage, structured.recent_messages);
-  const rag = await fetchRAGContext(
-    groupId,
-    ragQuery,
-    structured.recent_messages.map((m) => m.body),
-    queryClass,
-  );
+  const ragQuery = digest ? '' : normalizeRagQuery(normalizedMessage, structured.recent_messages);
+  const rag = digest
+    ? { rag_chunks: [] as string[], rag_episode_summaries: [] as string[] }
+    : await fetchRAGContext(
+        groupId,
+        ragQuery,
+        structured.recent_messages.map((m) => m.body),
+        queryClass,
+      );
 
   let link_contents = null;
   let web_search: WebSearchContext | null = null;
-  // Any http(s) URL in the tagged message or the quoted link/document — text of the ask does not matter.
-  const linkUrls = collectMessageUrls(normalizedMessage, quotedMessage?.body);
-  if (structured.web_search_enabled && linkUrls.length > 0) {
-    link_contents = await fetchLinkContents(linkUrls);
-    // ScienceDirect and similar hosts often Cloudflare-block extract. Fall back to web search
-    // so we still get abstract/snippets instead of inventing "blocked / security token" stories.
-    if (!linkContentsAreUsable(link_contents)) {
-      for (const q of linkFallbackSearchQueries(linkUrls)) {
-        web_search = await searchWeb(q);
-        if (web_search?.results?.length || web_search?.answer) break;
+  if (!digest) {
+    // Any http(s) URL in the tagged message or the quoted link/document — text of the ask does not matter.
+    const linkUrls = collectMessageUrls(normalizedMessage, quotedMessage?.body);
+    if (structured.web_search_enabled && linkUrls.length > 0) {
+      link_contents = await fetchLinkContents(linkUrls);
+      // ScienceDirect and similar hosts often Cloudflare-block extract. Fall back to web search
+      // so we still get abstract/snippets instead of inventing "blocked / security token" stories.
+      if (!linkContentsAreUsable(link_contents)) {
+        for (const q of linkFallbackSearchQueries(linkUrls)) {
+          web_search = await searchWeb(q);
+          if (web_search?.results?.length || web_search?.answer) break;
+        }
       }
+    } else if (structured.web_search_enabled && shouldUseWebSearch(normalizedMessage)) {
+      web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
     }
-  } else if (structured.web_search_enabled && shouldUseWebSearch(normalizedMessage)) {
-    web_search = await searchWeb(normalizeWebSearchQuery(normalizedMessage));
   }
 
   const { mentioned, invoked, mentionedIds } = await fetchReferencedPeople(groupId, normalizedMessage, senderWaId);
@@ -95,12 +110,20 @@ export async function buildPromptContext(params: { groupId: string; senderWaId: 
     current_message: normalizedMessage,
     web_search,
     link_contents,
+    prompt_kind: digest ? 'digest' : 'reply',
   };
 }
 
 // ── Layer 1 + 3: Structured Postgres fetch ────────────────────
 
-async function fetchStructuredContext(groupId: string, senderWaId: string) {
+async function fetchStructuredContext(groupId: string, senderWaId: string, opts?: { since?: Date; limit?: number; digest?: boolean }) {
+  const messageLimit = opts?.limit ?? 50;
+  let messagesQuery = db.from('messages').select('id, group_id, sender_wa_id, sender_name, body, is_agent_reply, flagged_miss, timestamp, created_at').eq('group_id', groupId);
+  if (opts?.since) {
+    messagesQuery = messagesQuery.gte('timestamp', opts.since.toISOString());
+  }
+  messagesQuery = messagesQuery.order('timestamp', { ascending: false }).limit(messageLimit);
+
   const [groupResult, profileResult, relationshipsResult, memoriesResult, contextResult, messagesResult, eventsResult, groupEventsResult, rosterResult] = await Promise.all([
     db.from('groups').select('name, character_config, language_mode, web_search_enabled, image_generation_enabled').eq('id', groupId).single(),
 
@@ -108,28 +131,27 @@ async function fetchStructuredContext(groupId: string, senderWaId: string) {
 
     db.from('relationship_map').select('*').eq('group_id', groupId).or(`user_a_wa_id.eq.${senderWaId},user_b_wa_id.eq.${senderWaId}`).order('interaction_score', { ascending: false }).limit(3),
 
-    db.from('group_memories').select('*').eq('group_id', groupId).order('created_at', { ascending: false }),
+    opts?.digest ? Promise.resolve({ data: [] as never[], error: null }) : db.from('group_memories').select('*').eq('group_id', groupId).order('created_at', { ascending: false }),
 
     db.from('group_contexts').select('summary_text').eq('group_id', groupId).order('generated_at', { ascending: false }).limit(1).single(),
 
-    db
-      .from('messages')
-      .select('id, group_id, sender_wa_id, sender_name, body, is_agent_reply, flagged_miss, timestamp, created_at')
-      .eq('group_id', groupId)
-      .order('timestamp', { ascending: false })
-      .limit(50),
+    messagesQuery,
 
-    db
-      .from('group_automations')
-      .select('type, config, next_fire_at')
-      .eq('group_id', groupId)
-      .eq('enabled', true)
-      .eq('type', 'scheduled_post')
-      .not('next_fire_at', 'is', null)
-      .order('next_fire_at', { ascending: true })
-      .limit(3),
+    opts?.digest
+      ? Promise.resolve({ data: [] as never[], error: null })
+      : db
+          .from('group_automations')
+          .select('type, config, next_fire_at')
+          .eq('group_id', groupId)
+          .eq('enabled', true)
+          .eq('type', 'scheduled_post')
+          .not('next_fire_at', 'is', null)
+          .order('next_fire_at', { ascending: true })
+          .limit(3),
 
-    db.from('group_events').select('*').eq('group_id', groupId).order('occurred_on', { ascending: false, nullsFirst: false }).limit(8),
+    opts?.digest
+      ? Promise.resolve({ data: [] as never[], error: null })
+      : db.from('group_events').select('*').eq('group_id', groupId).order('occurred_on', { ascending: false, nullsFirst: false }).limit(8),
 
     db.from('user_profiles').select('display_name, profile_data').eq('group_id', groupId),
   ]);
