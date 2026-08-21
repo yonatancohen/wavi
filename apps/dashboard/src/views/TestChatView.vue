@@ -9,7 +9,7 @@
       </p>
     </header>
 
-    <div class="page-content flex min-h-0 flex-1 flex-col py-7">
+    <div class="page-content flex min-h-0 flex-1 flex-col py-3 lg:py-7">
       <TestChatPanel class="min-h-0 flex-1" />
     </div>
   </div>

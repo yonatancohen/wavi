@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="mb-3 flex shrink-0 items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-2.5">
+    <div class="mb-3 hidden shrink-0 items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-2.5 lg:flex">
       <span class="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-primary">science</span>
       <p class="text-[12px] leading-relaxed text-on-surface-variant">
         {{ t('testChat.previewBanner') }}
@@ -11,10 +11,10 @@
       {{ loadError }}
     </div>
 
-    <div class="mb-3 shrink-0 grid gap-3 rounded-xl border border-outline-variant bg-surface-container p-3 sm:grid-cols-2">
-      <label v-if="!groupId" class="flex flex-col gap-2">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.group') }}</span>
-        <div class="relative">
+    <div class="mb-2 flex shrink-0 flex-col gap-2 lg:mb-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:rounded-xl lg:border lg:border-outline-variant lg:bg-surface-container lg:p-3">
+      <label v-if="!groupId" class="flex min-w-0 items-center gap-2 lg:flex-col lg:items-stretch lg:gap-2">
+        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.group') }}</span>
+        <div class="relative min-w-0 flex-1">
           <select v-model="selectedGroupId" :class="selectClass" :disabled="loadingGroups" @change="onGroupChange">
             <option value="">{{ t('testChat.selectGroup') }}</option>
             <option v-for="g in groups" :key="g.id" :value="g.id">
@@ -25,9 +25,9 @@
         </div>
       </label>
 
-      <label class="flex flex-col gap-2">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.sender') }}</span>
-        <div class="relative">
+      <label class="flex min-w-0 items-center gap-2 lg:flex-col lg:items-stretch lg:gap-2" :class="groupId ? 'lg:col-span-2' : ''">
+        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.sender') }}</span>
+        <div class="relative min-w-0 flex-1">
           <select v-model="senderMode" :class="selectClass" :disabled="!selectedGroupId || loadingMembers" @change="onSenderModeChange">
             <option value="generic">{{ t('testChat.genericSender') }}</option>
             <option value="member" :disabled="members.length === 0">{{ t('testChat.memberSender') }}</option>
@@ -36,9 +36,9 @@
         </div>
       </label>
 
-      <label v-if="senderMode === 'member'" class="flex flex-col gap-2 sm:col-span-2">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.member') }}</span>
-        <div class="relative">
+      <label v-if="senderMode === 'member'" class="flex min-w-0 items-center gap-2 lg:col-span-2 lg:flex-col lg:items-stretch lg:gap-2">
+        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{{ t('testChat.member') }}</span>
+        <div class="relative min-w-0 flex-1">
           <select v-model="selectedMemberId" :class="selectClass" :disabled="loadingMembers">
             <option value="">{{ t('testChat.selectMember') }}</option>
             <option v-for="member in members" :key="member.wa_user_id" :value="member.wa_user_id">{{ member.display_name }} ({{ member.msg_count }} msgs)</option>
@@ -49,19 +49,20 @@
     </div>
 
     <section class="flex h-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container">
-      <div class="flex shrink-0 items-center justify-between border-b border-outline-variant px-4 py-3">
-        <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center justify-between gap-2 border-b border-outline-variant px-3 py-2 lg:px-4 lg:py-3">
+        <div class="flex min-w-0 items-center gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary">forum</span>
-          <h2 class="font-sora text-[15px] font-semibold text-on-surface">
+          <h2 class="font-sora text-[14px] font-semibold text-on-surface lg:text-[15px]">
             {{ t('testChat.transcript') }}
           </h2>
+          <span class="truncate text-[10px] text-on-surface-variant lg:hidden">{{ t('testChat.previewShort') }}</span>
         </div>
-        <button type="button" class="btn btn-ghost text-[12px]" :disabled="turns.length === 0" @click="clearSession">
+        <button type="button" class="btn btn-ghost shrink-0 px-2 py-1 text-[11px] lg:text-[12px]" :disabled="turns.length === 0" @click="clearSession">
           {{ t('testChat.clear') }}
         </button>
       </div>
 
-      <div ref="scrollEl" class="flex h-0 min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-4 py-3">
+      <div ref="scrollEl" class="flex h-0 min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-3 py-2 lg:px-4 lg:py-3">
         <div v-if="!selectedGroupId" class="flex flex-1 items-center justify-center px-6 py-10 text-center">
           <div>
             <span class="material-symbols-outlined mb-2 text-[28px] text-on-surface-variant/40">chat_bubble_outline</span>
@@ -140,14 +141,14 @@
         </div>
       </div>
 
-      <form class="shrink-0 border-t border-outline-variant bg-surface-container-low p-4" @submit.prevent="sendMessage">
-        <div v-if="sendError" class="mb-3 text-[12px] text-error">{{ sendError }}</div>
-        <div class="flex items-end gap-2 rounded-xl border border-outline-variant bg-surface-variant/20 p-2 transition-colors focus-within:border-primary/50">
+      <form class="shrink-0 border-t border-outline-variant bg-surface-container-low p-2 lg:p-4" @submit.prevent="sendMessage">
+        <div v-if="sendError" class="mb-2 text-[12px] text-error lg:mb-3">{{ sendError }}</div>
+        <div class="flex items-end gap-2 rounded-xl border border-outline-variant bg-surface-variant/20 p-1.5 transition-colors focus-within:border-primary/50 lg:p-2">
           <textarea
             ref="draftEl"
             v-model="draft"
             rows="1"
-            class="min-h-[44px] flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-[13px] leading-relaxed text-on-surface outline-none placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-50"
+            class="min-h-[40px] flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-[13px] leading-relaxed text-on-surface outline-none placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-[44px]"
             :placeholder="t('testChat.placeholder')"
             :disabled="!canSend"
             @input="resizeDraft"
@@ -200,7 +201,7 @@ const GENERIC_SENDER_NAME = 'Tester';
 const GENERIC_SENDER_WA_ID = 'test-admin';
 
 const fieldClass =
-  'w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-4 py-2.5 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50';
+  'w-full rounded-xl border border-outline-variant bg-surface-variant/20 px-3 py-2 text-[13px] text-on-surface outline-none transition-colors focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-4 lg:py-2.5';
 const selectClass = `${fieldClass} appearance-none pe-10`;
 
 const { t } = useI18n();
