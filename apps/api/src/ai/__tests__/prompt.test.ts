@@ -49,7 +49,7 @@ describe('buildConversationTurns', () => {
     const turns = buildConversationTurns(ctx);
     expect(turns).toHaveLength(1);
     expect(turns[0].role).toBe('user');
-    expect(turns[0].content).toBe('Bob: hey');
+    expect(turns[0].content).toMatch(/^\[.+\] Bob: hey$/);
   });
 
   it('maps agent replies to role:assistant', () => {
@@ -59,7 +59,7 @@ describe('buildConversationTurns', () => {
     const turns = buildConversationTurns(ctx);
     expect(turns).toHaveLength(2);
     expect(turns[1].role).toBe('assistant');
-    expect(turns[1].content).toBe('no idea, check your phone');
+    expect(turns[1].content).toMatch(/^\[.+\] no idea, check your phone$/);
   });
 
   it('preserves interleaved order', () => {
@@ -105,6 +105,38 @@ describe('buildConversationTurns', () => {
     });
     expect(buildConversationTurns(ctx)).toEqual([]);
   });
+
+  it('timestamps messages in the group timezone so after-midnight IDT is today', () => {
+    const now = new Date('2026-08-21T00:30:00.000Z');
+    const ctx = makeContext({
+      language_mode: 'en',
+      current_message: 'summarize',
+      recent_messages: [
+        {
+          ...makeMessage('late night plan', false, 'Bob'),
+          timestamp: '2026-08-20T21:30:00.000Z',
+        },
+      ],
+    });
+    const turns = buildConversationTurns(ctx, { now, timeZone: 'Asia/Jerusalem' });
+    expect(turns[0].content).toBe('[today 00:30] Bob: late night plan');
+  });
+
+  it('uses Hebrew relative time labels when the reply is Hebrew', () => {
+    const now = new Date('2026-08-21T07:00:00.000Z');
+    const ctx = makeContext({
+      language_mode: 'he',
+      current_message: 'תסכם',
+      recent_messages: [
+        {
+          ...makeMessage('הולכים מחר', false, 'דנה'),
+          timestamp: '2026-08-20T10:00:00.000Z',
+        },
+      ],
+    });
+    const turns = buildConversationTurns(ctx, { now, timeZone: 'Asia/Jerusalem' });
+    expect(turns[0].content).toBe('[אתמול 13:00] דנה: הולכים מחר');
+  });
 });
 
 // ── buildSystemPrompt ─────────────────────────────────────────
@@ -137,6 +169,10 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('BLOCK 1');
     expect(prompt).toContain('WHATSAPP FORMAT');
     expect(prompt).toContain('BLOCK 10');
+    expect(prompt).toContain('BLOCK — CURRENT TIME');
+    expect(prompt).toContain('Asia/Jerusalem');
+    expect(prompt).toContain('today / yesterday');
+    expect(prompt).not.toContain('היום / אתמול');
   });
 
   it('uses auto-language instruction when language_mode is auto', () => {
@@ -176,9 +212,13 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('אל תתעתק');
     expect(prompt).toContain('בלי markdown');
     expect(prompt).toContain('בלוק 1 — זהות');
+    expect(prompt).toContain('הזמן עכשיו');
+    expect(prompt).toContain('היום, אתמול');
     expect(prompt).not.toContain('BLOCK 1 — IDENTITY');
     expect(prompt).not.toContain('Always reply in natural');
     expect(prompt).not.toContain('IN SCOPE');
+    expect(prompt).not.toContain('BLOCK — CURRENT TIME');
+    expect(prompt).not.toContain('today / yesterday');
   });
 
   it('describes formality correctly at extremes', () => {

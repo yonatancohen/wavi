@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'bun:test';
-import { hebrewGrammarFirstRules, hebrewGroundingRules, hebrewHumorCraftRules, hebrewHumorStyleLabel, hebrewWebSearchEmpty, hebrewWhatsAppFormatRules } from '../hebrew-reply-style.js';
+import {
+  hebrewDatetime,
+  hebrewDigestTrigger,
+  hebrewGrammarFirstRules,
+  hebrewGroundingRules,
+  hebrewHumorCraftRules,
+  hebrewHumorStyleLabel,
+  hebrewWebSearchEmpty,
+  hebrewWhatsAppFormatRules,
+} from '../hebrew-reply-style.js';
 
 describe('hebrewGrammarFirstRules', () => {
   it('orders grammar before format and humor', () => {
@@ -67,5 +76,28 @@ describe('hebrewHumorStyleLabel', () => {
   it('maps stored English style ids to Hebrew', () => {
     expect(hebrewHumorStyleLabel('dry')).toBe('יבש');
     expect(hebrewHumorStyleLabel('sarcastic')).toBe('סרקסטי');
+  });
+});
+
+describe('hebrewDatetime', () => {
+  it('tells Hebrew replies to phrase from now and message times without English scaffolding', () => {
+    const block = hebrewDatetime('יום שישי, 21 באוגוסט 2026, 10:00', 'Asia/Jerusalem');
+    expect(block).toContain('הזמן עכשיו');
+    expect(block).toContain('Asia/Jerusalem');
+    expect(block).toContain('היום, אתמול');
+    expect(block).not.toContain('BLOCK — CURRENT TIME');
+    expect(block).not.toContain('today / yesterday');
+  });
+});
+
+describe('hebrewDigestTrigger', () => {
+  it('anchors the digest in Hebrew to now and message timestamps', () => {
+    const body = hebrewDigestTrigger('יום שישי, 21 באוגוסט 2026, 10:00', 'Asia/Jerusalem');
+    expect(body).toContain('סיכום קצר');
+    expect(body).toContain('10:00');
+    expect(body).toContain('Asia/Jerusalem');
+    expect(body).toContain('היום / אתמול');
+    expect(body).not.toContain('Right now');
+    expect(body).not.toContain('this morning');
   });
 });

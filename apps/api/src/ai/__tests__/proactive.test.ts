@@ -33,4 +33,26 @@ describe('buildTriggerBody', () => {
     expect(he).toContain('רמז: סיכום בוקר');
     expect(he).toContain('עברית מדוברת');
   });
+
+  it('anchors a Hebrew digest to now in the group timezone', () => {
+    const now = new Date('2026-08-21T07:00:00.000Z');
+    const he = buildTriggerBody('daily_digest', { time: '09:00', frequency: 'daily', timezone: 'Asia/Jerusalem' }, { languageMode: 'he', now, timeZone: 'Asia/Jerusalem' });
+    expect(he).toContain('סיכום קצר');
+    expect(he).toContain('Asia/Jerusalem');
+    expect(he).toContain('10:00');
+    expect(he).toContain('היום / אתמול');
+    expect(he).not.toContain('Right now');
+    expect(he).not.toContain('this morning');
+  });
+
+  it('anchors an English digest to now in the group timezone', () => {
+    const now = new Date('2026-08-21T07:00:00.000Z');
+    const en = buildTriggerBody('daily_digest', { time: '09:00', frequency: 'daily', timezone: 'Asia/Jerusalem' }, { languageMode: 'en', now, timeZone: 'Asia/Jerusalem' });
+    expect(en).toContain('daily summary');
+    expect(en).toContain('Asia/Jerusalem');
+    expect(en).toContain('10:00');
+    expect(en).toContain('today / yesterday');
+    expect(en).not.toContain('היום');
+    expect(en).not.toContain('אתמול');
+  });
 });
