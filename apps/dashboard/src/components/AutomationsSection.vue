@@ -261,7 +261,7 @@
             type="button"
             class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
             :disabled="silenceNudge.previewing || !group?.status?.startsWith('active')"
-            @click="previewSilenceNudge"
+            @click="previewAutomationDraft(silenceNudge)"
           >
             <span v-if="silenceNudge.previewing" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
             <span v-else class="material-symbols-outlined text-[13px]">visibility</span>
@@ -283,13 +283,13 @@
               type="button"
               class="btn btn-primary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
               :disabled="silenceNudge.sending || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
-              @click="sendSilenceNudge"
+              @click="sendAutomationDraft(silenceNudge)"
             >
               <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
               <span v-else class="material-symbols-outlined text-[13px]">send</span>
               {{ t('automations.sendNudge') }}
             </button>
-            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="silenceNudge.sending" @click="cancelSilencePreview">
+            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="silenceNudge.sending" @click="cancelAutomationPreview(silenceNudge)">
               {{ t('common.cancel') }}
             </button>
           </div>
@@ -345,16 +345,39 @@
           <button
             type="button"
             class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
-            :disabled="dailyDigest.triggering || !group?.status?.startsWith('active')"
-            @click="triggerDailyDigest"
+            :disabled="dailyDigest.previewing || !group?.status?.startsWith('active')"
+            @click="previewAutomationDraft(dailyDigest)"
           >
-            <span v-if="dailyDigest.triggering" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
-            <span v-else class="material-symbols-outlined text-[13px]">send</span>
-            {{ t('automations.triggerNow') }}
+            <span v-if="dailyDigest.previewing" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+            <span v-else class="material-symbols-outlined text-[13px]">visibility</span>
+            {{ dailyDigest.draft ? t('automations.regeneratePreview') : t('automations.previewDigest') }}
           </button>
           <span v-if="dailyDigest.last_fired_at" class="text-[10px] text-on-surface-variant">
             {{ t('automations.lastSent', { time: formatTime(dailyDigest.last_fired_at) }) }}
           </span>
+        </div>
+
+        <div v-if="dailyDigest.draft !== null" class="mt-2 space-y-2 rounded-lg border border-outline-variant/60 bg-surface/60 p-2.5">
+          <textarea
+            v-model="dailyDigest.draft"
+            rows="5"
+            class="w-full resize-y rounded-lg border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] leading-relaxed text-on-surface outline-none focus:border-primary/50"
+          />
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-primary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
+              :disabled="dailyDigest.sending || !dailyDigest.draft?.trim() || !group?.status?.startsWith('active')"
+              @click="sendAutomationDraft(dailyDigest)"
+            >
+              <span v-if="dailyDigest.sending" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
+              <span v-else class="material-symbols-outlined text-[13px]">send</span>
+              {{ t('automations.sendDigest') }}
+            </button>
+            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="dailyDigest.sending" @click="cancelAutomationPreview(dailyDigest)">
+              {{ t('common.cancel') }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -386,27 +409,29 @@ const loading = ref(true);
 const loadError = ref<string | null>(null);
 const expandedPostIds = ref<Set<string>>(new Set());
 
-interface SilenceState {
+type AutomationDraftTokens = { input_tokens: number; output_tokens: number };
+
+interface PreviewableAutomation {
   id: string | null;
-  enabled: boolean;
-  threshold_hours: number;
   last_fired_at: string | null;
-  saving: boolean;
   previewing: boolean;
   sending: boolean;
   draft: string | null;
-  draftTokens: { input_tokens: number; output_tokens: number } | null;
+  draftTokens: AutomationDraftTokens | null;
 }
 
-interface DigestState {
-  id: string | null;
+interface SilenceState extends PreviewableAutomation {
+  enabled: boolean;
+  threshold_hours: number;
+  saving: boolean;
+}
+
+interface DigestState extends PreviewableAutomation {
   enabled: boolean;
   time: string;
   frequency: 'daily' | 'weekly';
   weekday: number;
-  last_fired_at: string | null;
   saving: boolean;
-  triggering: boolean;
 }
 
 interface ScheduledPostItem {
@@ -434,7 +459,19 @@ const silenceNudge = reactive<SilenceState>({
   draft: null,
   draftTokens: null,
 });
-const dailyDigest = reactive<DigestState>({ id: null, enabled: false, time: '09:00', frequency: 'daily', weekday: 0, last_fired_at: null, saving: false, triggering: false });
+const dailyDigest = reactive<DigestState>({
+  id: null,
+  enabled: false,
+  time: '09:00',
+  frequency: 'daily',
+  weekday: 0,
+  last_fired_at: null,
+  saving: false,
+  previewing: false,
+  sending: false,
+  draft: null,
+  draftTokens: null,
+});
 const scheduledPosts = ref<ScheduledPostItem[]>([]);
 const addingPost = ref(false);
 const newPost = reactive({
@@ -600,64 +637,50 @@ async function saveSingletonAutomation(type: 'silence_nudge' | 'daily_digest') {
   }
 }
 
-async function previewSilenceNudge() {
-  if (!silenceNudge.id) {
-    showToast(t('automations.failedSave'), 'error');
-    return;
-  }
-  silenceNudge.previewing = true;
-  try {
-    const result = await apiFetch<{ ok: boolean; body: string; input_tokens?: number; output_tokens?: number }>(`/automations/${silenceNudge.id}/preview`, {
-      method: 'POST',
-    });
-    silenceNudge.draft = result.body;
-    silenceNudge.draftTokens = { input_tokens: result.input_tokens ?? 0, output_tokens: result.output_tokens ?? 0 };
-  } catch (e) {
-    showToast(e instanceof Error ? e.message : t('automations.previewFailed'), 'error');
-  } finally {
-    silenceNudge.previewing = false;
-  }
-}
-
-async function sendSilenceNudge() {
-  if (!silenceNudge.id || !silenceNudge.draft?.trim()) return;
-  silenceNudge.sending = true;
-  try {
-    const result = await apiFetch<{ ok: boolean; body: string }>(`/automations/${silenceNudge.id}/send`, {
-      method: 'POST',
-      body: JSON.stringify({
-        message: silenceNudge.draft,
-        input_tokens: silenceNudge.draftTokens?.input_tokens,
-        output_tokens: silenceNudge.draftTokens?.output_tokens,
-      }),
-    });
-    showToast(t('automations.triggerSuccess', { preview: result.body.slice(0, 80) }), 'success');
-    silenceNudge.last_fired_at = new Date().toISOString();
-    silenceNudge.draft = null;
-    silenceNudge.draftTokens = null;
-  } catch (e) {
-    showToast(e instanceof Error ? e.message : t('automations.triggerFailed'), 'error');
-  } finally {
-    silenceNudge.sending = false;
-  }
-}
-
-async function triggerDailyDigest() {
-  const state = dailyDigest;
+async function previewAutomationDraft(state: PreviewableAutomation) {
   if (!state.id) {
     showToast(t('automations.failedSave'), 'error');
     return;
   }
-  state.triggering = true;
+  state.previewing = true;
   try {
-    const result = await apiFetch<{ ok: boolean; body: string }>(`/automations/${state.id}/trigger`, { method: 'POST' });
-    showToast(result.body.slice(0, 80), 'success');
+    const result = await apiFetch<{ ok: boolean; body: string; input_tokens?: number; output_tokens?: number }>(`/automations/${state.id}/preview`, {
+      method: 'POST',
+    });
+    state.draft = result.body;
+    state.draftTokens = { input_tokens: result.input_tokens ?? 0, output_tokens: result.output_tokens ?? 0 };
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : t('automations.previewFailed'), 'error');
+  } finally {
+    state.previewing = false;
+  }
+}
+
+async function sendAutomationDraft(state: PreviewableAutomation) {
+  if (!state.id || !state.draft?.trim()) return;
+  state.sending = true;
+  try {
+    const result = await apiFetch<{ ok: boolean; body: string }>(`/automations/${state.id}/send`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message: state.draft,
+        input_tokens: state.draftTokens?.input_tokens,
+        output_tokens: state.draftTokens?.output_tokens,
+      }),
+    });
+    showToast(t('automations.triggerSuccess', { preview: result.body.slice(0, 80) }), 'success');
     state.last_fired_at = new Date().toISOString();
+    cancelAutomationPreview(state);
   } catch (e) {
     showToast(e instanceof Error ? e.message : t('automations.triggerFailed'), 'error');
   } finally {
-    state.triggering = false;
+    state.sending = false;
   }
+}
+
+function cancelAutomationPreview(state: PreviewableAutomation) {
+  state.draft = null;
+  state.draftTokens = null;
 }
 
 async function toggleScheduledPost(post: ScheduledPostItem) {
@@ -752,11 +775,6 @@ function openAddPost() {
 function cancelAddPost() {
   addingPost.value = false;
   resetNewPost();
-}
-
-function cancelSilencePreview() {
-  silenceNudge.draft = null;
-  silenceNudge.draftTokens = null;
 }
 
 function showToast(message: string, type: 'success' | 'error') {
