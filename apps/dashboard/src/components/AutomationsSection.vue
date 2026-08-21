@@ -260,7 +260,7 @@
           <button
             type="button"
             class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
-            :disabled="silenceNudge.previewing || !group?.status?.startsWith('active')"
+            :disabled="silenceNudge.previewing || silenceNudge.sending || silenceNudge.saving || !silenceNudge.id || !group?.status?.startsWith('active')"
             @click="previewAutomationDraft(silenceNudge)"
           >
             <span v-if="silenceNudge.previewing" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
@@ -282,14 +282,14 @@
             <button
               type="button"
               class="btn btn-primary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
-              :disabled="silenceNudge.sending || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
+              :disabled="silenceNudge.sending || silenceNudge.previewing || !silenceNudge.draft?.trim() || !group?.status?.startsWith('active')"
               @click="sendAutomationDraft(silenceNudge)"
             >
               <span v-if="silenceNudge.sending" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
               <span v-else class="material-symbols-outlined text-[13px]">send</span>
               {{ t('automations.sendNudge') }}
             </button>
-            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="silenceNudge.sending" @click="cancelAutomationPreview(silenceNudge)">
+            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="silenceNudge.sending || silenceNudge.previewing" @click="cancelAutomationPreview(silenceNudge)">
               {{ t('common.cancel') }}
             </button>
           </div>
@@ -345,7 +345,7 @@
           <button
             type="button"
             class="btn btn-secondary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
-            :disabled="dailyDigest.previewing || !group?.status?.startsWith('active')"
+            :disabled="dailyDigest.previewing || dailyDigest.sending || dailyDigest.saving || !dailyDigest.id || !group?.status?.startsWith('active')"
             @click="previewAutomationDraft(dailyDigest)"
           >
             <span v-if="dailyDigest.previewing" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
@@ -367,14 +367,14 @@
             <button
               type="button"
               class="btn btn-primary flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
-              :disabled="dailyDigest.sending || !dailyDigest.draft?.trim() || !group?.status?.startsWith('active')"
+              :disabled="dailyDigest.sending || dailyDigest.previewing || !dailyDigest.draft?.trim() || !group?.status?.startsWith('active')"
               @click="sendAutomationDraft(dailyDigest)"
             >
               <span v-if="dailyDigest.sending" class="material-symbols-outlined animate-spin text-[13px]">progress_activity</span>
               <span v-else class="material-symbols-outlined text-[13px]">send</span>
               {{ t('automations.sendDigest') }}
             </button>
-            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="dailyDigest.sending" @click="cancelAutomationPreview(dailyDigest)">
+            <button type="button" class="btn btn-secondary px-2.5 py-1.5 text-[11px]" :disabled="dailyDigest.sending || dailyDigest.previewing" @click="cancelAutomationPreview(dailyDigest)">
               {{ t('common.cancel') }}
             </button>
           </div>
