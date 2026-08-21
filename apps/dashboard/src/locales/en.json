@@ -666,6 +666,7 @@
     "title": "Test Chat",
     "subtitle": "Preview Wavi's replies with full group context — nothing is sent or saved",
     "previewBanner": "Preview only. Messages here are not sent to WhatsApp and are not stored in the database.",
+    "previewShort": "Not sent to WhatsApp",
     "group": "Group",
     "selectGroup": "Select a group…",
     "sender": "Send as",

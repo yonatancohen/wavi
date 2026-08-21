@@ -80,7 +80,7 @@
       </div>
     </header>
 
-    <div class="page-content flex flex-col py-5 lg:py-6" :class="fillViewport ? 'page-content--fill' : 'min-h-0 flex-1'">
+    <div class="page-content flex flex-col" :class="fillViewport ? 'page-content--fill py-2 lg:py-6' : 'min-h-0 flex-1 py-5 lg:py-6'">
       <LoadingSkeletons v-if="loading" variant="group-detail" />
 
       <div v-else-if="error" class="rounded-xl border border-error/25 bg-error/[0.07] px-4 py-3 text-[13px] text-error">
