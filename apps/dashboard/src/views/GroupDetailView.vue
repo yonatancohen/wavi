@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGroupsStore } from '../stores/groups';
@@ -290,4 +290,9 @@ async function pause() {
 
 onMounted(load);
 watch(() => route.params.id, load);
+watch(activeTab, async (tab) => {
+  if (tab !== 'messages') return;
+  await nextTick();
+  await messagesRef.value?.scrollToBottom?.();
+});
 </script>

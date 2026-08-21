@@ -76,6 +76,8 @@ const hasMore = ref(false);
 const error = ref<string | null>(null);
 const scrollEl = ref<HTMLElement | null>(null);
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let resizeObserver: ResizeObserver | null = null;
+let pendingInitialScroll = true;
 
 function formatTime(iso: string) {
   const date = new Date(iso);
@@ -101,13 +103,12 @@ async function fetchPage(before?: string) {
 
 async function loadInitial() {
   loading.value = true;
+  pendingInitialScroll = true;
   error.value = null;
   try {
     const page = await fetchPage();
     messages.value = page.messages;
     hasMore.value = page.has_more;
-    await nextTick();
-    scrollToBottom();
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('messages.failedLoad');
     messages.value = [];
@@ -115,6 +116,7 @@ async function loadInitial() {
   } finally {
     loading.value = false;
   }
+  await stickToLatest();
 }
 
 async function loadOlder() {
@@ -150,7 +152,29 @@ async function loadOlder() {
 
 function scrollToBottom() {
   const el = scrollEl.value;
-  if (el) el.scrollTop = el.scrollHeight;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+}
+
+/** The list mounts after loading=false, and the tab may be display:none until selected. */
+async function stickToLatest() {
+  await nextTick();
+  scrollToBottom();
+  requestAnimationFrame(() => {
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      if (!tryFinishInitialScroll()) scrollToBottom();
+    });
+  });
+}
+
+function tryFinishInitialScroll(): boolean {
+  const el = scrollEl.value;
+  if (!el || !pendingInitialScroll) return false;
+  if (el.clientHeight < 1) return false;
+  el.scrollTop = el.scrollHeight;
+  pendingInitialScroll = false;
+  return true;
 }
 
 function onScroll() {
@@ -193,6 +217,16 @@ function unsubscribeRealtime() {
   }
 }
 
+watch(scrollEl, (el) => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  resizeObserver = new ResizeObserver(() => {
+    tryFinishInitialScroll();
+  });
+  resizeObserver.observe(el);
+});
+
 watch(
   () => props.groupId,
   () => {
@@ -206,7 +240,11 @@ onMounted(() => {
   subscribeRealtime();
 });
 
-onUnmounted(unsubscribeRealtime);
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  unsubscribeRealtime();
+});
 
-defineExpose({ reload: loadInitial });
+defineExpose({ reload: loadInitial, scrollToBottom: stickToLatest });
 </script>
